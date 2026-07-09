@@ -2159,24 +2159,31 @@
     ]
   },
   "packageFolders": {
-    "/home/ubuntu/.nuget/packages/": {}
+    "C:\\Users\\W1022804\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/home/ubuntu/convolab/src/Api/ConvoLab.Api/ConvoLab.Api.csproj",
+      "projectUniqueName": "C:\\Users\\W1022804\\convolab\\src\\Api\\ConvoLab.Api\\ConvoLab.Api.csproj",
       "projectName": "ConvoLab.Api",
-      "projectPath": "/home/ubuntu/convolab/src/Api/ConvoLab.Api/ConvoLab.Api.csproj",
-      "packagesPath": "/home/ubuntu/.nuget/packages/",
-      "outputPath": "/home/ubuntu/convolab/src/Api/ConvoLab.Api/obj/",
+      "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Api\\ConvoLab.Api\\ConvoLab.Api.csproj",
+      "packagesPath": "C:\\Users\\W1022804\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\W1022804\\convolab\\src\\Api\\ConvoLab.Api\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "/home/ubuntu/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\W1022804\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -2184,14 +2191,14 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
-            "/home/ubuntu/convolab/src/Application/ConvoLab.Application/ConvoLab.Application.csproj": {
-              "projectPath": "/home/ubuntu/convolab/src/Application/ConvoLab.Application/ConvoLab.Application.csproj"
+            "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\ConvoLab.Application.csproj": {
+              "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\ConvoLab.Application.csproj"
             },
-            "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj": {
-              "projectPath": "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj"
+            "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj": {
+              "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj"
             },
-            "/home/ubuntu/convolab/src/Infrastructure/ConvoLab.Infrastructure/ConvoLab.Infrastructure.csproj": {
-              "projectPath": "/home/ubuntu/convolab/src/Infrastructure/ConvoLab.Infrastructure/ConvoLab.Infrastructure.csproj"
+            "C:\\Users\\W1022804\\convolab\\src\\Infrastructure\\ConvoLab.Infrastructure\\ConvoLab.Infrastructure.csproj": {
+              "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Infrastructure\\ConvoLab.Infrastructure\\ConvoLab.Infrastructure.csproj"
             }
           }
         }
@@ -2277,7 +2284,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/home/ubuntu/.dotnet/sdk/10.0.301/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",
