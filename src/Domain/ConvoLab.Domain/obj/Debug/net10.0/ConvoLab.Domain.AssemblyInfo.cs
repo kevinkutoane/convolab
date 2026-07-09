@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ConvoLab.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9b0ac6803b86fb90356c1d17acf8e50474bce239")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f0ec893b43c3413a5a65a8169ea30f888190e8ab")]
 [assembly: System.Reflection.AssemblyProductAttribute("ConvoLab.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ConvoLab.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

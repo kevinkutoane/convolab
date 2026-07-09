@@ -1,34 +1,40 @@
 {
   "format": 1,
   "restore": {
-    "/home/ubuntu/convolab/src/Application/ConvoLab.Application/ConvoLab.Application.csproj": {}
+    "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\ConvoLab.Application.csproj": {}
   },
   "projects": {
-    "/home/ubuntu/convolab/src/Application/ConvoLab.Application/ConvoLab.Application.csproj": {
+    "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\ConvoLab.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/ubuntu/convolab/src/Application/ConvoLab.Application/ConvoLab.Application.csproj",
+        "projectUniqueName": "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\ConvoLab.Application.csproj",
         "projectName": "ConvoLab.Application",
-        "projectPath": "/home/ubuntu/convolab/src/Application/ConvoLab.Application/ConvoLab.Application.csproj",
-        "packagesPath": "/home/ubuntu/.nuget/packages/",
-        "outputPath": "/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/",
+        "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\ConvoLab.Application.csproj",
+        "packagesPath": "C:\\Users\\W1022804\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "/home/ubuntu/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\W1022804\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
-          "/usr/lib/dotnet/library-packs": {},
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net10.0": {
+            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {
-              "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj": {
-                "projectPath": "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj"
+              "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj": {
+                "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj"
               }
             }
           }
@@ -43,10 +49,11 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.100"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
             "FluentValidation": {
@@ -74,7 +81,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/10.0.109/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
@@ -352,27 +359,33 @@
         }
       }
     },
-    "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj": {
+    "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj",
+        "projectUniqueName": "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj",
         "projectName": "ConvoLab.Domain",
-        "projectPath": "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj",
-        "packagesPath": "/home/ubuntu/.nuget/packages/",
-        "outputPath": "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/obj/",
+        "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj",
+        "packagesPath": "C:\\Users\\W1022804\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "/home/ubuntu/.nuget/NuGet/NuGet.Config"
+          "C:\\Users\\W1022804\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net10.0"
         ],
         "sources": {
-          "/usr/lib/dotnet/library-packs": {},
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net10.0": {
+            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {}
           }
@@ -387,10 +400,11 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.100"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
             "MediatR": {
@@ -414,7 +428,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/lib/dotnet/sdk/10.0.109/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.CSharp": "(,4.7.32767]",
             "Microsoft.VisualBasic": "(,10.4.32767]",
