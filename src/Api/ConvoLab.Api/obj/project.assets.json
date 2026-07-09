@@ -15,6 +15,22 @@
           }
         }
       },
+      "FluentValidation.DependencyInjectionExtensions/12.1.1": {
+        "type": "package",
+        "dependencies": {
+          "FluentValidation": "12.1.1"
+        },
+        "compile": {
+          "lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "MediatR/14.2.0": {
         "type": "package",
         "dependencies": {
@@ -397,6 +413,54 @@
           "Microsoft.AspNetCore.App"
         ]
       },
+      "OpenTelemetry.Instrumentation.EntityFrameworkCore/1.0.0-beta.11": {
+        "type": "package",
+        "dependencies": {
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.8.0, 2.0.0)"
+        },
+        "compile": {
+          "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "OpenTelemetry.Instrumentation.Http/1.16.0": {
+        "type": "package",
+        "dependencies": {
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "[1.16.0, 2.0.0)"
+        },
+        "compile": {
+          "lib/net10.0/OpenTelemetry.Instrumentation.Http.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0/OpenTelemetry.Instrumentation.Http.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "OpenTelemetry.Instrumentation.Runtime/1.15.1": {
+        "type": "package",
+        "dependencies": {
+          "OpenTelemetry.Api": "[1.15.3, 2.0.0)"
+        },
+        "compile": {
+          "lib/net10.0/OpenTelemetry.Instrumentation.Runtime.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0/OpenTelemetry.Instrumentation.Runtime.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Serilog/4.3.1": {
         "type": "package",
         "compile": {
@@ -764,7 +828,9 @@
         "dependencies": {
           "ConvoLab.Domain": "1.0.0",
           "FluentValidation": "12.1.1",
-          "MediatR": "14.2.0"
+          "FluentValidation.DependencyInjectionExtensions": "12.1.1",
+          "MediatR": "14.2.0",
+          "Microsoft.EntityFrameworkCore": "10.0.9"
         },
         "compile": {
           "bin/placeholder/ConvoLab.Application.dll": {}
@@ -819,6 +885,21 @@
         "fluentvalidation.nuspec",
         "lib/net8.0/FluentValidation.dll",
         "lib/net8.0/FluentValidation.xml"
+      ]
+    },
+    "FluentValidation.DependencyInjectionExtensions/12.1.1": {
+      "sha512": "D0VXh4dtjjX2aQizuaa0g6R8X3U1JaVqJPfGCvLwZX9t/O2h7tkpbitbadQMfwcgSPdDbI2vDxuwRMv/Uf9dHA==",
+      "type": "package",
+      "path": "fluentvalidation.dependencyinjectionextensions/12.1.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "fluent-validation-icon.png",
+        "fluentvalidation.dependencyinjectionextensions.12.1.1.nupkg.sha512",
+        "fluentvalidation.dependencyinjectionextensions.nuspec",
+        "lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll",
+        "lib/net8.0/FluentValidation.DependencyInjectionExtensions.xml"
       ]
     },
     "MediatR/14.2.0": {
@@ -1593,6 +1674,64 @@
         "opentelemetry.instrumentation.aspnetcore.nuspec"
       ]
     },
+    "OpenTelemetry.Instrumentation.EntityFrameworkCore/1.0.0-beta.11": {
+      "sha512": "1Fe7JVGuUimbF87gx4tuODQqxDkBBMelVh+n0b5YuYHNO9kNt3yaIrR9UnphIxr0AYlnqq5xNJTBKM2lZrbqNA==",
+      "type": "package",
+      "path": "opentelemetry.instrumentation.entityframeworkcore/1.0.0-beta.11",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.dll",
+        "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.xml",
+        "opentelemetry-icon-color.png",
+        "opentelemetry.instrumentation.entityframeworkcore.1.0.0-beta.11.nupkg.sha512",
+        "opentelemetry.instrumentation.entityframeworkcore.nuspec"
+      ]
+    },
+    "OpenTelemetry.Instrumentation.Http/1.16.0": {
+      "sha512": "+Sz3lfvMXwWE8s/sMruHCDlO/+cArFVc6oBg1tCb70BKlL9FCC7uK4Ar2/VP9Hhwvs+UwaW1vGzE/uiByVHXiA==",
+      "type": "package",
+      "path": "opentelemetry.instrumentation.http/1.16.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.TXT",
+        "README.md",
+        "lib/net10.0/OpenTelemetry.Instrumentation.Http.dll",
+        "lib/net10.0/OpenTelemetry.Instrumentation.Http.xml",
+        "lib/net462/OpenTelemetry.Instrumentation.Http.dll",
+        "lib/net462/OpenTelemetry.Instrumentation.Http.xml",
+        "lib/net8.0/OpenTelemetry.Instrumentation.Http.dll",
+        "lib/net8.0/OpenTelemetry.Instrumentation.Http.xml",
+        "lib/netstandard2.0/OpenTelemetry.Instrumentation.Http.dll",
+        "lib/netstandard2.0/OpenTelemetry.Instrumentation.Http.xml",
+        "opentelemetry-icon-color.png",
+        "opentelemetry.instrumentation.http.1.16.0.nupkg.sha512",
+        "opentelemetry.instrumentation.http.nuspec"
+      ]
+    },
+    "OpenTelemetry.Instrumentation.Runtime/1.15.1": {
+      "sha512": "cpPwlUT5HXcLGPaIgsbSy0W9eFYAPGVbTP1p8/uyQ4Osvf5BJuPpEXE7crL09SmEd44r0DGNKDtsqxaAz0HxQw==",
+      "type": "package",
+      "path": "opentelemetry.instrumentation.runtime/1.15.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.TXT",
+        "README.md",
+        "lib/net10.0/OpenTelemetry.Instrumentation.Runtime.dll",
+        "lib/net10.0/OpenTelemetry.Instrumentation.Runtime.xml",
+        "lib/net462/OpenTelemetry.Instrumentation.Runtime.dll",
+        "lib/net462/OpenTelemetry.Instrumentation.Runtime.xml",
+        "lib/net8.0/OpenTelemetry.Instrumentation.Runtime.dll",
+        "lib/net8.0/OpenTelemetry.Instrumentation.Runtime.xml",
+        "lib/netstandard2.0/OpenTelemetry.Instrumentation.Runtime.dll",
+        "lib/netstandard2.0/OpenTelemetry.Instrumentation.Runtime.xml",
+        "opentelemetry-icon-color.png",
+        "opentelemetry.instrumentation.runtime.1.15.1.nupkg.sha512",
+        "opentelemetry.instrumentation.runtime.nuspec"
+      ]
+    },
     "Serilog/4.3.1": {
       "sha512": "savYe7h5yRlkqBVOwP8cIRDOdqKiPmYCU4W87JH38sBmcKD5EBoXvQIw6bNEvZ/pTe1gsiye3VFCzBsoppGkXQ==",
       "type": "package",
@@ -2011,37 +2150,33 @@
       "OpenTelemetry.Exporter.Console >= 1.16.0",
       "OpenTelemetry.Extensions.Hosting >= 1.16.0",
       "OpenTelemetry.Instrumentation.AspNetCore >= 1.16.0",
+      "OpenTelemetry.Instrumentation.EntityFrameworkCore >= 1.0.0-beta.11",
+      "OpenTelemetry.Instrumentation.Http >= 1.16.0",
+      "OpenTelemetry.Instrumentation.Runtime >= 1.15.1",
       "Serilog >= 4.3.1",
       "Serilog.AspNetCore >= 10.0.0",
       "Swashbuckle.AspNetCore >= 10.2.3"
     ]
   },
   "packageFolders": {
-    "C:\\Users\\W1022804\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+    "/home/ubuntu/.nuget/packages/": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\W1022804\\convolab\\src\\Api\\ConvoLab.Api\\ConvoLab.Api.csproj",
+      "projectUniqueName": "/home/ubuntu/convolab/src/Api/ConvoLab.Api/ConvoLab.Api.csproj",
       "projectName": "ConvoLab.Api",
-      "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Api\\ConvoLab.Api\\ConvoLab.Api.csproj",
-      "packagesPath": "C:\\Users\\W1022804\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\W1022804\\convolab\\src\\Api\\ConvoLab.Api\\obj\\",
+      "projectPath": "/home/ubuntu/convolab/src/Api/ConvoLab.Api/ConvoLab.Api.csproj",
+      "packagesPath": "/home/ubuntu/.nuget/packages/",
+      "outputPath": "/home/ubuntu/convolab/src/Api/ConvoLab.Api/obj/",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "C:\\Users\\W1022804\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        "/home/ubuntu/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
       ],
       "sources": {
-        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -2049,14 +2184,14 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
-            "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\ConvoLab.Application.csproj": {
-              "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Application\\ConvoLab.Application\\ConvoLab.Application.csproj"
+            "/home/ubuntu/convolab/src/Application/ConvoLab.Application/ConvoLab.Application.csproj": {
+              "projectPath": "/home/ubuntu/convolab/src/Application/ConvoLab.Application/ConvoLab.Application.csproj"
             },
-            "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj": {
-              "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Domain\\ConvoLab.Domain\\ConvoLab.Domain.csproj"
+            "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj": {
+              "projectPath": "/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/ConvoLab.Domain.csproj"
             },
-            "C:\\Users\\W1022804\\convolab\\src\\Infrastructure\\ConvoLab.Infrastructure\\ConvoLab.Infrastructure.csproj": {
-              "projectPath": "C:\\Users\\W1022804\\convolab\\src\\Infrastructure\\ConvoLab.Infrastructure\\ConvoLab.Infrastructure.csproj"
+            "/home/ubuntu/convolab/src/Infrastructure/ConvoLab.Infrastructure/ConvoLab.Infrastructure.csproj": {
+              "projectPath": "/home/ubuntu/convolab/src/Infrastructure/ConvoLab.Infrastructure/ConvoLab.Infrastructure.csproj"
             }
           }
         }
@@ -2098,6 +2233,18 @@
             "target": "Package",
             "version": "[1.16.0, )"
           },
+          "OpenTelemetry.Instrumentation.EntityFrameworkCore": {
+            "target": "Package",
+            "version": "[1.0.0-beta.11, )"
+          },
+          "OpenTelemetry.Instrumentation.Http": {
+            "target": "Package",
+            "version": "[1.16.0, )"
+          },
+          "OpenTelemetry.Instrumentation.Runtime": {
+            "target": "Package",
+            "version": "[1.15.1, )"
+          },
           "Serilog": {
             "target": "Package",
             "version": "[4.3.1, )"
@@ -2130,7 +2277,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json",
+        "runtimeIdentifierGraphPath": "/home/ubuntu/.dotnet/sdk/10.0.301/PortableRuntimeIdentifierGraph.json",
         "packagesToPrune": {
           "Microsoft.AspNetCore": "(,10.0.32767]",
           "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",

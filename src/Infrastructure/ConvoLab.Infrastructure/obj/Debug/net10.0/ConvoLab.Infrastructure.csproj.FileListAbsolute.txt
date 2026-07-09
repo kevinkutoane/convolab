@@ -15,3 +15,4 @@
 /home/ubuntu/convolab/src/Infrastructure/ConvoLab.Infrastructure/obj/Debug/net10.0/refint/ConvoLab.Infrastructure.dll
 /home/ubuntu/convolab/src/Infrastructure/ConvoLab.Infrastructure/obj/Debug/net10.0/ConvoLab.Infrastructure.pdb
 /home/ubuntu/convolab/src/Infrastructure/ConvoLab.Infrastructure/obj/Debug/net10.0/ref/ConvoLab.Infrastructure.dll
+/home/ubuntu/convolab/src/Infrastructure/ConvoLab.Infrastructure/obj/Debug/net10.0/ConvoLab.Infrastructure.sourcelink.json

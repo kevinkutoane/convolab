@@ -1,15 +1,16 @@
-using Serilog;
-using OpenTelemetry.Trace;
-using OpenTelemetry.Instrumentation.AspNetCore;
+using ConvoLab.Application;
 using ConvoLab.Infrastructure;
+using ConvoLab.Api.Middleware;
+using Serilog;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
-// Configure Serilog before building the host
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.Console()
-    .WriteTo.File("logs/convolab-.txt", rollingInterval: RollingInterval.Day)
     .Enrich.FromLogContext()
-    .Enrich.WithProperty("Application", "ConvoLab")
     .CreateLogger();
 
 try
@@ -18,83 +19,72 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    // Add Serilog
     builder.Host.UseSerilog();
 
-    // Add services to the container
-    builder.Services
-        .AddControllers()
-        .AddJsonOptions(options =>
-        {
-            options.JsonSerializerOptions.PropertyNamingPolicy = null;
-        });
-
-    // Add OpenAPI/Swagger
-    builder.Services.AddOpenApi();
-    builder.Services.AddSwaggerGen();
-
-    // Add health checks
-    builder.Services.AddHealthChecks();
+    // Add Clean Architecture Layers
+    builder.Services.AddApplication();
+    builder.Services.AddInfrastructure(builder.Configuration);
 
     // Add OpenTelemetry
     builder.Services.AddOpenTelemetry()
         .WithTracing(tracing => tracing
+            .AddSource("ConvoLab.Api")
+            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("ConvoLab.Api"))
             .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .AddEntityFrameworkCoreInstrumentation()
+            .AddConsoleExporter())
+        .WithMetrics(metrics => metrics
+            .AddMeter("ConvoLab.Api")
+            .AddAspNetCoreInstrumentation()
+            .AddRuntimeInstrumentation()
             .AddConsoleExporter());
 
-    // Add Infrastructure services
-    builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+    builder.Services.AddHealthChecks();
 
     var app = builder.Build();
 
-    // Configure the HTTP request pipeline
+    // Middleware Pipeline
+    app.UseMiddleware<GlobalExceptionMiddleware>();
+
     if (app.Environment.IsDevelopment())
     {
-        app.MapOpenApi();
         app.UseSwagger();
-        app.UseSwaggerUI(options =>
-        {
-            options.SwaggerEndpoint("/swagger/v1/swagger.json", "ConvoLab API v1");
-            options.RoutePrefix = string.Empty;
-        });
+        app.UseSwaggerUI();
     }
 
     app.UseHttpsRedirection();
     app.UseAuthorization();
-
-    // Map health checks
-    app.MapHealthChecks("/health");
-
-    // Map controllers
     app.MapControllers();
-
-    // Global exception handler middleware
-    app.UseExceptionHandler(errorApp =>
+    
+    app.MapHealthChecks("/health", new HealthCheckOptions
     {
-        errorApp.Run(async context =>
+        ResponseWriter = async (context, report) =>
         {
-            var exception = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
-            Log.Error(exception, "An unhandled exception occurred");
-
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
             context.Response.ContentType = "application/json";
-
             var response = new
             {
-                error = "An error occurred while processing your request",
-                message = app.Environment.IsDevelopment() ? exception?.Message : null
+                status = report.Status.ToString(),
+                checks = report.Entries.Select(x => new
+                {
+                    component = x.Key,
+                    status = x.Value.Status.ToString(),
+                    description = x.Value.Description
+                }),
+                duration = report.TotalDuration
             };
-
             await context.Response.WriteAsJsonAsync(response);
-        });
+        }
     });
 
-    Log.Information("ConvoLab API started successfully");
     await app.RunAsync();
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "ConvoLab API terminated unexpectedly");
+    Log.Fatal(ex, "Application terminated unexpectedly");
 }
 finally
 {

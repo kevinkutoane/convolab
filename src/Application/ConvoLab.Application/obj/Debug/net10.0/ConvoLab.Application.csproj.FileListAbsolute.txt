@@ -13,3 +13,4 @@
 /home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/refint/ConvoLab.Application.dll
 /home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.pdb
 /home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ref/ConvoLab.Application.dll
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.sourcelink.json

@@ -10,3 +10,4 @@
 /home/ubuntu/convolab/src/Domain/ConvoLab.Domain/obj/Debug/net10.0/refint/ConvoLab.Domain.dll
 /home/ubuntu/convolab/src/Domain/ConvoLab.Domain/obj/Debug/net10.0/ConvoLab.Domain.pdb
 /home/ubuntu/convolab/src/Domain/ConvoLab.Domain/obj/Debug/net10.0/ref/ConvoLab.Domain.dll
+/home/ubuntu/convolab/src/Domain/ConvoLab.Domain/obj/Debug/net10.0/ConvoLab.Domain.sourcelink.json

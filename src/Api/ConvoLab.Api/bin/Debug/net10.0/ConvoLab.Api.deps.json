@@ -16,6 +16,9 @@
           "OpenTelemetry.Exporter.Console": "1.16.0",
           "OpenTelemetry.Extensions.Hosting": "1.16.0",
           "OpenTelemetry.Instrumentation.AspNetCore": "1.16.0",
+          "OpenTelemetry.Instrumentation.EntityFrameworkCore": "1.0.0-beta.11",
+          "OpenTelemetry.Instrumentation.Http": "1.16.0",
+          "OpenTelemetry.Instrumentation.Runtime": "1.15.1",
           "Serilog": "4.3.1",
           "Serilog.AspNetCore": "10.0.0",
           "Swashbuckle.AspNetCore": "10.2.3"
@@ -27,6 +30,17 @@
       "FluentValidation/12.1.1": {
         "runtime": {
           "lib/net8.0/FluentValidation.dll": {
+            "assemblyVersion": "12.0.0.0",
+            "fileVersion": "12.1.1.0"
+          }
+        }
+      },
+      "FluentValidation.DependencyInjectionExtensions/12.1.1": {
+        "dependencies": {
+          "FluentValidation": "12.1.1"
+        },
+        "runtime": {
+          "lib/net8.0/FluentValidation.DependencyInjectionExtensions.dll": {
             "assemblyVersion": "12.0.0.0",
             "fileVersion": "12.1.1.0"
           }
@@ -264,6 +278,39 @@
           "lib/net10.0/OpenTelemetry.Instrumentation.AspNetCore.dll": {
             "assemblyVersion": "1.16.0.1140",
             "fileVersion": "1.16.0.1140"
+          }
+        }
+      },
+      "OpenTelemetry.Instrumentation.EntityFrameworkCore/1.0.0-beta.11": {
+        "dependencies": {
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.16.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/OpenTelemetry.Instrumentation.EntityFrameworkCore.dll": {
+            "assemblyVersion": "1.0.0.11",
+            "fileVersion": "1.0.0.11"
+          }
+        }
+      },
+      "OpenTelemetry.Instrumentation.Http/1.16.0": {
+        "dependencies": {
+          "OpenTelemetry.Api.ProviderBuilderExtensions": "1.16.0"
+        },
+        "runtime": {
+          "lib/net10.0/OpenTelemetry.Instrumentation.Http.dll": {
+            "assemblyVersion": "1.16.0.1135",
+            "fileVersion": "1.16.0.1135"
+          }
+        }
+      },
+      "OpenTelemetry.Instrumentation.Runtime/1.15.1": {
+        "dependencies": {
+          "OpenTelemetry.Api": "1.16.0"
+        },
+        "runtime": {
+          "lib/net10.0/OpenTelemetry.Instrumentation.Runtime.dll": {
+            "assemblyVersion": "1.15.1.1029",
+            "fileVersion": "1.15.1.1029"
           }
         }
       },
@@ -562,7 +609,9 @@
         "dependencies": {
           "ConvoLab.Domain": "1.0.0",
           "FluentValidation": "12.1.1",
-          "MediatR": "14.2.0"
+          "FluentValidation.DependencyInjectionExtensions": "12.1.1",
+          "MediatR": "14.2.0",
+          "Microsoft.EntityFrameworkCore": "10.0.9"
         },
         "runtime": {
           "ConvoLab.Application.dll": {
@@ -611,6 +660,13 @@
       "sha512": "sha512-EPpkIe1yh1a0OXyC100oOA8WMbZvqUu5plwhvYcb7oSELfyUZzfxV48BLhvs3kKo4NwG7MGLNgy1RJiYtT8Dpw==",
       "path": "fluentvalidation/12.1.1",
       "hashPath": "fluentvalidation.12.1.1.nupkg.sha512"
+    },
+    "FluentValidation.DependencyInjectionExtensions/12.1.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-D0VXh4dtjjX2aQizuaa0g6R8X3U1JaVqJPfGCvLwZX9t/O2h7tkpbitbadQMfwcgSPdDbI2vDxuwRMv/Uf9dHA==",
+      "path": "fluentvalidation.dependencyinjectionextensions/12.1.1",
+      "hashPath": "fluentvalidation.dependencyinjectionextensions.12.1.1.nupkg.sha512"
     },
     "MediatR/14.2.0": {
       "type": "package",
@@ -772,6 +828,27 @@
       "sha512": "sha512-vSC5EsmBVNcqXMh9BGkkq8zkoUjrg8ghBDb9zbKR8Bqjd05utjVgVft+fqsqQVsvlV5olGj1pBliHBngcIGSIg==",
       "path": "opentelemetry.instrumentation.aspnetcore/1.16.0",
       "hashPath": "opentelemetry.instrumentation.aspnetcore.1.16.0.nupkg.sha512"
+    },
+    "OpenTelemetry.Instrumentation.EntityFrameworkCore/1.0.0-beta.11": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1Fe7JVGuUimbF87gx4tuODQqxDkBBMelVh+n0b5YuYHNO9kNt3yaIrR9UnphIxr0AYlnqq5xNJTBKM2lZrbqNA==",
+      "path": "opentelemetry.instrumentation.entityframeworkcore/1.0.0-beta.11",
+      "hashPath": "opentelemetry.instrumentation.entityframeworkcore.1.0.0-beta.11.nupkg.sha512"
+    },
+    "OpenTelemetry.Instrumentation.Http/1.16.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-+Sz3lfvMXwWE8s/sMruHCDlO/+cArFVc6oBg1tCb70BKlL9FCC7uK4Ar2/VP9Hhwvs+UwaW1vGzE/uiByVHXiA==",
+      "path": "opentelemetry.instrumentation.http/1.16.0",
+      "hashPath": "opentelemetry.instrumentation.http.1.16.0.nupkg.sha512"
+    },
+    "OpenTelemetry.Instrumentation.Runtime/1.15.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-cpPwlUT5HXcLGPaIgsbSy0W9eFYAPGVbTP1p8/uyQ4Osvf5BJuPpEXE7crL09SmEd44r0DGNKDtsqxaAz0HxQw==",
+      "path": "opentelemetry.instrumentation.runtime/1.15.1",
+      "hashPath": "opentelemetry.instrumentation.runtime.1.15.1.nupkg.sha512"
     },
     "Serilog/4.3.1": {
       "type": "package",
