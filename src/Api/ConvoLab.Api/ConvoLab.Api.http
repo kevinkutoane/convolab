@@ -1,0 +1,6 @@
+@ConvoLab.Api_HostAddress = http://localhost:5117
+
+GET {{ConvoLab.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

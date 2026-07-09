@@ -1,0 +1,15 @@
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/bin/Debug/net10.0/ConvoLab.Application.deps.json
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/bin/Debug/net10.0/ConvoLab.Application.dll
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/bin/Debug/net10.0/ConvoLab.Application.pdb
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/bin/Debug/net10.0/ConvoLab.Domain.dll
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/bin/Debug/net10.0/ConvoLab.Domain.pdb
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.csproj.AssemblyReference.cache
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.GeneratedMSBuildEditorConfig.editorconfig
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.AssemblyInfoInputs.cache
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.AssemblyInfo.cs
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.csproj.CoreCompileInputs.cache
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.37ECE9B2.Up2Date
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.dll
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/refint/ConvoLab.Application.dll
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ConvoLab.Application.pdb
+/home/ubuntu/convolab/src/Application/ConvoLab.Application/obj/Debug/net10.0/ref/ConvoLab.Application.dll

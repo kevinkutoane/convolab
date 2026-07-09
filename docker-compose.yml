@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: convolab-postgres
+    environment:
+      POSTGRES_DB: convolab
+      POSTGRES_USER: convolab_user
+      POSTGRES_PASSWORD: convolab_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U convolab_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - convolab-network
+
+  # ConvoLab API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: convolab-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5000
+      ConnectionStrings__DefaultConnection: "Server=postgres;Database=convolab;User Id=convolab_user;Password=convolab_password;"
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./logs:/app/logs
+    networks:
+      - convolab-network
+
+volumes:
+  postgres_data:
+
+networks:
+  convolab-network:
+    driver: bridge
