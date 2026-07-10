@@ -9,116 +9,116 @@ namespace ConvoLab.Domain.Execution.ValueObjects;
 
 public class ExecutionContext : ValueObject
 {
+    public ExecutionId ExecutionId { get; private set; }
     public ConversationId? ConversationId { get; private set; }
-    public UserId? UserId { get; private set; }
+    public Guid? WorkflowId { get; private set; }
     public Guid? TenantId { get; private set; }
+    public UserId? UserId { get; private set; }
     public Guid CorrelationId { get; private set; }
-    public PromptTemplateId? CurrentPromptTemplateId { get; private set; }
-    public string? RetrievedKnowledgeContext { get; private set; }
-    public string? SelectedAIProvider { get; private set; }
-    public AIModelId? SelectedAIModelId { get; private set; }
-    public IReadOnlyDictionary<string, string> Metadata { get; private set; }
+    
+    public string? Culture { get; private set; }
+    public string? Locale { get; private set; }
+    public string? Timezone { get; private set; }
+    
+    public IReadOnlyList<string> FeatureFlags { get; private set; }
+    public string? SelectedProvider { get; private set; }
+    public AIModelId? SelectedModel { get; private set; }
+    
     public IReadOnlyDictionary<string, string> ExecutionVariables { get; private set; }
-    public CancellationToken CancellationToken { get; private set; }
+    public string? MemoryReference { get; private set; }
+    public string? PromptReference { get; private set; }
+    public string? KnowledgeReference { get; private set; }
+    
+    public IReadOnlyDictionary<string, string> Metadata { get; private set; }
+    public IReadOnlyList<string> Attachments { get; private set; }
+    
+    public DateTime ExecutionStartTime { get; private set; }
+    public DateTime? ExecutionDeadline { get; private set; }
 
     private ExecutionContext(
+        ExecutionId executionId,
         Guid correlationId,
         ConversationId? conversationId = null,
-        UserId? userId = null,
+        Guid? workflowId = null,
         Guid? tenantId = null,
-        PromptTemplateId? currentPromptTemplateId = null,
-        string? retrievedKnowledgeContext = null,
-        string? selectedAIProvider = null,
-        AIModelId? selectedAIModelId = null,
-        IReadOnlyDictionary<string, string>? metadata = null,
+        UserId? userId = null,
+        string? culture = null,
+        string? locale = null,
+        string? timezone = null,
+        IEnumerable<string>? featureFlags = null,
+        string? selectedProvider = null,
+        AIModelId? selectedModel = null,
         IReadOnlyDictionary<string, string>? executionVariables = null,
-        CancellationToken cancellationToken = default)
+        string? memoryReference = null,
+        string? promptReference = null,
+        string? knowledgeReference = null,
+        IReadOnlyDictionary<string, string>? metadata = null,
+        IEnumerable<string>? attachments = null,
+        DateTime? executionStartTime = null,
+        DateTime? executionDeadline = null)
     {
+        ExecutionId = executionId;
         CorrelationId = correlationId;
         ConversationId = conversationId;
-        UserId = userId;
+        WorkflowId = workflowId;
         TenantId = tenantId;
-        CurrentPromptTemplateId = currentPromptTemplateId;
-        RetrievedKnowledgeContext = retrievedKnowledgeContext;
-        SelectedAIProvider = selectedAIProvider;
-        SelectedAIModelId = selectedAIModelId;
-        Metadata = metadata ?? new Dictionary<string, string>();
+        UserId = userId;
+        Culture = culture;
+        Locale = locale;
+        Timezone = timezone;
+        FeatureFlags = featureFlags?.ToList().AsReadOnly() ?? new List<string>().AsReadOnly();
+        SelectedProvider = selectedProvider;
+        SelectedModel = selectedModel;
         ExecutionVariables = executionVariables ?? new Dictionary<string, string>();
-        CancellationToken = cancellationToken;
+        MemoryReference = memoryReference;
+        PromptReference = promptReference;
+        KnowledgeReference = knowledgeReference;
+        Metadata = metadata ?? new Dictionary<string, string>();
+        Attachments = attachments?.ToList().AsReadOnly() ?? new List<string>().AsReadOnly();
+        ExecutionStartTime = executionStartTime ?? DateTime.UtcNow;
+        ExecutionDeadline = executionDeadline;
     }
 
-    public static ExecutionContext Create(
-        Guid correlationId,
-        ConversationId? conversationId = null,
-        UserId? userId = null,
-        Guid? tenantId = null,
-        PromptTemplateId? currentPromptTemplateId = null,
-        string? retrievedKnowledgeContext = null,
-        string? selectedAIProvider = null,
-        AIModelId? selectedAIModelId = null,
-        IReadOnlyDictionary<string, string>? metadata = null,
-        IReadOnlyDictionary<string, string>? executionVariables = null,
-        CancellationToken cancellationToken = default)
+    public static ExecutionContext Create(ExecutionId executionId, Guid correlationId)
     {
-        return new ExecutionContext(
-            correlationId,
-            conversationId,
-            userId,
-            tenantId,
-            currentPromptTemplateId,
-            retrievedKnowledgeContext,
-            selectedAIProvider,
-            selectedAIModelId,
-            metadata,
-            executionVariables,
-            cancellationToken);
+        return new ExecutionContext(executionId, correlationId);
     }
 
-    public ExecutionContext WithConversationId(ConversationId conversationId) =>
-        new(CorrelationId, conversationId, UserId, TenantId, CurrentPromptTemplateId, RetrievedKnowledgeContext, SelectedAIProvider, SelectedAIModelId, Metadata, ExecutionVariables, CancellationToken);
+    // Wither patterns for immutability
+    public ExecutionContext WithConversationId(ConversationId conversationId) => 
+        new(ExecutionId, CorrelationId, conversationId, WorkflowId, TenantId, UserId, Culture, Locale, Timezone, FeatureFlags, SelectedProvider, SelectedModel, ExecutionVariables, MemoryReference, PromptReference, KnowledgeReference, Metadata, Attachments, ExecutionStartTime, ExecutionDeadline);
 
-    public ExecutionContext WithUserId(UserId userId) =>
-        new(CorrelationId, ConversationId, userId, TenantId, CurrentPromptTemplateId, RetrievedKnowledgeContext, SelectedAIProvider, SelectedAIModelId, Metadata, ExecutionVariables, CancellationToken);
+    public ExecutionContext WithWorkflowId(Guid workflowId) => 
+        new(ExecutionId, CorrelationId, ConversationId, workflowId, TenantId, UserId, Culture, Locale, Timezone, FeatureFlags, SelectedProvider, SelectedModel, ExecutionVariables, MemoryReference, PromptReference, KnowledgeReference, Metadata, Attachments, ExecutionStartTime, ExecutionDeadline);
 
-    public ExecutionContext WithTenantId(Guid tenantId) =>
-        new(CorrelationId, ConversationId, UserId, tenantId, CurrentPromptTemplateId, RetrievedKnowledgeContext, SelectedAIProvider, SelectedAIModelId, Metadata, ExecutionVariables, CancellationToken);
+    public ExecutionContext WithTenantId(Guid tenantId) => 
+        new(ExecutionId, CorrelationId, ConversationId, WorkflowId, tenantId, UserId, Culture, Locale, Timezone, FeatureFlags, SelectedProvider, SelectedModel, ExecutionVariables, MemoryReference, PromptReference, KnowledgeReference, Metadata, Attachments, ExecutionStartTime, ExecutionDeadline);
 
-    public ExecutionContext WithCurrentPromptTemplateId(PromptTemplateId promptTemplateId) =>
-        new(CorrelationId, ConversationId, UserId, TenantId, promptTemplateId, RetrievedKnowledgeContext, SelectedAIProvider, SelectedAIModelId, Metadata, ExecutionVariables, CancellationToken);
+    public ExecutionContext WithUserId(UserId userId) => 
+        new(ExecutionId, CorrelationId, ConversationId, WorkflowId, TenantId, userId, Culture, Locale, Timezone, FeatureFlags, SelectedProvider, SelectedModel, ExecutionVariables, MemoryReference, PromptReference, KnowledgeReference, Metadata, Attachments, ExecutionStartTime, ExecutionDeadline);
 
-    public ExecutionContext WithRetrievedKnowledgeContext(string knowledgeContext) =>
-        new(CorrelationId, ConversationId, UserId, TenantId, CurrentPromptTemplateId, knowledgeContext, SelectedAIProvider, SelectedAIModelId, Metadata, ExecutionVariables, CancellationToken);
+    public ExecutionContext WithSelectedModel(AIModelId modelId) => 
+        new(ExecutionId, CorrelationId, ConversationId, WorkflowId, TenantId, UserId, Culture, Locale, Timezone, FeatureFlags, SelectedProvider, modelId, ExecutionVariables, MemoryReference, PromptReference, KnowledgeReference, Metadata, Attachments, ExecutionStartTime, ExecutionDeadline);
 
-    public ExecutionContext WithSelectedAIProvider(string aiProvider) =>
-        new(CorrelationId, ConversationId, UserId, TenantId, CurrentPromptTemplateId, RetrievedKnowledgeContext, aiProvider, SelectedAIModelId, Metadata, ExecutionVariables, CancellationToken);
-
-    public ExecutionContext WithSelectedAIModelId(AIModelId aiModelId) =>
-        new(CorrelationId, ConversationId, UserId, TenantId, CurrentPromptTemplateId, RetrievedKnowledgeContext, SelectedAIProvider, aiModelId, Metadata, ExecutionVariables, CancellationToken);
-
-    public ExecutionContext WithMetadata(IReadOnlyDictionary<string, string> metadata) =>
-        new(CorrelationId, ConversationId, UserId, TenantId, CurrentPromptTemplateId, RetrievedKnowledgeContext, SelectedAIProvider, SelectedAIModelId, metadata, ExecutionVariables, CancellationToken);
-
-    public ExecutionContext WithExecutionVariables(IReadOnlyDictionary<string, string> executionVariables) =>
-        new(CorrelationId, ConversationId, UserId, TenantId, CurrentPromptTemplateId, RetrievedKnowledgeContext, SelectedAIProvider, SelectedAIModelId, Metadata, executionVariables, CancellationToken);
-
-    public ExecutionContext WithCancellationToken(CancellationToken cancellationToken) =>
-        new(CorrelationId, ConversationId, UserId, TenantId, CurrentPromptTemplateId, RetrievedKnowledgeContext, SelectedAIProvider, SelectedAIModelId, Metadata, ExecutionVariables, cancellationToken);
+    public ExecutionContext WithVariables(IReadOnlyDictionary<string, string> variables) => 
+        new(ExecutionId, CorrelationId, ConversationId, WorkflowId, TenantId, UserId, Culture, Locale, Timezone, FeatureFlags, SelectedProvider, SelectedModel, variables, MemoryReference, PromptReference, KnowledgeReference, Metadata, Attachments, ExecutionStartTime, ExecutionDeadline);
 
     protected override IEnumerable<object> GetEqualityComponents()
     {
+        yield return ExecutionId;
         yield return CorrelationId;
-        yield return ConversationId ?? new ConversationId(Guid.Empty);
-        yield return UserId ?? new UserId(Guid.Empty);
-        yield return TenantId ?? Guid.Empty;
-        yield return CurrentPromptTemplateId ?? new PromptTemplateId(Guid.Empty);
-        yield return RetrievedKnowledgeContext ?? string.Empty;
-        yield return SelectedAIProvider ?? string.Empty;
-        yield return SelectedAIModelId ?? new AIModelId(Guid.Empty);
+        if (ConversationId != null) yield return ConversationId;
+        if (WorkflowId != null) yield return WorkflowId;
+        if (TenantId != null) yield return TenantId;
+        if (UserId != null) yield return UserId;
     }
 
     // For EF Core
     private ExecutionContext() { 
-        Metadata = new Dictionary<string, string>();
+        ExecutionId = null!;
+        FeatureFlags = new List<string>().AsReadOnly();
         ExecutionVariables = new Dictionary<string, string>();
+        Metadata = new Dictionary<string, string>();
+        Attachments = new List<string>().AsReadOnly();
     }
 }

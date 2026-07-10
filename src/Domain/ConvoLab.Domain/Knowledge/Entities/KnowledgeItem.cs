@@ -9,5 +9,5 @@ public class KnowledgeItem : BaseEntity<KnowledgeItemId> {
     private KnowledgeItem(KnowledgeItemId id, string title, string content, string source) : base(id) {
         Title = title; Content = content; Source = source;
     }
-    public static KnowledgeItem Create(string title, string content, string source) => new KnowledgeItem(new KnowledgeItemId(Guid.NewGuid()), title, content, source);
+    public static KnowledgeItem Create(string title, string content, string source) => new KnowledgeItem(KnowledgeItemId.CreateUnique(), title, content, source);
 }

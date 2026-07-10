@@ -17,5 +17,5 @@ public class PromptTemplate : BaseAggregateRoot<PromptTemplateId> {
         Name = name; TemplateString = templateString; Type = type; Version = version; IsActive = true;
         AddDomainEvent(new PromptTemplateCreatedEvent(id, name, type));
     }
-    public static PromptTemplate Create(string name, string templateString, PromptType type, string version) => new PromptTemplate(new PromptTemplateId(Guid.NewGuid()), name, templateString, type, version);
+    public static PromptTemplate Create(string name, string templateString, PromptType type, string version) => new PromptTemplate(PromptTemplateId.CreateUnique(), name, templateString, type, version);
 }

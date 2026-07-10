@@ -14,5 +14,5 @@ public class Plugin : BaseAggregateRoot<PluginId> {
         Name = name; Description = description; Version = version; ManifestUrl = manifestUrl; Status = PluginStatus.Active;
         AddDomainEvent(new PluginRegisteredEvent(id, name, version));
     }
-    public static Plugin Register(string name, string description, PluginVersion version, string manifestUrl) => new Plugin(new PluginId(Guid.NewGuid()), name, description, version, manifestUrl);
+    public static Plugin Register(string name, string description, PluginVersion version, string manifestUrl) => new Plugin(PluginId.CreateUnique(), name, description, version, manifestUrl);
 }

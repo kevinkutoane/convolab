@@ -13,5 +13,5 @@ public class KnowledgeBase : BaseAggregateRoot<KnowledgeBaseId> {
         Name = name; Description = description;
         AddDomainEvent(new KnowledgeBaseCreatedEvent(id, name));
     }
-    public static KnowledgeBase Create(string name, string description) => new KnowledgeBase(new KnowledgeBaseId(Guid.NewGuid()), name, description);
+    public static KnowledgeBase Create(string name, string description) => new KnowledgeBase(KnowledgeBaseId.CreateUnique(), name, description);
 }

@@ -16,7 +16,7 @@ public class Conversation : BaseAggregateRoot<ConversationId> {
         Title = title; Status = ConversationStatus.Active; _participants.Add(initialParticipant);
         AddDomainEvent(new ConversationStartedEvent(id, title, initialParticipant.Id));
     }
-    public static Conversation StartNew(string title, Participant initialParticipant) => new Conversation(new ConversationId(Guid.NewGuid()), title, initialParticipant);
+    public static Conversation StartNew(string title, Participant initialParticipant) => new Conversation(ConversationId.CreateUnique(), title, initialParticipant);
     public void AddMessage(Message message) {
         if (Status == ConversationStatus.Closed) throw new InvalidOperationException("Closed");
         _messages.Add(message);
