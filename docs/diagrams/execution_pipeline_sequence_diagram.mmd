@@ -1,0 +1,44 @@
+sequenceDiagram
+    participant User as User
+    participant UI as User Interface
+    participant WorkflowEngine as IWorkflowEngine
+    participant ConversationEngine as IConversationEngine
+    participant PromptEngine as IPromptEngine
+    participant KnowledgeEngine as IKnowledgeEngine
+    participant AIOrchestrator as IAIOrchestrator
+    participant EvaluationEngine as IEvaluationEngine
+    participant TraceEngine as ITraceEngine
+
+    User->>UI: Sends Message
+    UI->>WorkflowEngine: ProcessUserMessage(conversationId, userId, userMessage)
+
+    WorkflowEngine->>TraceEngine: StartTrace("ProcessUserMessage")
+    activate WorkflowEngine
+
+    WorkflowEngine->>ConversationEngine: AddMessageToConversation(userMessage)
+    ConversationEngine-->>WorkflowEngine: Message Added
+
+    WorkflowEngine->>KnowledgeEngine: SearchKnowledge(userMessage)
+    KnowledgeEngine-->>WorkflowEngine: Retrieved Knowledge Context
+
+    WorkflowEngine->>PromptEngine: GeneratePrompt(templateId, parameters)
+    PromptEngine-->>WorkflowEngine: Generated AI Prompt
+
+    WorkflowEngine->>AIOrchestrator: ProcessPrompt(modelId, promptTemplateId, promptParameters)
+    AIOrchestrator-->>WorkflowEngine: AI Response
+
+    WorkflowEngine->>ConversationEngine: AddMessageToConversation(aiResponse)
+    ConversationEngine-->>WorkflowEngine: AI Response Added
+
+    WorkflowEngine->>EvaluationEngine: StartEvaluation(conversationId)
+    EvaluationEngine-->>WorkflowEngine: Evaluation Started
+    WorkflowEngine->>EvaluationEngine: AddEvaluationResult(...)
+    EvaluationEngine-->>WorkflowEngine: Result Added
+    WorkflowEngine->>EvaluationEngine: CompleteEvaluation(...)
+    EvaluationEngine-->>WorkflowEngine: Evaluation Completed
+
+    WorkflowEngine->>TraceEngine: EndTrace()
+    deactivate WorkflowEngine
+
+    WorkflowEngine-->>UI: Conversation Response
+    UI->>User: Displays Response

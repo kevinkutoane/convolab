@@ -1,0 +1,17 @@
+graph TD
+    subgraph Layers
+        API[ConvoLab.Api]
+        Application[ConvoLab.Application]
+        Infrastructure[ConvoLab.Infrastructure]
+        Domain[ConvoLab.Domain]
+    end
+
+    API --> Application
+    Application --> Domain
+    Infrastructure --> Application
+    Infrastructure --> Domain
+
+    style API fill:#f9f,stroke:#333,stroke-width:2px
+    style Application fill:#bbf,stroke:#333,stroke-width:2px
+    style Infrastructure fill:#ccf,stroke:#333,stroke-width:2px
+    style Domain fill:#ddf,stroke:#333,stroke-width:2px
