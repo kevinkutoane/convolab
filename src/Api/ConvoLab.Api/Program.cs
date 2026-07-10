@@ -47,7 +47,7 @@ try
 
     var app = builder.Build();
 
-    // Middleware Pipeline
+    // Middleware Workflow
     app.UseMiddleware<GlobalExceptionMiddleware>();
 
     if (app.Environment.IsDevelopment())

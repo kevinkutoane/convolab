@@ -2,6 +2,49 @@ using ConvoLab.Domain.Common;
 
 namespace ConvoLab.Domain.Tracing.ValueObjects;
 
+public class Span : ValueObject
+{
+    public Guid Id { get; private set; }
+    public Guid? ParentId { get; private set; }
+    public string Name { get; private set; }
+    public DateTime StartTime { get; private set; }
+    public DateTime? EndTime { get; private set; }
+    public TimeSpan? Duration => EndTime - StartTime;
+    
+    private readonly List<TraceEvent> _events = new();
+    public IReadOnlyCollection<TraceEvent> Events => _events.AsReadOnly();
+    
+    private readonly List<Metric> _metrics = new();
+    public IReadOnlyCollection<Metric> Metrics => _metrics.AsReadOnly();
+
+    public Span(Guid id, string name, Guid? parentId = null)
+    {
+        Id = id;
+        Name = name;
+        ParentId = parentId;
+        StartTime = DateTime.UtcNow;
+    }
+
+    public void End() => EndTime = DateTime.UtcNow;
+
+    public void AddEvent(string name, IReadOnlyDictionary<string, string>? attributes = null)
+    {
+        _events.Add(TraceEvent.Create(name, attributes));
+    }
+
+    public void AddMetric(string name, double value, string? unit = null)
+    {
+        _metrics.Add(Metric.Create(name, value, unit));
+    }
+
+    protected override IEnumerable<object> GetEqualityComponents()
+    {
+        yield return Id;
+    }
+
+    private Span() { Id = Guid.Empty; Name = null!; }
+}
+
 public class TraceEvent : ValueObject
 {
     public string Name { get; private set; }

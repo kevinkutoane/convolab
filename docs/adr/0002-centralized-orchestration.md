@@ -17,7 +17,7 @@ We will centralize the orchestration of the conversational AI workflow within th
 *   **Simplified Workflow Management**: The entire flow of a conversational request is defined and managed in one place, making it easier to understand, modify, and debug.
 *   **Reduced Coupling**: Individual engines do not need to know about each other\'s existence or implementation details. They only expose their capabilities through well-defined interfaces, which the `IWorkflowEngine` consumes.
 *   **Enhanced Observability**: Centralized orchestration provides a single point where comprehensive tracing and logging can be implemented for the entire workflow, improving visibility into system behavior and performance.
-*   **Improved Extensibility**: New steps or alternative implementations of existing steps can be introduced into the pipeline without affecting other engines, as long as the `IWorkflowEngine` is updated to incorporate them.
+*   **Improved Extensibility**: New steps or alternative implementations of existing steps can be introduced into the workflow without affecting other engines, as long as the `IWorkflowEngine` is updated to incorporate them.
 *   **Consistency**: Ensures that every conversational request follows a consistent and predictable path through the system.
 
 ## Alternatives Considered

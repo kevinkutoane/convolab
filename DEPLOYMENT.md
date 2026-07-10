@@ -562,4 +562,4 @@ gzip_min_length 1000;
 
 - See `README.md` for quick start
 - See `ARCHITECTURE.md` for architecture overview
-- See `.github/workflows/ci.yml` for CI/CD pipeline
+- See `.github/workflows/ci.yml` for CI/CD workflow

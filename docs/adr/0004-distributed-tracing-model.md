@@ -10,7 +10,7 @@ As an Enterprise Conversational AI Platform, ConvoLab will inevitably involve co
 
 ## Decision
 
-We will model the tracing capabilities within the `Tracing` bounded context using concepts akin to modern distributed tracing systems. This includes defining `Trace`, `Span`, `TraceEvent`, `Metric`, and `Artifact` as core domain models. The `ITraceEngine` interface will provide methods to interact with these concepts, allowing for the capture of detailed telemetry throughout the execution pipeline.
+We will model the tracing capabilities within the `Tracing` bounded context using concepts akin to modern distributed tracing systems. This includes defining `Trace`, `Span`, `TraceEvent`, `Metric`, and `Artifact` as core domain models. The `ITraceEngine` interface will provide methods to interact with these concepts, allowing for the capture of detailed telemetry throughout the execution workflow.
 
 ## Consequences
 

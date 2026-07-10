@@ -1,140 +1,112 @@
-# Sprint 1 Review: The Execution Backbone
+# Sprint 1 Review: The Execution Backbone (Updated for Sprint 2 Terminology)
 
-## Introduction
+This document provides a review of Sprint 1, which focused on establishing the core orchestration and execution architecture for ConvoLab. This review has been updated to reflect the terminology changes introduced in Sprint 2, where "Pipeline" concepts have been renamed to "Workflow" to align with a more ubiquitous language for enterprise workflow orchestration.
 
-This document outlines the architectural enhancements and implementations completed during Sprint 1, focusing on establishing the core execution backbone for the ConvoLab platform. The primary objective was to introduce a dedicated `Execution` bounded context responsible for orchestrating every conversational request, ensuring a stable, extensible, and provider-agnostic foundation for future feature development.
-
-## Key Achievements
+## Key Deliverables and Architectural Decisions
 
 ### 1. Execution Bounded Context
 
-A new bounded context, `Execution`, has been introduced within the `ConvoLab.Domain` layer. This context encapsulates the core logic for managing and orchestrating conversational AI workflows. It includes:
-
-*   **Aggregates**: `Pipeline`
-*   **Entities**: `PipelineStep`
-*   **Value Objects**: `ExecutionId`, `ExecutionResult`, `ExecutionContext`
-*   **Enums**: `ExecutionStatus`
-*   **Interfaces**: `IWorkflowEngine`
-
-This separation ensures clear responsibilities and enhances the modularity and extensibility of the platform.
+*   **Description**: A dedicated `Execution` bounded context was introduced in the `Domain` layer. This context is responsible for managing and orchestrating conversational AI workflows, encompassing the lifecycle, state transitions, and outcomes of workflow runs.
+*   **Core Components**:
+    *   **Aggregates**: `WorkflowExecution`, `WorkflowDefinition`
+    *   **Entities**: `WorkflowStep`, `WorkflowVersion`, `WorkflowNode`
+    *   **Value Objects**: `ExecutionId`, `ExecutionResult`, `ExecutionContext`
+    *   **Enums**: `ExecutionStatus`
 
 ### 2. Refined Engine Abstractions
 
-The `Application` layer now defines a comprehensive set of interfaces for various engines, ensuring a clear contract for their responsibilities without coupling to specific implementations or external providers. These interfaces include:
+*   **Description**: A comprehensive set of interfaces was defined in the `Application` layer to establish clear contracts for various engine responsibilities. These interfaces ensure that the core logic remains independent of specific implementations or external providers.
+*   **Interfaces**:
+    *   `IConversationEngine`
+    *   `IPromptEngine`
+    *   `IKnowledgeEngine`
+    *   `IAIOrchestrator`
+    *   `ITraceEngine`
+    *   `IEvaluationEngine`
+    *   `IPluginManager`
+    *   `IWorkflowEngine`
 
-*   `IConversationEngine`
-*   `IPromptEngine`
-*   `IKnowledgeEngine`
-*   `IAIOrchestrator`
-*   `ITraceEngine`
-*   `IEvaluationEngine`
-*   `IPluginManager`
-*   `IWorkflowEngine`
+### 3. Workflow Model (formerly Pipeline Model)
 
-Placeholder implementations for each of these interfaces have been created and registered via Dependency Injection, allowing the system to compile and run the core workflow without external dependencies.
+*   **Description**: A robust `WorkflowExecution` aggregate has been designed to manage the lifecycle of a conversational request. It consists of `WorkflowStep` entities, each representing a distinct stage in the execution flow. The `Workflow` now incorporates a state machine to manage transitions between granular `ExecutionStatus` states.
+*   **Key Concepts**:
+    *   **WorkflowDefinition**: Represents a reusable blueprint for a workflow, including its structure and steps.
+    *   **WorkflowVersion**: A specific version of a `WorkflowDefinition`, allowing for evolution and backward compatibility.
+    *   **WorkflowNode**: A single step or task within a `WorkflowVersion`.
+    *   **WorkflowExecution**: A runtime instance of a `WorkflowVersion`.
 
-### 3. Pipeline Model
+### 4. Expanded ExecutionContext
 
-A robust `Pipeline` aggregate has been designed to manage the lifecycle of a conversational request. It consists of `PipelineStep` entities, each representing a distinct stage in the execution flow. The `Pipeline` supports:
-
-*   Adding steps
-*   Starting, completing, failing, and canceling execution
-*   Tracking duration and overall status
-
-This model provides a structured and observable mechanism for processing requests.
-
-### 4. Execution Context
-
-An immutable `ExecutionContext` value object has been introduced to carry essential information throughout the pipeline. This context includes:
-
-*   `ConversationId`
-*   `UserId`
-*   `TenantId`
-*   `CorrelationId`
-*   `CurrentPromptTemplateId`
-*   `RetrievedKnowledgeContext`
-*   `SelectedAIProvider`
-*   `SelectedAIModelId`
-*   `Metadata`
-*   `ExecutionVariables`
-*   `CancellationToken`
-
-This ensures that all necessary data is available at each step of the workflow without introducing direct dependencies between engines.
+*   **Description**: The `ExecutionContext` value object has been significantly expanded to carry essential information throughout the workflow execution. It remains immutable and is designed to be framework-agnostic.
+*   **Key Properties**: `ExecutionId`, `ConversationId`, `WorkflowId`, `TenantId`, `UserId`, `CorrelationId`, `Culture`, `Locale`, `Timezone`, `FeatureFlags`, `SelectedProvider`, `SelectedModel`, `ExecutionVariables`, `MemoryReference`, `PromptReference`, `KnowledgeReference`, `Metadata`, `Attachments`, `ExecutionStartTime`, `ExecutionDeadline`.
 
 ### 5. Cross-Domain Events
 
-Several cross-domain events have been defined to facilitate communication and enable reactive behaviors across different bounded contexts. These include:
+*   **Description**: Domain events were refined to accurately represent business facts and facilitate communication and reactive behaviors across different bounded contexts. These events are designed to be MediatR-compatible.
+*   **Examples**:
+    *   `WorkflowStarted`
+    *   `WorkflowCompleted`
+    *   `WorkflowFailed`
+    *   `PromptPrepared`
+    *   `KnowledgeRetrieved`
+    *   `AIInvocationStarted`
+    *   `AIInvocationCompleted`
+    *   `EvaluationCompleted`
+    *   `TraceRecorded`
+    *   `ConversationUpdated`
 
-*   `ExecutionStarted`
-*   `ExecutionCompleted`
-*   `ExecutionFailed`
-*   `AIRequested`
-*   `PromptRequested`
-*   `KnowledgeRequested`
-*   `EvaluationRequested`
-*   `TraceRequested`
+### 6. Expanded AI Domain Model
 
-These events are infrastructure-agnostic and leverage MediatR for publication.
+*   **Description**: The `AI` bounded context has been expanded to include comprehensive domain models for AI providers, models, capabilities, and various request/response types. This ensures a vendor-agnostic approach to AI integration.
+*   **Key Models**:
+    *   `AIProvider`
+    *   `AIModel`
+    *   `ModelCapability` (Flags enum)
+    *   `ModelAvailability`
+    *   `CompletionRequest`, `CompletionResponse`, `AIMessage`
+    *   `EmbeddingRequest`, `AIEmbedding`
+    *   `TokenUsage`, `AICost`
+    *   `AICompletionChunk`, `ToolCallRequest`
 
-### 6. Expanded Tracing Model
+### 7. Distributed Tracing Model
 
-The `Tracing` bounded context has been expanded to support concepts similar to modern distributed tracing. New value objects have been introduced:
-
-*   `TraceEvent`
-*   `Metric`
-*   `Artifact`
-
-This provides a richer model for capturing telemetry, enabling better observability, debugging, and performance analysis of complex, distributed workflows.
-
-### 7. AI Orchestration Abstractions
-
-The `AI` bounded context now includes domain models for AI orchestration, abstracting away provider-specific details. These include:
-
-*   `AIProvider`
-*   `AICompletion`
-*   `TokenUsage`
-*   `AICost`
-*   `AIEmbedding`
-
-These models ensure that the core application remains vendor-agnostic and can easily integrate with various AI providers in the future.
+*   **Description**: The `Tracing` bounded context evolved into a distributed tracing model, supporting nested spans and correlation IDs for enhanced observability and debugging. This model is designed for future OpenTelemetry mapping.
+*   **Key Models**:
+    *   `Trace` (Aggregate Root)
+    *   `Span` (Value Object, representing a unit of work within a trace)
+    *   `TraceEvent` (Value Object, representing an event within a span)
+    *   `Metric` (Value Object, representing a numerical measurement within a span)
+    *   `Artifact` (Value Object, representing a piece of data associated with a trace)
 
 ### 8. Architecture Decision Records (ADRs)
 
-Four Architecture Decision Records have been created to document key architectural decisions made during this sprint:
+*   **Description**: Several ADRs were created to document key architectural decisions and their rationale, ensuring transparency and maintainability of the architectural choices.
+*   **ADRs**:
+    *   `0001-execution-bounded-context.md`
+    *   `0002-centralized-orchestration.md`
+    *   `0003-provider-abstractions.md`
+    *   `0004-distributed-tracing-model.md`
+    *   `0005-rename-pipeline-to-workflow.md` (New for Sprint 2)
+    *   `0006-separate-execution-from-ai-orchestration.md` (New for Sprint 2)
+    *   `0007-workflow-definition-and-execution.md` (New for Sprint 2)
+    *   `0008-expanded-execution-context.md` (New for Sprint 2)
+    *   `0009-workflow-state-machine.md` (New for Sprint 2)
 
-*   **ADR 0001: Introduction of Execution Bounded Context**: Justifies the creation of the `Execution` context.
-*   **ADR 0002: Centralized Orchestration of Conversational AI Workflow**: Explains the decision to centralize workflow orchestration.
-*   **ADR 0003: Abstraction of External AI Providers**: Details the rationale behind abstracting AI providers.
-*   **ADR 0004: Modeling Tracing for Distributed Systems**: Describes the expanded tracing model.
+### 9. Visual Documentation
 
-These ADRs provide a historical log of decisions and their rationale, aiding in future development and onboarding.
-
-### 9. Mermaid Diagrams
-
-Several Mermaid diagrams have been generated to visually represent the architecture:
-
-*   **Context Diagram**: Illustrates the high-level bounded contexts and their relationships.
-    ![Context Diagram](diagrams/context_diagram.png)
-*   **Component Diagram**: Shows the interfaces and placeholder implementations within the Application layer.
-    ![Component Diagram](diagrams/component_diagram.png)
-*   **Execution Pipeline Sequence Diagram**: Depicts the flow of a conversational request through the `IWorkflowEngine` and various engines.
-    ![Execution Pipeline Sequence Diagram](diagrams/execution_pipeline_sequence_diagram.png)
-*   **Bounded Context Relationships**: Visualizes the dependencies between the different bounded contexts.
-    ![Bounded Context Relationships](diagrams/bounded_context_relationships.png)
-*   **Dependency Graph**: Shows the architectural layers and their allowed dependencies.
-    ![Dependency Graph](diagrams/dependency_graph.png)
+*   **Description**: Mermaid diagrams were generated to visually represent the architecture and its various components, aiding in understanding and communication.
+*   **Diagrams**:
+    *   `context_diagram.png`
+    *   `component_diagram.png`
+    *   `workflow_execution_sequence_diagram.png` (Renamed from `execution_pipeline_sequence_diagram.png`)
+    *   `bounded_context_relationships.png`
+    *   `dependency_graph.png`
+    *   `workflow_event_flow.png` (New for Sprint 2)
 
 ### 10. Architecture Tests
 
-Architecture tests have been introduced using `NetArchTest.Rules` to enforce Clean Architecture principles and verify compliance with defined architectural rules. These tests ensure:
-
-*   `Domain` has no dependencies on other projects.
-*   `Application` has no dependencies on `Infrastructure` or `Api`.
-*   `Infrastructure` has no dependencies on `Api`.
-*   `Execution` interfaces reside in the `Domain` layer.
-
-These tests provide automated validation of the architectural integrity.
+*   **Description**: Architecture tests using `NetArchTest.Rules` were implemented to enforce Clean Architecture principles and verify compliance with defined architectural rules, ensuring automated validation of architectural integrity.
 
 ## Conclusion
 
-Sprint 1 has successfully laid down a robust and extensible architectural foundation for ConvoLab. The introduction of the `Execution` bounded context, refined engine abstractions, a comprehensive pipeline model, and an expanded tracing model, coupled with detailed documentation and architecture tests, ensures that the platform is well-prepared for future feature development and integration with various AI providers. The codebase adheres strictly to DDD and Clean Architecture principles, promoting maintainability, testability, and extensibility.
+Sprint 1, with its subsequent updates in Sprint 2, has laid a robust architectural foundation for ConvoLab. The platform is now well-prepared for future feature development and integration with various AI providers, adhering strictly to DDD and Clean Architecture principles. The renaming of "Pipeline" to "Workflow" and the explicit separation of concerns further enhance the clarity and extensibility of the codebase, aligning with enterprise AI engineering best practices.

@@ -5,5 +5,5 @@ namespace ConvoLab.Domain.Execution.Interfaces;
 
 public interface IWorkflowEngine
 {
-    Task<ExecutionResult> ExecuteAsync(Pipeline pipeline, ValueObjects.ExecutionContext context);
+    Task<ExecutionResult> ExecuteAsync(WorkflowExecution workflow, ValueObjects.ExecutionContext context);
 }

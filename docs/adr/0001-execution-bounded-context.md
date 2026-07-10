@@ -15,7 +15,7 @@ We will introduce a new Bounded Context named `Execution` within the `ConvoLab.D
 ## Consequences
 
 *   **Clear Separation of Concerns**: The `Execution` bounded context will clearly define the responsibilities related to workflow orchestration, separating it from other domain concerns like Conversation management or AI model details.
-*   **Enhanced Extensibility**: By centralizing execution logic, future features and integrations can plug into a well-defined pipeline, promoting modularity and reducing coupling.
+*   **Enhanced Extensibility**: By centralizing execution logic, future features and integrations can plug into a well-defined workflow, promoting modularity and reducing coupling.
 *   **Improved Maintainability**: Changes to the orchestration logic will be contained within this bounded context, minimizing impact on other parts of the system.
 *   **Foundation for Observability**: The `Execution` context will provide natural points for integrating tracing, logging, and monitoring, as it represents the central flow of operations.
 *   **DDD Alignment**: This aligns with Domain-Driven Design principles by identifying a core domain concept and giving it a dedicated bounded context.

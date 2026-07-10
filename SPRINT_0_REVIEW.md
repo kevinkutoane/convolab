@@ -14,7 +14,7 @@ The backend follows **Clean Architecture** principles, divided into four distinc
 
 ### Features Implemented:
 - **Clean Architecture**: Strict dependency flow (Api -> Infrastructure -> Application -> Domain).
-- **MediatR**: Decoupled command/query handling with pipeline behaviors for validation.
+- **MediatR**: Decoupled command/query handling with workflow behaviors for validation.
 - **Observability**: Structured logging with Serilog and distributed tracing with OpenTelemetry.
 - **Health Checks**: Endpoint at `/health` providing component-level status.
 - **Swagger**: API documentation available at `/swagger` in development.

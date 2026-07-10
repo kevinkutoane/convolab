@@ -8,7 +8,7 @@ ConvoLab is a complete monorepo solution featuring:
 
 - **Clean Architecture Backend**: .NET 10 with ASP.NET Core, MediatR, Entity Framework Core, and comprehensive logging
 - **Modern React Frontend**: React 19, TypeScript, Vite, Tailwind CSS with React Router and TanStack Query
-- **Production-Ready Infrastructure**: Docker, docker-compose, PostgreSQL, SQLite, and CI/CD pipeline
+- **Production-Ready Infrastructure**: Docker, docker-compose, PostgreSQL, SQLite, and CI/CD workflow
 - **Comprehensive Documentation**: Every layer and component is thoroughly documented
 - **Enterprise-Grade Features**: Health checks, Swagger/OpenAPI, structured logging, distributed tracing
 
@@ -195,7 +195,7 @@ For detailed architecture information, see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 - ✅ **Docker**: Containerized API and database
 - ✅ **docker-compose**: Local development environment
-- ✅ **GitHub Actions**: CI/CD pipeline for build, test, and lint
+- ✅ **GitHub Actions**: CI/CD workflow for build, test, and lint
 - ✅ **Database Migrations**: Entity Framework Core migrations
 - ✅ **Environment Configuration**: Multi-environment support
 
@@ -330,7 +330,7 @@ docker build -t convolab:latest .
 docker run -p 5000:8080 convolab:latest
 ```
 
-## CI/CD Pipeline
+## CI/CD Workflow
 
 GitHub Actions automatically:
 1. ✅ Builds the .NET solution
@@ -340,7 +340,7 @@ GitHub Actions automatically:
 5. ✅ Lints code
 6. ✅ Builds Docker image
 
-See `.github/workflows/` for pipeline configuration.
+See `.github/workflows/` for workflow configuration.
 
 ## Documentation
 
