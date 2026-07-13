@@ -1,2 +1,13 @@
 namespace ConvoLab.Domain.Conversation.Enums;
-public enum ConversationStatus { Active, Closed, Archived }
+
+public enum ConversationStatus
+{
+    Created,
+    Started,
+    Active,
+    Waiting,
+    Processing,
+    Completed,
+    Archived,
+    Deleted
+}

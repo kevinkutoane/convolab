@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ConvoLab.ArchitectureTests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f82554cc542ec49dfa13d1b4e81f3d059f707615")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1348f305694914626c432d01797146e425858b96")]
 [assembly: System.Reflection.AssemblyProductAttribute("ConvoLab.ArchitectureTests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ConvoLab.ArchitectureTests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
