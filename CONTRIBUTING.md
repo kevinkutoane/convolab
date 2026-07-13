@@ -317,7 +317,7 @@ Include screenshots for UI changes.
 ### PR Review Process
 
 1. **Automated Checks**
-   - CI/CD pipeline must pass
+   - CI/CD workflow must pass
    - Code coverage must not decrease
    - No linting errors
 

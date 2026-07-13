@@ -135,7 +135,7 @@ ConvoLab/
 
 | Technology | Purpose |
 |---|---|
-| **GitHub Actions** | CI/CD pipeline |
+| **GitHub Actions** | CI/CD workflow |
 | **Docker** | Containerization |
 | **docker-compose** | Local development orchestration |
 
@@ -296,7 +296,7 @@ For local development, use docker-compose to run the API and PostgreSQL:
 docker-compose up
 ```
 
-### CI/CD Pipeline
+### CI/CD Workflow
 
 GitHub Actions automatically:
 1. Builds the solution

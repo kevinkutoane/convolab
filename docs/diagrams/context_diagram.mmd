@@ -1,0 +1,27 @@
+graph TD
+    subgraph ConvoLab Platform
+        A[Users] --> B[Conversation]
+        B --> C[Prompt]
+        C --> D[AI]
+        D --> E[Knowledge]
+        E --> F[Evaluation]
+        F --> G[Tracing]
+        G --> H[Plugins]
+        B -- orchestrates --> I[Execution]
+        C -- orchestrates --> I
+        D -- orchestrates --> I
+        E -- orchestrates --> I
+        F -- orchestrates --> I
+        G -- orchestrates --> I
+        H -- orchestrates --> I
+    end
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style B fill:#bbf,stroke:#333,stroke-width:2px
+    style C fill:#ccf,stroke:#333,stroke-width:2px
+    style D fill:#ddf,stroke:#333,stroke-width:2px
+    style E fill:#eef,stroke:#333,stroke-width:2px
+    style F fill:#ffc,stroke:#333,stroke-width:2px
+    style G fill:#cfc,stroke:#333,stroke-width:2px
+    style H fill:#fcf,stroke:#333,stroke-width:2px
+    style I fill:#afa,stroke:#333,stroke-width:2px

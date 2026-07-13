@@ -18,5 +18,5 @@ public class EvaluationReport : BaseAggregateRoot<EvaluationId> {
         ConversationId = conversationId; Status = EvaluationStatus.Pending; EvaluatedAt = DateTime.UtcNow;
         AddDomainEvent(new EvaluationStartedEvent(id, conversationId));
     }
-    public static EvaluationReport Create(ConversationId conversationId) => new EvaluationReport(new EvaluationId(Guid.NewGuid()), conversationId);
+    public static EvaluationReport Create(ConversationId conversationId) => new EvaluationReport(EvaluationId.CreateUnique(), conversationId);
 }

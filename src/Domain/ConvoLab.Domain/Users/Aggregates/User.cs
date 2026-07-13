@@ -13,5 +13,5 @@ public class User : BaseAggregateRoot<UserId> {
         Username = username; Email = email; Role = role; IsActive = true;
         AddDomainEvent(new UserCreatedEvent(id, username, email));
     }
-    public static User Create(string username, string email, UserRole role) => new User(new UserId(Guid.NewGuid()), username, email, role);
+    public static User Create(string username, string email, UserRole role) => new User(UserId.CreateUnique(), username, email, role);
 }

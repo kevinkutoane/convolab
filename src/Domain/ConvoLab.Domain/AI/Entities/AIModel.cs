@@ -12,5 +12,5 @@ public class AIModel : BaseEntity<AIModelId> {
     private AIModel(AIModelId id, string name, string vendor, AIModelType type, string version, bool isActive) : base(id) {
         Name = name; Vendor = vendor; Type = type; Version = version; IsActive = isActive;
     }
-    public static AIModel Create(string name, string vendor, AIModelType type, string version) => new AIModel(new AIModelId(Guid.NewGuid()), name, vendor, type, version, true);
+    public static AIModel Create(string name, string vendor, AIModelType type, string version) => new AIModel(AIModelId.CreateUnique(), name, vendor, type, version, true);
 }

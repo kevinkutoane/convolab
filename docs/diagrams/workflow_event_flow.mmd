@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant User
+    participant WE as WorkflowExecution
+    participant PE as PromptEngine
+    participant KE as KnowledgeEngine
+    participant AO as AIOrchestrator
+    participant EE as EvaluationEngine
+    participant TE as TraceEngine
+
+    User->>WE: Start Workflow
+    WE->>WE: WorkflowStarted
+    
+    WE->>PE: Prepare Prompt
+    PE-->>WE: PromptPrepared
+    
+    WE->>KE: Retrieve Knowledge
+    KE-->>WE: KnowledgeRetrieved
+    
+    WE->>AO: Invoke AI
+    AO->>AO: AIInvocationStarted
+    AO-->>WE: AIInvocationCompleted
+    
+    WE->>EE: Evaluate Response
+    EE-->>WE: EvaluationCompleted
+    
+    WE->>TE: Record Trace
+    TE-->>WE: TraceRecorded
+    
+    WE->>WE: WorkflowCompleted
+    WE-->>User: Return Result

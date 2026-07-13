@@ -1,0 +1,21 @@
+graph TD
+    subgraph Bounded Contexts
+        Execution --> Conversation
+        Execution --> Prompt
+        Execution --> Knowledge
+        Execution --> AI
+        Execution --> Evaluation
+        Execution --> Tracing
+        Execution --> Plugins
+        Conversation --> Users
+    end
+
+    style Execution fill:#afa,stroke:#333,stroke-width:2px
+    style Conversation fill:#bbf,stroke:#333,stroke-width:2px
+    style Prompt fill:#ccf,stroke:#333,stroke-width:2px
+    style Knowledge fill:#ddf,stroke:#333,stroke-width:2px
+    style AI fill:#eef,stroke:#333,stroke-width:2px
+    style Evaluation fill:#ffc,stroke:#333,stroke-width:2px
+    style Tracing fill:#cfc,stroke:#333,stroke-width:2px
+    style Plugins fill:#fcf,stroke:#333,stroke-width:2px
+    style Users fill:#f9f,stroke:#333,stroke-width:2px

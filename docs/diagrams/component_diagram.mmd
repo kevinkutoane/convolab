@@ -1,0 +1,51 @@
+graph TD
+    subgraph Application Layer
+        subgraph ConvoLab.Application
+            direction LR
+            IWE[IWorkflowEngine] --> ICE[IConversationEngine]
+            IWE --> IPE[IPromptEngine]
+            IWE --> IKE[IKnowledgeEngine]
+            IWE --> IAIO[IAIOrchestrator]
+            IWE --> ITE[ITraceEngine]
+            IWE --> IEE[IEvaluationEngine]
+            IWE --> IPM[IPluginManager]
+
+            subgraph Implementations
+                direction LR
+                CWE[ConvoLabWorkflowEngine] --> PCE[PlaceholderConversationEngine]
+                CWE --> PPE[PlaceholderPromptEngine]
+                CWE --> PKE[PlaceholderKnowledgeEngine]
+                CWE --> PAIO[PlaceholderAIOrchestrator]
+                CWE --> PTE[PlaceholderTraceEngine]
+                CWE --> PEE[PlaceholderEvaluationEngine]
+                CWE --> PPM[PlaceholderPluginManager]
+            end
+
+            ICE <--- PCE
+            IPE <--- PPE
+            IKE <--- PKE
+            IAIO <--- PAIO
+            ITE <--- PTE
+            IEE <--- PEE
+            IPM <--- PPM
+            IWE <--- CWE
+        end
+    end
+
+    style IWE fill:#f9f,stroke:#333,stroke-width:2px
+    style ICE fill:#bbf,stroke:#333,stroke-width:2px
+    style IPE fill:#ccf,stroke:#333,stroke-width:2px
+    style IKE fill:#ddf,stroke:#333,stroke-width:2px
+    style IAIO fill:#eef,stroke:#333,stroke-width:2px
+    style ITE fill:#ffc,stroke:#333,stroke-width:2px
+    style IEE fill:#cfc,stroke:#333,stroke-width:2px
+    style IPM fill:#fcf,stroke:#333,stroke-width:2px
+
+    style CWE fill:#afa,stroke:#333,stroke-width:2px
+    style PCE fill:#bbf,stroke:#333,stroke-width:1px
+    style PPE fill:#ccf,stroke:#333,stroke-width:1px
+    style PKE fill:#ddf,stroke:#333,stroke-width:1px
+    style PAIO fill:#eef,stroke:#333,stroke-width:1px
+    style PTE fill:#ffc,stroke:#333,stroke-width:1px
+    style PEE fill:#cfc,stroke:#333,stroke-width:1px
+    style PPM fill:#fcf,stroke:#333,stroke-width:1px

@@ -12,7 +12,7 @@
 - Clean Architecture fully implemented
 - Comprehensive documentation at every level
 - Docker support configured
-- CI/CD pipeline ready
+- CI/CD workflow ready
 - Database migrations configured
 - Logging and tracing set up
 
@@ -80,7 +80,7 @@
   - PostgreSQL integration
   - Health checks configured
 
-- **CI/CD Pipeline**
+- **CI/CD Workflow**
   - GitHub Actions workflow
   - Build, test, and lint steps
   - Docker image building
@@ -208,7 +208,7 @@ ConvoLab/
 
 - ✅ Docker containerization
 - ✅ docker-compose for local development
-- ✅ GitHub Actions CI/CD pipeline
+- ✅ GitHub Actions CI/CD workflow
 - ✅ Multi-environment configuration
 - ✅ Database migration support
 - ✅ Health check endpoints
