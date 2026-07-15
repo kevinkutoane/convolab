@@ -452,6 +452,7 @@ For issues, questions, or suggestions:
 
 ## Roadmap
 
+- [x] **Conversation Engine**: Behavior-rich Aggregate Root with full lifecycle management
 - [ ] Authentication and Authorization
 - [ ] Real-time features with SignalR
 - [ ] Advanced caching strategies

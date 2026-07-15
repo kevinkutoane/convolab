@@ -9,5 +9,5 @@ public enum ConversationStatus
     Processing,
     Completed,
     Archived,
-    Deleted
+    SoftDeleted
 }

@@ -1,19 +1,22 @@
 using ConvoLab.Domain.Common;
 using ConvoLab.Domain.Conversation.Enums;
 using ConvoLab.Domain.Conversation.ValueObjects;
-using ConvoLab.Domain.Tracing.ValueObjects;
 using ConvoLab.Domain.Evaluation.ValueObjects;
+using ConvoLab.Domain.Tracing.ValueObjects;
 
 namespace ConvoLab.Domain.Conversation.Entities;
 
 public class ConversationMessage : BaseEntity<MessageId>
 {
-    public MessageType Type { get; private set; }
-    public MessageContent Content { get; private set; }
+    public ParticipantRole Role { get; private set; }
+    public string Content { get; private set; }
     public ParticipantId SenderId { get; private set; }
-    public DateTime SentAt { get; private set; }
+    public DateTime Timestamp { get; private set; }
     public ConversationMetadata Metadata { get; private set; }
-    public IReadOnlyList<AttachmentId> AttachmentIds { get; private set; }
+    
+    private readonly List<AttachmentId> _attachmentIds = new();
+    public IReadOnlyList<AttachmentId> AttachmentIds => _attachmentIds.AsReadOnly();
+
     public MessageId? ParentMessageId { get; private set; }
     public bool IsStreaming { get; private set; }
     public TokenUsage? TokenUsage { get; private set; }
@@ -22,10 +25,10 @@ public class ConversationMessage : BaseEntity<MessageId>
 
     private ConversationMessage(
         MessageId id,
-        MessageType type,
-        MessageContent content,
+        ParticipantRole role,
+        string content,
         ParticipantId senderId,
-        DateTime sentAt,
+        DateTime timestamp,
         ConversationMetadata metadata,
         IEnumerable<AttachmentId> attachmentIds,
         MessageId? parentMessageId,
@@ -35,12 +38,12 @@ public class ConversationMessage : BaseEntity<MessageId>
         TraceId? traceId)
         : base(id)
     {
-        Type = type;
+        Role = role;
         Content = content;
         SenderId = senderId;
-        SentAt = sentAt;
+        Timestamp = timestamp;
         Metadata = metadata;
-        AttachmentIds = attachmentIds.ToList().AsReadOnly();
+        _attachmentIds = attachmentIds.ToList();
         ParentMessageId = parentMessageId;
         IsStreaming = isStreaming;
         TokenUsage = tokenUsage;
@@ -49,11 +52,11 @@ public class ConversationMessage : BaseEntity<MessageId>
     }
 
     public static ConversationMessage Create(
-        MessageType type,
-        MessageContent content,
+        ParticipantRole role,
+        string content,
         ParticipantId senderId,
-        ConversationMetadata metadata,
-        IEnumerable<AttachmentId> attachmentIds,
+        ConversationMetadata? metadata = null,
+        IEnumerable<AttachmentId>? attachmentIds = null,
         MessageId? parentMessageId = null,
         bool isStreaming = false,
         TokenUsage? tokenUsage = null,
@@ -62,12 +65,12 @@ public class ConversationMessage : BaseEntity<MessageId>
     {
         return new(
             MessageId.CreateUnique(),
-            type,
+            role,
             content,
             senderId,
             DateTime.UtcNow,
-            metadata,
-            attachmentIds,
+            metadata ?? ConversationMetadata.Create(new Dictionary<string, string>()),
+            attachmentIds ?? new List<AttachmentId>(),
             parentMessageId,
             isStreaming,
             tokenUsage,
@@ -79,6 +82,5 @@ public class ConversationMessage : BaseEntity<MessageId>
         Content = null!;
         SenderId = null!;
         Metadata = null!;
-        AttachmentIds = new List<AttachmentId>().AsReadOnly();
     }
 }

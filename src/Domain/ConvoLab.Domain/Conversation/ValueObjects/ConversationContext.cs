@@ -3,7 +3,6 @@ using ConvoLab.Domain.AI.ValueObjects;
 using ConvoLab.Domain.Execution.ValueObjects;
 using ConvoLab.Domain.Knowledge.ValueObjects;
 using ConvoLab.Domain.Prompt.ValueObjects;
-using ConvoLab.Domain.Conversation.ValueObjects;
 
 namespace ConvoLab.Domain.Conversation.ValueObjects;
 
@@ -19,6 +18,12 @@ public class ConversationContext : ValueObject
     public IReadOnlyList<KnowledgeBaseId> KnowledgeReferences { get; private set; }
     public ConvoLab.Domain.Execution.ValueObjects.ExecutionContext? ExecutionContext { get; private set; }
     public ConversationWindow? ContextWindow { get; private set; }
+    
+    // New Business State Fields
+    public string? CurrentLocale { get; private set; }
+    public string? CurrentTenantId { get; private set; }
+    public IReadOnlyDictionary<string, string> CurrentVariables { get; private set; }
+    public IReadOnlyList<string> FeatureFlags { get; private set; }
 
     private ConversationContext(
         string? currentIntent,
@@ -30,7 +35,11 @@ public class ConversationContext : ValueObject
         AIModelId? currentModelId,
         IEnumerable<KnowledgeBaseId> knowledgeReferences,
         ConvoLab.Domain.Execution.ValueObjects.ExecutionContext? executionContext,
-        ConversationWindow? contextWindow)
+        ConversationWindow? contextWindow,
+        string? currentLocale,
+        string? currentTenantId,
+        IDictionary<string, string> currentVariables,
+        IEnumerable<string> featureFlags)
     {
         CurrentIntent = currentIntent;
         CurrentWorkflowId = currentWorkflowId;
@@ -42,6 +51,10 @@ public class ConversationContext : ValueObject
         KnowledgeReferences = knowledgeReferences.ToList().AsReadOnly();
         ExecutionContext = executionContext;
         ContextWindow = contextWindow;
+        CurrentLocale = currentLocale;
+        CurrentTenantId = currentTenantId;
+        CurrentVariables = new Dictionary<string, string>(currentVariables).AsReadOnly();
+        FeatureFlags = featureFlags.ToList().AsReadOnly();
     }
 
     public static ConversationContext Create(
@@ -54,7 +67,11 @@ public class ConversationContext : ValueObject
         AIModelId? currentModelId = null,
         IEnumerable<KnowledgeBaseId>? knowledgeReferences = null,
         ConvoLab.Domain.Execution.ValueObjects.ExecutionContext? executionContext = null,
-        ConversationWindow? contextWindow = null)
+        ConversationWindow? contextWindow = null,
+        string? currentLocale = null,
+        string? currentTenantId = null,
+        IDictionary<string, string>? currentVariables = null,
+        IEnumerable<string>? featureFlags = null)
     {
         return new(
             currentIntent,
@@ -66,7 +83,11 @@ public class ConversationContext : ValueObject
             currentModelId,
             knowledgeReferences ?? new List<KnowledgeBaseId>(),
             executionContext,
-            contextWindow);
+            contextWindow,
+            currentLocale,
+            currentTenantId,
+            currentVariables ?? new Dictionary<string, string>(),
+            featureFlags ?? new List<string>());
     }
 
     protected override IEnumerable<object> GetEqualityComponents()
@@ -84,10 +105,23 @@ public class ConversationContext : ValueObject
         }
         yield return ExecutionContext ?? ConvoLab.Domain.Execution.ValueObjects.ExecutionContext.Create(ExecutionId.FromGuid(Guid.Empty), WorkflowDefinitionId.Create(Guid.Empty).Value);
         yield return ContextWindow ?? ConversationWindow.Create(DateTime.MinValue);
+        yield return CurrentLocale ?? string.Empty;
+        yield return CurrentTenantId ?? string.Empty;
+        foreach (var kvp in CurrentVariables.OrderBy(x => x.Key))
+        {
+            yield return kvp.Key;
+            yield return kvp.Value;
+        }
+        foreach (var flag in FeatureFlags.OrderBy(x => x))
+        {
+            yield return flag;
+        }
     }
 
     private ConversationContext() { 
         KnowledgeReferences = new List<KnowledgeBaseId>().AsReadOnly();
+        CurrentVariables = new Dictionary<string, string>().AsReadOnly();
+        FeatureFlags = new List<string>().AsReadOnly();
     }
 }
 

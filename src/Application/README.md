@@ -2,17 +2,23 @@
 
 The **Application Layer** orchestrates the domain logic and bridges the gap between the API/UI and the Domain Layer. It implements the use cases of the application using the CQRS (Command Query Responsibility Segregation) pattern with MediatR.
 
-## Purpose
+## Conversation Engine Service
 
-The Application Layer provides:
+The **ConversationEngine** is the primary application service responsible for orchestrating conversational workflows. It implements the `IConversationEngine` interface and operates on the `Conversation` Aggregate Root.
 
-- **Commands**: Operations that modify state (Create, Update, Delete)
-- **Queries**: Operations that retrieve data without modifying state
-- **Command/Query Handlers**: Implementation of business use cases
-- **DTOs (Data Transfer Objects)**: Contracts for data transfer between layers
-- **Validators**: Input validation using FluentValidation
-- **Exceptions**: Application-specific exceptions
-- **Interfaces**: Contracts for repositories, services, and other infrastructure dependencies
+### Responsibilities
+
+- **Orchestration**: Coordinating multiple domain entities (Sessions, Participants, Messages) within the Conversation Aggregate.
+- **State Persistence**: Ensuring changes to the Conversation state are persisted through the `IConversationRepository`.
+- **Capability Exposure**: Providing a clean, behavior-rich API for the UI and external integrations.
+
+### Key Operations
+
+- `CreateConversationAsync`: Initializes a new conversation with a creator and metadata.
+- `StartSessionAsync`: Begins a new interaction session within a conversation.
+- `AddMessageAsync`: Appends an immutable message and automatically links it to the active session.
+- `UpdateMemoryAsync`: Updates conversation memory based on a specific strategy and window.
+- `LinkWorkflow/Evaluation/TraceAsync`: Establishes cross-capability links for auditing and orchestration.
 
 ## Structure
 
@@ -22,7 +28,8 @@ Application/
 ├── Queries/            # Query definitions and handlers
 ├── DTOs/               # Data transfer objects
 ├── Validators/         # FluentValidation validators
-├── Interfaces/         # Repository and service contracts
+├── Interfaces/         # Repository and service contracts (e.g., IConversationEngine)
+├── Services/           # Implementation of application services (e.g., ConversationEngine)
 ├── Exceptions/         # Application-specific exceptions
 └── Mappings/           # Object mapping configurations
 ```
@@ -43,83 +50,6 @@ All input should be validated using FluentValidation before being passed to hand
 ### 4. No Framework Dependencies
 The Application Layer should not reference ASP.NET Core or other UI frameworks directly.
 
-## Example: Command Definition
-
-```csharp
-public record CreateUserCommand(string Email, string Name) : IRequest<UserDto>;
-
-public class CreateUserCommandValidator : AbstractValidator<CreateUserCommand>
-{
-    public CreateUserCommandValidator()
-    {
-        RuleFor(x => x.Email)
-            .NotEmpty()
-            .EmailAddress();
-
-        RuleFor(x => x.Name)
-            .NotEmpty()
-            .MinimumLength(2);
-    }
-}
-
-public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserDto>
-{
-    private readonly IUserRepository _userRepository;
-    private readonly IMapper _mapper;
-
-    public CreateUserCommandHandler(IUserRepository userRepository, IMapper mapper)
-    {
-        _userRepository = userRepository;
-        _mapper = mapper;
-    }
-
-    public async Task<UserDto> Handle(CreateUserCommand request, CancellationToken cancellationToken)
-    {
-        var email = Email.Create(request.Email).Value;
-        var user = new User(email, request.Name);
-
-        await _userRepository.AddAsync(user, cancellationToken);
-        await _userRepository.SaveChangesAsync(cancellationToken);
-
-        return _mapper.Map<UserDto>(user);
-    }
-}
-```
-
-## Example: Query Definition
-
-```csharp
-public record GetUserByIdQuery(int UserId) : IRequest<UserDto?>;
-
-public class GetUserByIdQueryHandler : IRequestHandler<GetUserByIdQuery, UserDto?>
-{
-    private readonly IUserRepository _userRepository;
-    private readonly IMapper _mapper;
-
-    public GetUserByIdQueryHandler(IUserRepository userRepository, IMapper mapper)
-    {
-        _userRepository = userRepository;
-        _mapper = mapper;
-    }
-
-    public async Task<UserDto?> Handle(GetUserByIdQuery request, CancellationToken cancellationToken)
-    {
-        var user = await _userRepository.GetByIdAsync(request.UserId, cancellationToken);
-        return user is null ? null : _mapper.Map<UserDto>(user);
-    }
-}
-```
-
-## Example: DTO Definition
-
-```csharp
-public record UserDto(
-    int Id,
-    string Email,
-    string Name,
-    DateTime CreatedAt);
-```
-
 ## Testing
 
 Application Layer tests should focus on:
@@ -127,26 +57,6 @@ Application Layer tests should focus on:
 - Validator rules
 - Error handling and exceptions
 - Integration with repositories (using mocks)
-
-Example test:
-```csharp
-[Fact]
-public async Task Handle_WithValidCommand_ShouldCreateUser()
-{
-    // Arrange
-    var command = new CreateUserCommand("user@example.com", "John Doe");
-    var mockRepository = new Mock<IUserRepository>();
-    var mockMapper = new Mock<IMapper>();
-    var handler = new CreateUserCommandHandler(mockRepository.Object, mockMapper.Object);
-
-    // Act
-    var result = await handler.Handle(command, CancellationToken.None);
-
-    // Assert
-    mockRepository.Verify(x => x.AddAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()), Times.Once);
-    Assert.NotNull(result);
-}
-```
 
 ## Guidelines
 

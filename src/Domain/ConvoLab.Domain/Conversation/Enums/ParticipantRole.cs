@@ -3,8 +3,10 @@ namespace ConvoLab.Domain.Conversation.Enums;
 public enum ParticipantRole
 {
     Customer,
-    AIAssistant,
+    Assistant,
     HumanAgent,
     Supervisor,
-    Observer
+    Observer,
+    System,
+    Tool
 }

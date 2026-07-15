@@ -61,6 +61,7 @@ public class Conversation : BaseAggregateRoot<ConversationId>
         Timeline = ConversationTimeline.Create(new List<TimelineEntry>());
 
         AddDomainEvent(new ConversationCreatedEvent(id, creatorId, DateTime.UtcNow));
+        AddTimelineEntry("Conversation Created", $"Conversation '{title}' created by {creatorId.Value}");
     }
 
     public static Conversation Create(UserId creatorId, string title, ConversationMetadata metadata, ConversationWindow window, ConversationContext context)
@@ -68,148 +69,228 @@ public class Conversation : BaseAggregateRoot<ConversationId>
         return new(ConversationId.CreateUnique(), creatorId, title, metadata, window, context);
     }
 
+    #region Lifecycle Management
+
     public void Start()
     {
-        if (Status != ConversationStatus.Created)
-        {
-            throw new InvalidOperationException("Conversation can only be started from 'Created' status.");
-        }
+        EnsureStatusTransition(ConversationStatus.Started);
         Status = ConversationStatus.Started;
         AddDomainEvent(new ConversationStartedEvent(Id, DateTime.UtcNow));
+        AddTimelineEntry("Conversation Started", "Conversation has been started.");
     }
 
-    public void End(string? reason = null)
+    public void Activate()
     {
-        if (Status == ConversationStatus.Completed || Status == ConversationStatus.Archived || Status == ConversationStatus.Deleted)
-        {
-            throw new InvalidOperationException("Conversation is already ended, archived, or deleted.");
-        }
+        EnsureStatusTransition(ConversationStatus.Active);
+        Status = ConversationStatus.Active;
+        AddTimelineEntry("Conversation Active", "Conversation is now active.");
+    }
+
+    public void Wait()
+    {
+        EnsureStatusTransition(ConversationStatus.Waiting);
+        Status = ConversationStatus.Waiting;
+        AddTimelineEntry("Conversation Waiting", "Conversation is waiting for input or action.");
+    }
+
+    public void Process()
+    {
+        EnsureStatusTransition(ConversationStatus.Processing);
+        Status = ConversationStatus.Processing;
+        AddTimelineEntry("Conversation Processing", "Conversation is currently processing.");
+    }
+
+    public void Complete()
+    {
+        EnsureStatusTransition(ConversationStatus.Completed);
         Status = ConversationStatus.Completed;
-        AddDomainEvent(new ConversationEndedEvent(Id, DateTime.UtcNow, reason));
+        AddDomainEvent(new ConversationCompletedEvent(Id, DateTime.UtcNow));
+        AddTimelineEntry("Conversation Completed", "Conversation has been completed.");
     }
 
     public void Archive()
     {
-        if (Status == ConversationStatus.Archived || Status == ConversationStatus.Deleted)
-        {
-            throw new InvalidOperationException("Conversation is already archived or deleted.");
-        }
+        EnsureStatusTransition(ConversationStatus.Archived);
         Status = ConversationStatus.Archived;
         AddDomainEvent(new ConversationArchivedEvent(Id, DateTime.UtcNow));
+        AddTimelineEntry("Conversation Archived", "Conversation has been archived.");
     }
 
-    public void AddParticipant(ConversationParticipant participant)
+    public void SoftDelete()
     {
-        if (_participants.Any(p => p.Id == participant.Id))
+        EnsureStatusTransition(ConversationStatus.SoftDeleted);
+        Status = ConversationStatus.SoftDeleted;
+        AddTimelineEntry("Conversation Deleted", "Conversation has been soft deleted.");
+    }
+
+    private void EnsureStatusTransition(ConversationStatus newStatus)
+    {
+        bool isValid = Status switch
         {
-            throw new InvalidOperationException("Participant already exists in this conversation.");
-        }
-        _participants.Add(participant);
-        AddDomainEvent(new ParticipantJoinedEvent(Id, participant.Id, participant.UserId, DateTime.UtcNow));
-    }
+            ConversationStatus.Created => newStatus == ConversationStatus.Started || newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Started => newStatus == ConversationStatus.Active || newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Active => newStatus == ConversationStatus.Waiting || newStatus == ConversationStatus.Processing || newStatus == ConversationStatus.Completed || newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Waiting => newStatus == ConversationStatus.Active || newStatus == ConversationStatus.Processing || newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Processing => newStatus == ConversationStatus.Active || newStatus == ConversationStatus.Waiting || newStatus == ConversationStatus.Completed || newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Completed => newStatus == ConversationStatus.Archived || newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Archived => newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.SoftDeleted => false,
+            _ => false
+        };
 
-    public void RemoveParticipant(ParticipantId participantId)
-    {
-        var participant = _participants.FirstOrDefault(p => p.Id == participantId);
-        if (participant == null)
+        if (!isValid)
         {
-            throw new InvalidOperationException("Participant not found in this conversation.");
+            throw new InvalidOperationException($"Invalid transition from {Status} to {newStatus}");
         }
-        _participants.Remove(participant);
-        AddDomainEvent(new ParticipantLeftEvent(Id, participant.Id, participant.UserId, DateTime.UtcNow));
     }
 
-    public void AddMessage(ConversationMessage message)
-    {
-        if (Status != ConversationStatus.Active && Status != ConversationStatus.Started && Status != ConversationStatus.Waiting && Status != ConversationStatus.Processing)
-        {
-            throw new InvalidOperationException("Messages can only be added to active, started, waiting or processing conversations.");
-        }
-        _messages.Add(message);
-        AddDomainEvent(new MessageAddedEvent(Id, message.Id, message.SenderId, DateTime.UtcNow));
-    }
+    #endregion
 
-    public void AddAttachment(ConversationAttachment attachment, MessageId messageId)
-    {
-        if (!_messages.Any(m => m.Id == messageId))
-        {
-            throw new InvalidOperationException("Message not found to attach the file to.");
-        }
-        _attachments.Add(attachment);
-        AddDomainEvent(new AttachmentAddedEvent(Id, attachment.Id, messageId, DateTime.UtcNow));
-    }
+    #region Session Management
 
-    public void UpdateMemory(ConversationMemory memory)
+    public void StartSession(IEnumerable<ParticipantId> participantIds, ConversationMetadata? metadata = null)
     {
-        var existingMemory = _memories.FirstOrDefault(m => m.Id == memory.Id);
-        if (existingMemory != null)
-        {
-            _memories.Remove(existingMemory);
-        }
-        _memories.Add(memory);
-        AddDomainEvent(new MemoryUpdatedEvent(Id, memory.Id, DateTime.UtcNow));
-    }
-
-    public void AddSession(ConversationSession session)
-    {
+        var session = ConversationSession.Create(participantIds, metadata);
         _sessions.Add(session);
         AddDomainEvent(new SessionStartedEvent(Id, session.Id, DateTime.UtcNow));
+        AddTimelineEntry("Session Started", $"New session {session.Id.Value} started.");
     }
 
     public void EndSession(SessionId sessionId, SessionStatus status, string? reason = null)
     {
         var session = _sessions.FirstOrDefault(s => s.Id == sessionId);
-        if (session == null)
-        {
-            throw new InvalidOperationException("Session not found.");
-        }
+        if (session == null) throw new InvalidOperationException("Session not found.");
+        
         session.EndSession(status, reason);
         AddDomainEvent(new SessionEndedEvent(Id, sessionId, DateTime.UtcNow, reason));
+        AddTimelineEntry("Session Ended", $"Session {sessionId.Value} ended. Reason: {reason ?? "None"}");
     }
 
-    public void AttachWorkflowExecution(ExecutionId executionId)
+    #endregion
+
+    #region Participant Management
+
+    public void AddParticipant(UserId userId, ParticipantRole role)
     {
-        if (_workflowExecutionIds.Contains(executionId))
+        if (_participants.Any(p => p.UserId == userId))
         {
-            throw new InvalidOperationException("Workflow execution already attached.");
+            throw new InvalidOperationException("User is already a participant.");
         }
-        _workflowExecutionIds.Add(executionId);
-        AddDomainEvent(new WorkflowAttachedEvent(Id, executionId, DateTime.UtcNow));
+        
+        var participant = ConversationParticipant.Create(userId, role);
+        _participants.Add(participant);
+        AddDomainEvent(new ParticipantJoinedEvent(Id, participant.Id, userId, DateTime.UtcNow));
+        AddTimelineEntry("Participant Joined", $"User {userId.Value} joined as {role}.");
     }
 
-    public void AttachEvaluation(EvaluationId evaluationId)
+    public void RemoveParticipant(ParticipantId participantId)
     {
-        if (_evaluationIds.Contains(evaluationId))
+        var participant = _participants.FirstOrDefault(p => p.Id == participantId);
+        if (participant == null) throw new InvalidOperationException("Participant not found.");
+        
+        participant.LeaveConversation();
+        AddDomainEvent(new ParticipantRemovedEvent(Id, participantId, participant.UserId, DateTime.UtcNow));
+        AddTimelineEntry("Participant Removed", $"Participant {participantId.Value} left the conversation.");
+    }
+
+    #endregion
+
+    #region Message Management
+
+    public void AddMessage(ConversationMessage message)
+    {
+        if (Status == ConversationStatus.Completed || Status == ConversationStatus.Archived || Status == ConversationStatus.SoftDeleted)
         {
-            throw new InvalidOperationException("Evaluation already attached.");
+            throw new InvalidOperationException("Cannot add messages to a closed conversation.");
         }
-        _evaluationIds.Add(evaluationId);
-        AddDomainEvent(new EvaluationAttachedEvent(Id, evaluationId, DateTime.UtcNow));
+
+        _messages.Add(message);
+        
+        // Auto-link to current session if active
+        var currentSession = _sessions.LastOrDefault(s => s.Status == SessionStatus.Active);
+        currentSession?.AddMessage(message.Id);
+
+        AddDomainEvent(new MessageAddedEvent(Id, message.Id, message.SenderId, DateTime.UtcNow));
+        AddTimelineEntry("Message Added", $"Message {message.Id.Value} added by {message.Role}.");
     }
 
-    public void AttachTrace(TraceId traceId)
+    public void AddAttachment(ConversationAttachment attachment, MessageId messageId)
     {
-        if (_traceIds.Contains(traceId))
-        {
-            throw new InvalidOperationException("Trace already attached.");
-        }
-        _traceIds.Add(traceId);
-        AddDomainEvent(new TraceAttachedEvent(Id, traceId, DateTime.UtcNow));
+        if (!_messages.Any(m => m.Id == messageId)) throw new InvalidOperationException("Message not found.");
+        
+        _attachments.Add(attachment);
+        AddDomainEvent(new AttachmentAddedEvent(Id, attachment.Id, messageId, DateTime.UtcNow));
+        AddTimelineEntry("Attachment Added", $"Attachment {attachment.Id.Value} added to message {messageId.Value}.");
     }
 
-    public void AddTimelineEntry(TimelineEntry entry)
+    #endregion
+
+    #region Memory & Context
+
+    public void UpdateMemory(ConversationMemory memory)
     {
-        Timeline = Timeline.AddEntry(entry);
+        var existing = _memories.FirstOrDefault(m => m.Type == memory.Type);
+        if (existing != null) _memories.Remove(existing);
+        
+        _memories.Add(memory);
+        AddDomainEvent(new MemoryUpdatedEvent(Id, memory.Id, DateTime.UtcNow));
+        AddTimelineEntry("Memory Updated", $"Memory of type {memory.Type} updated.");
+    }
+
+    public void TakeSnapshot()
+    {
+        var snapshot = ConversationSnapshot.Create(Id, "Manual Snapshot");
+        _snapshots.Add(snapshot);
+        AddDomainEvent(new SnapshotCreatedEvent(Id, snapshot.Id, DateTime.UtcNow));
+        AddTimelineEntry("Snapshot Created", $"Conversation snapshot {snapshot.Id.Value} taken.");
     }
 
     public void UpdateContext(ConversationContext newContext)
     {
         Context = newContext;
+        AddTimelineEntry("Context Updated", "Conversation context has been updated.");
     }
 
-    public void AddSnapshot(ConversationSnapshot snapshot)
+    #endregion
+
+    #region External References
+
+    public void LinkWorkflow(ExecutionId executionId)
     {
-        _snapshots.Add(snapshot);
+        if (!_workflowExecutionIds.Contains(executionId))
+        {
+            _workflowExecutionIds.Add(executionId);
+            AddDomainEvent(new WorkflowLinkedEvent(Id, executionId, DateTime.UtcNow));
+            AddTimelineEntry("Workflow Linked", $"Workflow execution {executionId.Value} linked.");
+        }
+    }
+
+    public void LinkEvaluation(EvaluationId evaluationId)
+    {
+        if (!_evaluationIds.Contains(evaluationId))
+        {
+            _evaluationIds.Add(evaluationId);
+            AddDomainEvent(new EvaluationLinkedEvent(Id, evaluationId, DateTime.UtcNow));
+            AddTimelineEntry("Evaluation Linked", $"Evaluation {evaluationId.Value} linked.");
+        }
+    }
+
+    public void LinkTrace(TraceId traceId)
+    {
+        if (!_traceIds.Contains(traceId))
+        {
+            _traceIds.Add(traceId);
+            AddDomainEvent(new TraceLinkedEvent(Id, traceId, DateTime.UtcNow));
+            AddTimelineEntry("Trace Linked", $"Trace {traceId.Value} linked.");
+        }
+    }
+
+    #endregion
+
+    private void AddTimelineEntry(string eventName, string description)
+    {
+        var entry = TimelineEntry.Create(eventName, description, Metadata);
+        Timeline = Timeline.AddEntry(entry);
     }
 
     private Conversation() { 
