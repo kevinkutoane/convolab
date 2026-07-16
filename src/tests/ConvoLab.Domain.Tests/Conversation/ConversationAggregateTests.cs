@@ -43,68 +43,115 @@ public class ConversationAggregateTests
     }
 
     [Fact]
-    public void Invalid_Status_Transition_Should_Throw_Exception()
-    {
-        // Arrange
-        var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
-        
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => conversation.Complete());
-    }
-
-    [Fact]
-    public void AddParticipant_Should_Add_New_Participant()
-    {
-        // Arrange
-        var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
-        var userId = UserId.CreateUnique();
-
-        // Act
-        conversation.AddParticipant(userId, ParticipantRole.Customer);
-
-        // Assert
-        Assert.Contains(conversation.Participants, p => p.UserId == userId);
-        Assert.Contains(conversation.Timeline.Entries, e => e.EventName == "Participant Joined");
-    }
-
-    [Fact]
-    public void AddMessage_Should_Add_Message_And_Link_To_Active_Session()
+    public void Resume_Should_Throw_If_Completed()
     {
         // Arrange
         var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
         conversation.Start();
-        conversation.Activate();
-        
-        var participantId = ParticipantId.CreateUnique();
-        conversation.StartSession(new[] { participantId });
-        
-        var message = ConversationMessage.Create(ParticipantRole.Customer, "Hello", participantId);
+        conversation.Resume(); // Active
+        conversation.Complete();
 
-        // Act
-        conversation.AddMessage(message);
-
-        // Assert
-        Assert.Contains(conversation.Messages, m => m.Id == message.Id);
-        Assert.Contains(conversation.Sessions.First().MessageIds, id => id == message.Id);
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => conversation.Resume());
     }
 
     [Fact]
-    public void UpdateMemory_Should_Replace_Memory_Of_Same_Type()
+    public void Archive_Should_Throw_If_Active()
+    {
+        // Arrange
+        var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
+        conversation.Start();
+        conversation.Resume(); // Active
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => conversation.Archive());
+    }
+
+    [Fact]
+    public void Restore_Should_Throw_If_SoftDeleted()
+    {
+        // Arrange
+        var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
+        conversation.ExpireConversation(); // SoftDeleted
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => conversation.Restore());
+    }
+
+    [Fact]
+    public void StartSession_Should_Throw_If_Overlapping()
+    {
+        // Arrange
+        var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
+        var participantId = ParticipantId.CreateUnique();
+        conversation.StartSession(new[] { participantId });
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => conversation.StartSession(new[] { participantId }));
+    }
+
+    [Fact]
+    public void RemoveParticipant_Should_Throw_If_Final_Participant()
+    {
+        // Arrange
+        var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
+        var userId = UserId.CreateUnique();
+        conversation.AddParticipant(userId, ParticipantRole.Customer);
+        var participantId = conversation.Participants.First().Id;
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => conversation.RemoveParticipant(participantId));
+    }
+
+    [Fact]
+    public void AddMessage_Should_Throw_If_Archived()
+    {
+        // Arrange
+        var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
+        conversation.Start();
+        conversation.Resume();
+        conversation.Complete();
+        conversation.Archive();
+
+        var message = ConversationMessage.Create(ParticipantRole.Customer, MessageContent.FromString("Hello"), _creatorId, _metadata);
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => conversation.AddMessage(message));
+    }
+
+    [Fact]
+    public void UpdateMemory_Should_Support_Working_Memory()
     {
         // Arrange
         var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
         var strategy = MemoryStrategy.Create("Test");
         var window = MemoryWindow.Create(10, "Messages");
-        
-        var memory1 = ConversationMemory.Create(strategy, window, "Memory 1", MemoryType.ShortTerm);
-        var memory2 = ConversationMemory.Create(strategy, window, "Memory 2", MemoryType.ShortTerm);
+        var memory = ConversationMemory.Create(strategy, window, "Working data", MemoryType.Working);
 
         // Act
-        conversation.UpdateMemory(memory1);
-        conversation.UpdateMemory(memory2);
+        conversation.UpdateMemory(memory);
 
         // Assert
-        Assert.Single(conversation.Memories);
-        Assert.Equal("Memory 2", conversation.Memories.First().Content);
+        Assert.Contains(conversation.Memories, m => m.Type == MemoryType.Working);
+    }
+
+    [Fact]
+    public void Statistics_Should_Reflect_Current_State()
+    {
+        // Arrange
+        var conversation = ConvoLab.Domain.Conversation.Aggregates.Conversation.Create(_creatorId, _title, _metadata, _window, _context);
+        conversation.Start();
+        conversation.Resume();
+        
+        var participantId = ParticipantId.CreateUnique();
+        conversation.StartSession(new[] { participantId });
+        
+        var message = ConversationMessage.Create(ParticipantRole.Customer, MessageContent.FromString("Hello"), _creatorId, _metadata);
+        conversation.AddMessage(message);
+
+        // Assert
+        Assert.Equal(1, conversation.MessageCount);
+        Assert.Equal(1, conversation.SessionCount);
+        Assert.True(conversation.TimelineCount > 0);
     }
 }

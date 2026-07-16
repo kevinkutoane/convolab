@@ -43,14 +43,14 @@ public class ConversationEngine : IConversationEngine
     public async Task PauseConversationAsync(ConversationId conversationId)
     {
         var conversation = await GetConversationAsync(conversationId);
-        conversation.Wait();
+        conversation.Pause();
         await _repository.UpdateAsync(conversation);
     }
 
     public async Task ResumeConversationAsync(ConversationId conversationId)
     {
         var conversation = await GetConversationAsync(conversationId);
-        conversation.Activate();
+        conversation.Resume();
         await _repository.UpdateAsync(conversation);
     }
 
@@ -68,6 +68,20 @@ public class ConversationEngine : IConversationEngine
         await _repository.UpdateAsync(conversation);
     }
 
+    public async Task RestoreConversationAsync(ConversationId conversationId)
+    {
+        var conversation = await GetConversationAsync(conversationId);
+        conversation.Restore();
+        await _repository.UpdateAsync(conversation);
+    }
+
+    public async Task ExpireConversationAsync(ConversationId conversationId)
+    {
+        var conversation = await GetConversationAsync(conversationId);
+        conversation.ExpireConversation();
+        await _repository.UpdateAsync(conversation);
+    }
+
     public async Task StartSessionAsync(ConversationId conversationId, IEnumerable<ParticipantId> participantIds, ConversationMetadata? metadata = null)
     {
         var conversation = await GetConversationAsync(conversationId);
@@ -79,6 +93,13 @@ public class ConversationEngine : IConversationEngine
     {
         var conversation = await GetConversationAsync(conversationId);
         conversation.EndSession(sessionId, status, reason);
+        await _repository.UpdateAsync(conversation);
+    }
+
+    public async Task CloseInactiveSessionsAsync(ConversationId conversationId)
+    {
+        var conversation = await GetConversationAsync(conversationId);
+        conversation.CloseInactiveSessions();
         await _repository.UpdateAsync(conversation);
     }
 
@@ -96,47 +117,73 @@ public class ConversationEngine : IConversationEngine
         await _repository.UpdateAsync(conversation);
     }
 
-    public async Task AddMessageAsync(ConversationId conversationId, ParticipantRole role, string content, ParticipantId senderId, ConversationMetadata? metadata = null)
+    public async Task AddMessageAsync(ConversationId conversationId, ParticipantRole role, MessageContent content, UserId senderId, MessageType type, ConversationMetadata? metadata = null)
     {
         var conversation = await GetConversationAsync(conversationId);
-        var message = ConversationMessage.Create(role, content, senderId, metadata);
+        var message = ConversationMessage.Create(
+            role, 
+            content, 
+            senderId, 
+            metadata ?? ConversationMetadata.Create(new Dictionary<string, string>()),
+            type);
         conversation.AddMessage(message);
         await _repository.UpdateAsync(conversation);
     }
 
-    public async Task LinkWorkflowAsync(ConversationId conversationId, ExecutionId executionId)
+    public async Task AttachKnowledgeReferenceAsync(ConversationId conversationId, ConversationAttachment attachment, MessageId messageId)
     {
         var conversation = await GetConversationAsync(conversationId);
-        conversation.LinkWorkflow(executionId);
+        conversation.AttachKnowledgeReference(attachment, messageId);
         await _repository.UpdateAsync(conversation);
     }
 
-    public async Task LinkEvaluationAsync(ConversationId conversationId, EvaluationId evaluationId)
+    public async Task AttachWorkflowExecutionAsync(ConversationId conversationId, ExecutionId executionId)
     {
         var conversation = await GetConversationAsync(conversationId);
-        conversation.LinkEvaluation(evaluationId);
+        conversation.AttachWorkflowExecution(executionId);
         await _repository.UpdateAsync(conversation);
     }
 
-    public async Task LinkTraceAsync(ConversationId conversationId, TraceId traceId)
+    public async Task AttachEvaluationAsync(ConversationId conversationId, EvaluationId evaluationId)
     {
         var conversation = await GetConversationAsync(conversationId);
-        conversation.LinkTrace(traceId);
+        conversation.AttachEvaluation(evaluationId);
         await _repository.UpdateAsync(conversation);
     }
 
-    public async Task UpdateMemoryAsync(ConversationId conversationId, MemoryStrategy strategy, MemoryWindow window, string content, MemoryType type)
+    public async Task AttachTraceAsync(ConversationId conversationId, TraceId traceId)
     {
         var conversation = await GetConversationAsync(conversationId);
-        var memory = ConversationMemory.Create(strategy, window, content, type);
+        conversation.AttachTrace(traceId);
+        await _repository.UpdateAsync(conversation);
+    }
+
+    public async Task UpdateMemoryAsync(ConversationId conversationId, MemoryStrategy strategy, MemoryWindow window, string content, MemoryType type, bool isPinned = false, string? semanticReference = null)
+    {
+        var conversation = await GetConversationAsync(conversationId);
+        var memory = ConversationMemory.Create(strategy, window, content, type, isPinned, semanticReference);
         conversation.UpdateMemory(memory);
         await _repository.UpdateAsync(conversation);
     }
 
-    public async Task TakeSnapshotAsync(ConversationId conversationId)
+    public async Task UpdateContextAsync(ConversationId conversationId, ConversationContext context)
     {
         var conversation = await GetConversationAsync(conversationId);
-        conversation.TakeSnapshot();
+        conversation.UpdateContext(context);
+        await _repository.UpdateAsync(conversation);
+    }
+
+    public async Task CreateSnapshotAsync(ConversationId conversationId)
+    {
+        var conversation = await GetConversationAsync(conversationId);
+        conversation.CreateSnapshot();
+        await _repository.UpdateAsync(conversation);
+    }
+
+    public async Task RestoreSnapshotAsync(ConversationId conversationId, SnapshotId snapshotId)
+    {
+        var conversation = await GetConversationAsync(conversationId);
+        conversation.RestoreSnapshot(snapshotId);
         await _repository.UpdateAsync(conversation);
     }
 
@@ -151,5 +198,21 @@ public class ConversationEngine : IConversationEngine
     {
         var conversation = await GetConversationAsync(conversationId);
         return conversation.Timeline;
+    }
+
+    public async Task<ConversationStatisticsDto> GetStatisticsAsync(ConversationId conversationId)
+    {
+        var conversation = await GetConversationAsync(conversationId);
+        return new ConversationStatisticsDto(
+            conversation.MessageCount,
+            conversation.ParticipantCount,
+            conversation.SessionCount,
+            conversation.WorkflowCount,
+            conversation.EvaluationCount,
+            conversation.AttachmentCount,
+            conversation.TimelineCount,
+            conversation.TotalDuration,
+            conversation.AverageResponseTime
+        );
     }
 }

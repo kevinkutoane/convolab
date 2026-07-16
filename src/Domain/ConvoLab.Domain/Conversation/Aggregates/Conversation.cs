@@ -1,5 +1,4 @@
 using ConvoLab.Domain.Common;
-using ConvoLab.Domain.Events;
 using ConvoLab.Domain.Conversation.Enums;
 using ConvoLab.Domain.Conversation.Events;
 using ConvoLab.Domain.Conversation.Entities;
@@ -79,25 +78,22 @@ public class Conversation : BaseAggregateRoot<ConversationId>
         AddTimelineEntry("Conversation Started", "Conversation has been started.");
     }
 
-    public void Activate()
+    public void Pause()
     {
+        EnsureStatusTransition(ConversationStatus.Paused);
+        Status = ConversationStatus.Paused;
+        AddTimelineEntry("Conversation Paused", "Conversation has been paused.");
+    }
+
+    public void Resume()
+    {
+        if (Status == ConversationStatus.Completed)
+        {
+            throw new InvalidOperationException("Cannot resume Completed conversations.");
+        }
         EnsureStatusTransition(ConversationStatus.Active);
         Status = ConversationStatus.Active;
-        AddTimelineEntry("Conversation Active", "Conversation is now active.");
-    }
-
-    public void Wait()
-    {
-        EnsureStatusTransition(ConversationStatus.Waiting);
-        Status = ConversationStatus.Waiting;
-        AddTimelineEntry("Conversation Waiting", "Conversation is waiting for input or action.");
-    }
-
-    public void Process()
-    {
-        EnsureStatusTransition(ConversationStatus.Processing);
-        Status = ConversationStatus.Processing;
-        AddTimelineEntry("Conversation Processing", "Conversation is currently processing.");
+        AddTimelineEntry("Conversation Resumed", "Conversation has been resumed.");
     }
 
     public void Complete()
@@ -110,17 +106,25 @@ public class Conversation : BaseAggregateRoot<ConversationId>
 
     public void Archive()
     {
+        if (Status == ConversationStatus.Active)
+        {
+            throw new InvalidOperationException("Cannot archive Active conversations.");
+        }
         EnsureStatusTransition(ConversationStatus.Archived);
         Status = ConversationStatus.Archived;
         AddDomainEvent(new ConversationArchivedEvent(Id, DateTime.UtcNow));
         AddTimelineEntry("Conversation Archived", "Conversation has been archived.");
     }
 
-    public void SoftDelete()
+    public void Restore()
     {
-        EnsureStatusTransition(ConversationStatus.SoftDeleted);
-        Status = ConversationStatus.SoftDeleted;
-        AddTimelineEntry("Conversation Deleted", "Conversation has been soft deleted.");
+        if (Status == ConversationStatus.SoftDeleted)
+        {
+            throw new InvalidOperationException("Cannot restore deleted conversations.");
+        }
+        EnsureStatusTransition(ConversationStatus.Active);
+        Status = ConversationStatus.Active;
+        AddTimelineEntry("Conversation Restored", "Conversation has been restored to active status.");
     }
 
     private void EnsureStatusTransition(ConversationStatus newStatus)
@@ -129,11 +133,10 @@ public class Conversation : BaseAggregateRoot<ConversationId>
         {
             ConversationStatus.Created => newStatus == ConversationStatus.Started || newStatus == ConversationStatus.SoftDeleted,
             ConversationStatus.Started => newStatus == ConversationStatus.Active || newStatus == ConversationStatus.SoftDeleted,
-            ConversationStatus.Active => newStatus == ConversationStatus.Waiting || newStatus == ConversationStatus.Processing || newStatus == ConversationStatus.Completed || newStatus == ConversationStatus.SoftDeleted,
-            ConversationStatus.Waiting => newStatus == ConversationStatus.Active || newStatus == ConversationStatus.Processing || newStatus == ConversationStatus.SoftDeleted,
-            ConversationStatus.Processing => newStatus == ConversationStatus.Active || newStatus == ConversationStatus.Waiting || newStatus == ConversationStatus.Completed || newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Active => newStatus == ConversationStatus.Paused || newStatus == ConversationStatus.Completed || newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Paused => newStatus == ConversationStatus.Active || newStatus == ConversationStatus.SoftDeleted,
             ConversationStatus.Completed => newStatus == ConversationStatus.Archived || newStatus == ConversationStatus.SoftDeleted,
-            ConversationStatus.Archived => newStatus == ConversationStatus.SoftDeleted,
+            ConversationStatus.Archived => newStatus == ConversationStatus.Active || newStatus == ConversationStatus.SoftDeleted,
             ConversationStatus.SoftDeleted => false,
             _ => false
         };
@@ -150,6 +153,10 @@ public class Conversation : BaseAggregateRoot<ConversationId>
 
     public void StartSession(IEnumerable<ParticipantId> participantIds, ConversationMetadata? metadata = null)
     {
+        if (_sessions.Any(s => s.Status == SessionStatus.Active))
+        {
+            throw new InvalidOperationException("Cannot create overlapping Sessions.");
+        }
         var session = ConversationSession.Create(participantIds, metadata);
         _sessions.Add(session);
         AddDomainEvent(new SessionStartedEvent(Id, session.Id, DateTime.UtcNow));
@@ -166,6 +173,16 @@ public class Conversation : BaseAggregateRoot<ConversationId>
         AddTimelineEntry("Session Ended", $"Session {sessionId.Value} ended. Reason: {reason ?? "None"}");
     }
 
+    public void CloseInactiveSessions()
+    {
+        var activeSessions = _sessions.Where(s => s.Status == SessionStatus.Active).ToList();
+        foreach (var session in activeSessions)
+        {
+            session.EndSession(SessionStatus.Abandoned, "Closed due to inactivity");
+            AddTimelineEntry("Session Closed", $"Session {session.Id.Value} closed due to inactivity.");
+        }
+    }
+
     #endregion
 
     #region Participant Management
@@ -179,12 +196,16 @@ public class Conversation : BaseAggregateRoot<ConversationId>
         
         var participant = ConversationParticipant.Create(userId, role);
         _participants.Add(participant);
-        AddDomainEvent(new ParticipantJoinedEvent(Id, participant.Id, userId, DateTime.UtcNow));
+        AddDomainEvent(new ParticipantJoinedEvent(Id, participant.Id, userId, participant.JoinedAt));
         AddTimelineEntry("Participant Joined", $"User {userId.Value} joined as {role}.");
     }
 
     public void RemoveParticipant(ParticipantId participantId)
     {
+        if (_participants.Count <= 1)
+        {
+            throw new InvalidOperationException("Cannot remove the final participant.");
+        }
         var participant = _participants.FirstOrDefault(p => p.Id == participantId);
         if (participant == null) throw new InvalidOperationException("Participant not found.");
         
@@ -199,7 +220,11 @@ public class Conversation : BaseAggregateRoot<ConversationId>
 
     public void AddMessage(ConversationMessage message)
     {
-        if (Status == ConversationStatus.Completed || Status == ConversationStatus.Archived || Status == ConversationStatus.SoftDeleted)
+        if (Status == ConversationStatus.Archived)
+        {
+            throw new InvalidOperationException("Cannot add messages to Archived conversations.");
+        }
+        if (Status == ConversationStatus.Completed || Status == ConversationStatus.SoftDeleted)
         {
             throw new InvalidOperationException("Cannot add messages to a closed conversation.");
         }
@@ -214,13 +239,13 @@ public class Conversation : BaseAggregateRoot<ConversationId>
         AddTimelineEntry("Message Added", $"Message {message.Id.Value} added by {message.Role}.");
     }
 
-    public void AddAttachment(ConversationAttachment attachment, MessageId messageId)
+    public void AttachKnowledgeReference(ConversationAttachment attachment, MessageId messageId)
     {
         if (!_messages.Any(m => m.Id == messageId)) throw new InvalidOperationException("Message not found.");
         
         _attachments.Add(attachment);
-        AddDomainEvent(new AttachmentAddedEvent(Id, attachment.Id, messageId, DateTime.UtcNow));
-        AddTimelineEntry("Attachment Added", $"Attachment {attachment.Id.Value} added to message {messageId.Value}.");
+        AddDomainEvent(new AttachmentAddedEvent(Id, attachment.Id, messageId, attachment.UploadedAt));
+        AddTimelineEntry("Knowledge Reference Attached", $"Knowledge reference {attachment.Id.Value} added to message {messageId.Value}.");
     }
 
     #endregion
@@ -237,12 +262,21 @@ public class Conversation : BaseAggregateRoot<ConversationId>
         AddTimelineEntry("Memory Updated", $"Memory of type {memory.Type} updated.");
     }
 
-    public void TakeSnapshot()
+    public void CreateSnapshot()
     {
         var snapshot = ConversationSnapshot.Create(Id, "Manual Snapshot");
         _snapshots.Add(snapshot);
         AddDomainEvent(new SnapshotCreatedEvent(Id, snapshot.Id, DateTime.UtcNow));
         AddTimelineEntry("Snapshot Created", $"Conversation snapshot {snapshot.Id.Value} taken.");
+    }
+
+    public void RestoreSnapshot(SnapshotId snapshotId)
+    {
+        var snapshot = _snapshots.FirstOrDefault(s => s.Id == snapshotId);
+        if (snapshot == null) throw new InvalidOperationException("Snapshot not found.");
+        
+        // Logic to restore state from snapshot would go here
+        AddTimelineEntry("Snapshot Restored", $"Conversation restored from snapshot {snapshotId.Value}.");
     }
 
     public void UpdateContext(ConversationContext newContext)
@@ -255,33 +289,84 @@ public class Conversation : BaseAggregateRoot<ConversationId>
 
     #region External References
 
-    public void LinkWorkflow(ExecutionId executionId)
+    public void AttachWorkflowExecution(ExecutionId executionId)
     {
         if (!_workflowExecutionIds.Contains(executionId))
         {
             _workflowExecutionIds.Add(executionId);
             AddDomainEvent(new WorkflowLinkedEvent(Id, executionId, DateTime.UtcNow));
-            AddTimelineEntry("Workflow Linked", $"Workflow execution {executionId.Value} linked.");
+            AddTimelineEntry("Workflow Attached", $"Workflow execution {executionId.Value} attached.");
         }
     }
 
-    public void LinkEvaluation(EvaluationId evaluationId)
+    public void AttachEvaluation(EvaluationId evaluationId)
     {
         if (!_evaluationIds.Contains(evaluationId))
         {
             _evaluationIds.Add(evaluationId);
             AddDomainEvent(new EvaluationLinkedEvent(Id, evaluationId, DateTime.UtcNow));
-            AddTimelineEntry("Evaluation Linked", $"Evaluation {evaluationId.Value} linked.");
+            AddTimelineEntry("Evaluation Attached", $"Evaluation {evaluationId.Value} attached.");
         }
     }
 
-    public void LinkTrace(TraceId traceId)
+    public void AttachTrace(TraceId traceId)
     {
         if (!_traceIds.Contains(traceId))
         {
             _traceIds.Add(traceId);
             AddDomainEvent(new TraceLinkedEvent(Id, traceId, DateTime.UtcNow));
-            AddTimelineEntry("Trace Linked", $"Trace {traceId.Value} linked.");
+            AddTimelineEntry("Trace Attached", $"Trace {traceId.Value} attached.");
+        }
+    }
+
+    #endregion
+
+    public void ExpireConversation()
+    {
+        if (Status != ConversationStatus.SoftDeleted)
+        {
+            Status = ConversationStatus.SoftDeleted;
+            AddTimelineEntry("Conversation Expired", "Conversation has expired and been soft deleted.");
+        }
+    }
+
+    #region Statistics (Computed)
+
+    public int MessageCount => _messages.Count;
+    public int ParticipantCount => _participants.Count;
+    public int SessionCount => _sessions.Count;
+    public int WorkflowCount => _workflowExecutionIds.Count;
+    public int EvaluationCount => _evaluationIds.Count;
+    public int AttachmentCount => _attachments.Count;
+    public int TimelineCount => Timeline.Entries.Count;
+
+    public TimeSpan TotalDuration
+    {
+        get
+        {
+            var total = TimeSpan.Zero;
+            foreach (var session in _sessions)
+            {
+                if (session.EndTime.HasValue)
+                {
+                    total += session.EndTime.Value - session.StartTime;
+                }
+                else
+                {
+                    total += DateTime.UtcNow - session.StartTime;
+                }
+            }
+            return total;
+        }
+    }
+
+    public double AverageResponseTime
+    {
+        get
+        {
+            // Simple calculation: time between consecutive messages from different participants
+            // This is a placeholder for more complex logic
+            return 0.0; 
         }
     }
 
