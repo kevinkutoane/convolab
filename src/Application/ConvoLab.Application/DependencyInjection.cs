@@ -22,7 +22,14 @@ public static class DependencyInjection {
         services.AddSingleton<ConvoLab.Domain.Knowledge.Interfaces.IKnowledgeRetriever, PlaceholderKnowledgeRetriever>();
         services.AddSingleton<ConvoLab.Domain.Knowledge.Policies.KnowledgeGovernancePolicy>();
         services.AddTransient<IKnowledgeEngine, KnowledgeEngine>();
-        services.AddTransient<IAIOrchestrator, PlaceholderAIOrchestrator>();
+        services.AddTransient<IAIOrchestrator, PlaceholderAIOrchestrator>(); // Legacy shim; superseded by IIntelligenceEngine.
+        // Capability 6 — Intelligence Engine: catalogue, executions, budgets, planner, executor port, and the engine.
+        services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IIntelligenceProviderRepository, InMemoryIntelligenceProviderRepository>();
+        services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IExecutionRequestRepository, InMemoryExecutionRequestRepository>();
+        services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IExecutionBudgetRepository, InMemoryExecutionBudgetRepository>();
+        services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IIntelligenceExecutor, PlaceholderIntelligenceExecutor>();
+        services.AddSingleton<ConvoLab.Domain.Intelligence.Services.ExecutionPlanner>();
+        services.AddTransient<IIntelligenceEngine, IntelligenceEngine>();
         services.AddTransient<ITraceEngine, PlaceholderTraceEngine>();
         services.AddTransient<IEvaluationEngine, PlaceholderEvaluationEngine>();
         services.AddTransient<IPluginManager, PlaceholderPluginManager>();

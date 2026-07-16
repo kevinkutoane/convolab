@@ -13,7 +13,8 @@ This roadmap outlines the phased evolution of the ConvoLab platform, transitioni
 *   **Workflow Engine**: Execution pipelines and state machines (Completed).
 *   **Prompt Engine**: Enterprise prompt governance, versioning, and composition (Current Focus).
 *   **Knowledge Engine**: Enterprise knowledge governance, retrieval strategies, and provider-agnostic packages (Completed).
-*   **AI Orchestrator**: Advanced model routing, fallback policies, and capability matching.
+*   **Intelligence Engine (formerly AI Orchestrator)**: Advanced model routing, fallback policies, budgets, and capability matching (Completed).
+*   **Policy Engine**: Declarative governance rules for the platform (Completed).
 
 ## Phase 3: Engineering Studio
 *   **Prompt Studio**: Visual interface for prompt engineering, testing, and A/B experimentation.

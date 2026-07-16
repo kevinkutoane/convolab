@@ -10,7 +10,7 @@ The foundational engines that drive the platform's runtime behavior.
 *   **Workflow**: Orchestrates execution pipelines, state machines, and long-running processes.
 *   **Prompt**: Governs the lifecycle, versioning, and rendering of prompt templates.
 *   **Knowledge**: Handles document ingestion, vector storage, and semantic retrieval.
-*   **AI**: Abstracts interactions with language models and external AI providers.
+*   **Intelligence**: The gateway to execution — routes, plans, budgets, and safely executes workloads across models and providers.
 *   **Tracing**: Captures telemetry, token usage, and execution spans for observability.
 *   **Evaluation**: Assesses response quality against predefined metrics and rubrics.
 *   **Plugins**: Manages dynamic extensions and external tool integrations.
@@ -20,7 +20,7 @@ The foundational engines that drive the platform's runtime behavior.
 Capabilities ensuring the platform operates securely and transparently.
 
 *   **Identity**: Manages users, tenants, and role-based access control (RBAC).
-*   **Governance**: Enforces policies on prompt usage, model access, and data privacy.
+*   **Policy**: Declarative rules engine enforcing governance over model access, budgets, and prompts.
 
 ## Applications (Studios & Explorers)
 
@@ -50,13 +50,14 @@ graph TD
     %% Core Dependencies
     Conversation --> Workflow
     Conversation --> Tracing
-    Workflow --> AI
+    Workflow --> Intelligence
     Workflow --> Knowledge
     Workflow --> Prompt
     Workflow --> Tracing
-    Prompt --> AI
-    Knowledge --> AI
-    Evaluation --> AI
+    Prompt --> Intelligence
+    Knowledge --> Intelligence
+    Evaluation --> Intelligence
+    Intelligence --> Policy
     Evaluation --> Tracing
     
     %% Application Layer
