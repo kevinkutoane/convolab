@@ -1,10 +1,10 @@
 using ConvoLab.Application.Common.Interfaces;
-using ConvoLab.Domain.Conversation.ValueObjects;
-using ConvoLab.Domain.Users.ValueObjects;
 using ConvoLab.Domain.AI.ValueObjects;
-using ConvoLab.Domain.Prompt.ValueObjects;
-using ConvoLab.Domain.Prompt.Enums;
+using ConvoLab.Domain.Conversation.Enums;
+using ConvoLab.Domain.Conversation.ValueObjects;
 using ConvoLab.Domain.Knowledge.ValueObjects;
+using ConvoLab.Domain.Prompt.ValueObjects;
+using ConvoLab.Domain.Users.ValueObjects;
 namespace ConvoLab.Application.Services;
 public class ConvoLabWorkflowEngine : IWorkflowEngine {
     private readonly IConversationEngine _conversationEngine;
@@ -22,7 +22,7 @@ public class ConvoLabWorkflowEngine : IWorkflowEngine {
         string conversationResponse = "";
         try {
             await _traceEngine.AddSpanToTraceAsync(traceId, "AddUserMessageToConversation", null, new Dictionary<string, string> { { "userMessage", userMessage } }, cancellationToken);
-            await _conversationEngine.AddMessageToConversationAsync(conversationId, userId, userMessage, cancellationToken);
+            await _conversationEngine.AddMessageAsync(conversationId, ParticipantRole.Customer, MessageContent.FromString(userMessage), userId, MessageType.Text);
             var knowledgeItems = await _knowledgeEngine.SearchKnowledgeAsync(KnowledgeBaseId.FromGuid(Guid.Empty), userMessage, cancellationToken);
             var knowledgeContext = string.Join("\n", knowledgeItems.Select(item => item.Content));
             var promptTemplateId = PromptTemplateId.FromGuid(Guid.Empty);
@@ -30,7 +30,7 @@ public class ConvoLabWorkflowEngine : IWorkflowEngine {
             var aiPrompt = await _promptEngine.GeneratePromptAsync(promptTemplateId, promptParameters, cancellationToken);
             var aiModelId = AIModelId.FromGuid(Guid.Empty);
             conversationResponse = await _aiOrchestrator.ProcessPromptAsync(aiModelId, promptTemplateId, promptParameters, cancellationToken);
-            await _conversationEngine.AddMessageToConversationAsync(conversationId, UserId.FromGuid(Guid.Empty), conversationResponse, cancellationToken);
+            await _conversationEngine.AddMessageAsync(conversationId, ParticipantRole.Assistant, MessageContent.FromString(conversationResponse), UserId.FromGuid(Guid.Empty), MessageType.Assistant);
             var evaluationId = await _evaluationEngine.StartEvaluationAsync(conversationId, cancellationToken);
             await _evaluationEngine.AddEvaluationResultAsync(evaluationId, "ResponseQuality", "Good", "AI response was relevant and coherent.", cancellationToken);
             await _evaluationEngine.CompleteEvaluationAsync(evaluationId, cancellationToken);

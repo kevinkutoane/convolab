@@ -4,22 +4,23 @@ namespace ConvoLab.Domain.Conversation.ValueObjects;
 
 public class MemoryWindow : ValueObject
 {
-    public DateTime StartTime { get; private set; }
-    public DateTime? EndTime { get; private set; }
+    public int Size { get; private set; }
+    public string Unit { get; private set; } // e.g., "Messages", "Tokens", "Time"
 
-    private MemoryWindow(DateTime startTime, DateTime? endTime)
+    private MemoryWindow(int size, string unit)
     {
-        StartTime = startTime;
-        EndTime = endTime;
+        Size = size;
+        Unit = unit;
     }
 
-    public static MemoryWindow Create(DateTime startTime, DateTime? endTime = null) => new(startTime, endTime);
+    public static MemoryWindow Create(int size, string unit) => new(size, unit);
 
     protected override IEnumerable<object> GetEqualityComponents()
     {
-        yield return StartTime;
-        yield return EndTime;
+        yield return Size;
+        yield return Unit;
     }
 
-    private MemoryWindow() { }
+    // For EF Core
+    private MemoryWindow() { Unit = null!; }
 }

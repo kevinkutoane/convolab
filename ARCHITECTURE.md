@@ -368,5 +368,6 @@ builder.Services.AddOpenTelemetry()
 - See `src/Api/ConvoLab.Api/README.md` for API layer details
 - See `src/Application/README.md` for Application layer details
 - See `src/Domain/README.md` for Domain layer details
+- See `docs/Capability3_ConversationEngine_OperationalBehavior.md` for details on the Conversation Engine's operational behavior and rich aggregate design.
 - See `src/Infrastructure/README.md` for Infrastructure layer details
 - See `web/README.md` for frontend documentation

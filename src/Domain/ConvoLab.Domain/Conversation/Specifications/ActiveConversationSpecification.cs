@@ -11,7 +11,6 @@ public class ActiveConversationSpecification : Specification<Aggregates.Conversa
     {
         return conversation => conversation.Status == ConversationStatus.Active ||
                               conversation.Status == ConversationStatus.Started ||
-                              conversation.Status == ConversationStatus.Waiting ||
-                              conversation.Status == ConversationStatus.Processing;
+                              conversation.Status == ConversationStatus.Paused;
     }
 }

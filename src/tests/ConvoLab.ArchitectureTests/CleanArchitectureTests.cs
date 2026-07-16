@@ -93,7 +93,7 @@ public class CleanArchitectureTests
             .Inherit(typeof(Domain.Common.BaseEntity<>))
             .GetResult();
 
-        Assert.True(result.IsSuccessful);
+        Assert.True(result.IsSuccessful, $"Failing types: {string.Join(", ", result.FailingTypeNames ?? Enumerable.Empty<string>())}");
     }
 
     [Fact]

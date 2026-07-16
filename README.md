@@ -452,6 +452,8 @@ For issues, questions, or suggestions:
 
 ## Roadmap
 
+- [x] **Conversation Engine**: Behavior-rich Aggregate Root with full lifecycle management
+- [x] **Conversation Engine (Operational Behavior)**: Implemented rich aggregate behavior, session management, memory, context, message model, timeline, statistics, specifications, application layer, and comprehensive tests. See [Capability3_ConversationEngine_OperationalBehavior.md](./docs/Capability3_ConversationEngine_OperationalBehavior.md) for details.
 - [ ] Authentication and Authorization
 - [ ] Real-time features with SignalR
 - [ ] Advanced caching strategies

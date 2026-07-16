@@ -5,9 +5,8 @@ public enum ConversationStatus
     Created,
     Started,
     Active,
-    Waiting,
-    Processing,
+    Paused,
     Completed,
     Archived,
-    Deleted
+    SoftDeleted
 }

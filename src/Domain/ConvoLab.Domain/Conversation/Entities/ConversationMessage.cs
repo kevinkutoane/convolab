@@ -1,79 +1,76 @@
 using ConvoLab.Domain.Common;
 using ConvoLab.Domain.Conversation.Enums;
 using ConvoLab.Domain.Conversation.ValueObjects;
-using ConvoLab.Domain.Tracing.ValueObjects;
 using ConvoLab.Domain.Evaluation.ValueObjects;
+using ConvoLab.Domain.Tracing.ValueObjects;
+using ConvoLab.Domain.Users.ValueObjects;
 
 namespace ConvoLab.Domain.Conversation.Entities;
 
 public class ConversationMessage : BaseEntity<MessageId>
 {
-    public MessageType Type { get; private set; }
+    public ParticipantRole Role { get; private set; }
     public MessageContent Content { get; private set; }
-    public ParticipantId SenderId { get; private set; }
+    public UserId SenderId { get; private set; }
     public DateTime SentAt { get; private set; }
     public ConversationMetadata Metadata { get; private set; }
     public IReadOnlyList<AttachmentId> AttachmentIds { get; private set; }
     public MessageId? ParentMessageId { get; private set; }
     public bool IsStreaming { get; private set; }
-    public TokenUsage? TokenUsage { get; private set; }
+    public MessageType Type { get; private set; }
+
+    // External References
     public EvaluationId? EvaluationId { get; private set; }
     public TraceId? TraceId { get; private set; }
 
     private ConversationMessage(
         MessageId id,
-        MessageType type,
+        ParticipantRole role,
         MessageContent content,
-        ParticipantId senderId,
+        UserId senderId,
         DateTime sentAt,
         ConversationMetadata metadata,
         IEnumerable<AttachmentId> attachmentIds,
-        MessageId? parentMessageId,
-        bool isStreaming,
-        TokenUsage? tokenUsage,
-        EvaluationId? evaluationId,
-        TraceId? traceId)
+        MessageType type,
+        MessageId? parentMessageId = null,
+        bool isStreaming = false)
         : base(id)
     {
-        Type = type;
+        Role = role;
         Content = content;
         SenderId = senderId;
         SentAt = sentAt;
         Metadata = metadata;
         AttachmentIds = attachmentIds.ToList().AsReadOnly();
+        Type = type;
         ParentMessageId = parentMessageId;
         IsStreaming = isStreaming;
-        TokenUsage = tokenUsage;
-        EvaluationId = evaluationId;
-        TraceId = traceId;
     }
 
     public static ConversationMessage Create(
-        MessageType type,
+        ParticipantRole role,
         MessageContent content,
-        ParticipantId senderId,
+        UserId senderId,
         ConversationMetadata metadata,
-        IEnumerable<AttachmentId> attachmentIds,
+        MessageType type = MessageType.Text,
+        IEnumerable<AttachmentId>? attachmentIds = null,
         MessageId? parentMessageId = null,
-        bool isStreaming = false,
-        TokenUsage? tokenUsage = null,
-        EvaluationId? evaluationId = null,
-        TraceId? traceId = null)
+        bool isStreaming = false)
     {
         return new(
             MessageId.CreateUnique(),
-            type,
+            role,
             content,
             senderId,
             DateTime.UtcNow,
             metadata,
-            attachmentIds,
+            attachmentIds ?? new List<AttachmentId>(),
+            type,
             parentMessageId,
-            isStreaming,
-            tokenUsage,
-            evaluationId,
-            traceId);
+            isStreaming);
     }
+
+    // Messages are immutable - no setters or modification methods
 
     private ConversationMessage() { 
         Content = null!;

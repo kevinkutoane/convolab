@@ -9,36 +9,62 @@ public class ConversationSession : BaseEntity<SessionId>
     public DateTime StartTime { get; private set; }
     public DateTime? EndTime { get; private set; }
     public SessionStatus Status { get; private set; }
-    public string? ReasonClosed { get; private set; }
+    public string? CloseReason { get; private set; }
     public TimeSpan? Duration => EndTime - StartTime;
-    public IReadOnlyList<MessageId> MessageIds { get; private set; }
+    
+    private readonly List<MessageId> _messageIds = new();
+    public IReadOnlyList<MessageId> MessageIds => _messageIds.AsReadOnly();
 
-    private ConversationSession(SessionId id, DateTime startTime, SessionStatus status, IEnumerable<MessageId> messageIds)
+    private readonly List<ParticipantId> _participantIds = new();
+    public IReadOnlyList<ParticipantId> ParticipantIds => _participantIds.AsReadOnly();
+
+    public ConversationMetadata Metadata { get; private set; }
+
+    private ConversationSession(
+        SessionId id, 
+        DateTime startTime, 
+        SessionStatus status, 
+        IEnumerable<MessageId> messageIds,
+        IEnumerable<ParticipantId> participantIds,
+        ConversationMetadata metadata)
         : base(id)
     {
         StartTime = startTime;
         Status = status;
-        MessageIds = messageIds.ToList().AsReadOnly();
+        _messageIds = messageIds.ToList();
+        _participantIds = participantIds.ToList();
+        Metadata = metadata;
     }
 
-    public static ConversationSession Create(IEnumerable<MessageId> messageIds)
+    public static ConversationSession Create(
+        IEnumerable<ParticipantId> participantIds,
+        ConversationMetadata? metadata = null)
     {
-        return new(SessionId.CreateUnique(), DateTime.UtcNow, SessionStatus.Active, messageIds);
+        return new(
+            SessionId.CreateUnique(), 
+            DateTime.UtcNow, 
+            SessionStatus.Active, 
+            new List<MessageId>(),
+            participantIds,
+            metadata ?? ConversationMetadata.Create(new Dictionary<string, string>()));
     }
 
-    public void EndSession(SessionStatus status, string? reasonClosed = null)
+    public void EndSession(SessionStatus status, string? reason = null)
     {
         EndTime = DateTime.UtcNow;
         Status = status;
-        ReasonClosed = reasonClosed;
+        CloseReason = reason;
     }
 
     public void AddMessage(MessageId messageId)
     {
-        var messageList = MessageIds.ToList();
-        messageList.Add(messageId);
-        MessageIds = messageList.AsReadOnly();
+        if (!_messageIds.Contains(messageId))
+        {
+            _messageIds.Add(messageId);
+        }
     }
 
-    private ConversationSession() { MessageIds = new List<MessageId>().AsReadOnly(); }
+    private ConversationSession() { 
+        Metadata = null!;
+    }
 }

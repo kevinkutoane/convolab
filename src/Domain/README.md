@@ -2,18 +2,33 @@
 
 The **Domain Layer** is the core of the application, containing all business logic and domain models that are independent of any framework or external dependencies. This layer represents the heart of the application and should remain pure, testable, and framework-agnostic.
 
-## Purpose
+## Conversation Engine (Core Aggregate)
 
-The Domain Layer defines:
+The **Conversation** domain has been transformed into a behavior-rich **Aggregate Root**, serving as the central business capability of the ConvoLab platform.
 
-- **Entities**: Core business objects with identity and lifecycle (e.g., User, Order, Conversation)
-- **Value Objects**: Immutable objects that represent a value without identity (e.g., Money, Email, Address)
-- **Aggregates**: Collections of entities and value objects that are treated as a single unit
-- **Domain Events**: Events that represent something significant that happened in the business domain
-- **Specifications**: Reusable business logic encapsulated as query specifications
-- **Interfaces**: Contracts that other layers must implement (repositories, services, etc.)
+### Key Capabilities
 
-## Structure
+- **Lifecycle Management**: Explicit state transitions (Created -> Started -> Active -> Waiting -> Processing -> Completed -> Archived).
+- **Session Management**: Support for multiple sessions within a single conversation, enabling cross-channel continuity.
+- **Strategic Memory**: Memory modeled as a strategic capability with short-term, long-term, and summary types.
+- **Business Timeline**: A rich audit trail of business-significant events, distinct from technical tracing.
+- **Participant Roles**: Extensible model supporting Customer, Assistant, Human Agent, Supervisor, Observer, System, and Tool roles.
+- **Immutable Messages**: Messages are immutable entities with rich references to attachments, workflows, evaluations, and traces.
+
+### Structure
+
+```
+Domain/ConvoLab.Domain/Conversation/
+├── Aggregates/         # Conversation.cs (Aggregate Root)
+├── Entities/           # ConversationMessage, Session, Participant, Memory, Attachment, Snapshot
+├── Enums/              # ConversationStatus, ParticipantRole, SessionStatus, MemoryType
+├── Events/             # Rich Domain Events (e.g., MessageAdded, SessionStarted)
+├── Interfaces/         # IConversationRepository, IConversationFactory
+├── Specifications/     # Business invariants (e.g., ActiveConversationSpecification)
+└── ValueObjects/       # ConversationId, ConversationContext, ConversationTimeline, Metadata
+```
+
+## Structure (General)
 
 ```
 Domain/
@@ -40,61 +55,6 @@ Value Objects should be immutable. Entities should minimize mutable state and en
 ### 4. Rich Domain Model
 Entities should contain behavior, not just data. Business logic should live in the domain model, not in application services.
 
-## Example: Entity Definition
-
-```csharp
-public abstract class Entity
-{
-    public int Id { get; protected set; }
-    public DateTime CreatedAt { get; protected set; }
-    public DateTime? UpdatedAt { get; protected set; }
-
-    protected Entity() { }
-
-    protected Entity(int id)
-    {
-        Id = id;
-        CreatedAt = DateTime.UtcNow;
-    }
-
-    public override bool Equals(object? obj)
-    {
-        if (obj is not Entity other) return false;
-        return Id == other.Id;
-    }
-
-    public override int GetHashCode() => Id.GetHashCode();
-}
-```
-
-## Example: Value Object Definition
-
-```csharp
-public record Email
-{
-    public string Value { get; }
-
-    private Email(string value) => Value = value;
-
-    public static Result<Email> Create(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value) || !value.Contains("@"))
-            return Result<Email>.Failure("Invalid email format");
-
-        return Result<Email>.Success(new Email(value));
-    }
-}
-```
-
-## Example: Domain Event
-
-```csharp
-public record UserCreatedEvent(int UserId, string Email) : IDomainEvent
-{
-    public DateTime OccurredAt { get; } = DateTime.UtcNow;
-}
-```
-
 ## Testing
 
 Domain Layer tests should focus on:
@@ -104,22 +64,7 @@ Domain Layer tests should focus on:
 - Aggregate invariants
 - Domain Event generation
 
-Example test:
-```csharp
-[Fact]
-public void CreateUser_WithValidEmail_ShouldSucceed()
-{
-    // Arrange
-    var email = Email.Create("user@example.com").Value;
-
-    // Act
-    var user = new User(email);
-
-    // Assert
-    Assert.NotNull(user);
-    Assert.Equal(email, user.Email);
-}
-```
+For the Conversation domain, tests are located in `src/tests/ConvoLab.Domain.Tests/Conversation/`.
 
 ## Guidelines
 

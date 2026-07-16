@@ -8,31 +8,42 @@ public class ConversationMemory : BaseEntity<MemoryId>
 {
     public MemoryStrategy Strategy { get; private set; }
     public MemoryWindow Window { get; private set; }
-    public string Content { get; private set; } // Represents the summarized or raw memory content
+    public string Content { get; private set; }
     public DateTime LastUpdated { get; private set; }
+    public MemoryType Type { get; private set; }
+    public bool IsPinned { get; private set; }
+    public string? SemanticReference { get; private set; }
 
-    private ConversationMemory(MemoryId id, MemoryStrategy strategy, MemoryWindow window, string content, DateTime lastUpdated)
+    private ConversationMemory(MemoryId id, MemoryStrategy strategy, MemoryWindow window, string content, MemoryType type, bool isPinned = false, string? semanticReference = null)
         : base(id)
     {
         Strategy = strategy;
         Window = window;
         Content = content;
-        LastUpdated = lastUpdated;
+        LastUpdated = DateTime.UtcNow;
+        Type = type;
+        IsPinned = isPinned;
+        SemanticReference = semanticReference;
     }
 
-    public static ConversationMemory Create(MemoryStrategy strategy, MemoryWindow window, string content)
+    public static ConversationMemory Create(MemoryStrategy strategy, MemoryWindow window, string content, MemoryType type, bool isPinned = false, string? semanticReference = null)
     {
-        return new(MemoryId.CreateUnique(), strategy, window, content, DateTime.UtcNow);
+        return new(MemoryId.CreateUnique(), strategy, window, content, type, isPinned, semanticReference);
     }
 
-    public void UpdateContent(string newContent)
+    public void UpdateContent(string content)
     {
-        Content = newContent;
+        Content = content;
         LastUpdated = DateTime.UtcNow;
     }
 
-    private ConversationMemory() { 
-        Window = null!;
+    public void Pin() => IsPinned = true;
+    public void Unpin() => IsPinned = false;
+
+    private ConversationMemory()
+    {
         Content = null!;
+        Strategy = null!;
+        Window = null!;
     }
 }

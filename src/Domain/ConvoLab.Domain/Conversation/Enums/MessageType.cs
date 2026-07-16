@@ -2,9 +2,12 @@ namespace ConvoLab.Domain.Conversation.Enums;
 
 public enum MessageType
 {
-    User,
-    Assistant,
+    Text,
     System,
+    Assistant,
     Tool,
-    Function
+    Function,
+    Voice,
+    Image,
+    Structured
 }
