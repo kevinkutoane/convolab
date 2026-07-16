@@ -15,7 +15,13 @@ public static class DependencyInjection {
         });
         services.AddTransient<IConversationEngine, PlaceholderConversationEngine>();
         services.AddTransient<IPromptEngine, PlaceholderPromptEngine>();
-        services.AddTransient<IKnowledgeEngine, PlaceholderKnowledgeEngine>();
+        // Capability 5 — Knowledge Engine: repositories, retriever, governance policy, and the engine.
+        services.AddSingleton<ConvoLab.Domain.Knowledge.Interfaces.IKnowledgeSourceRepository, InMemoryKnowledgeSourceRepository>();
+        services.AddSingleton<ConvoLab.Domain.Knowledge.Interfaces.IKnowledgeCollectionRepository, InMemoryKnowledgeCollectionRepository>();
+        services.AddSingleton<ConvoLab.Domain.Knowledge.Interfaces.IKnowledgeConnectorRepository, InMemoryKnowledgeConnectorRepository>();
+        services.AddSingleton<ConvoLab.Domain.Knowledge.Interfaces.IKnowledgeRetriever, PlaceholderKnowledgeRetriever>();
+        services.AddSingleton<ConvoLab.Domain.Knowledge.Policies.KnowledgeGovernancePolicy>();
+        services.AddTransient<IKnowledgeEngine, KnowledgeEngine>();
         services.AddTransient<IAIOrchestrator, PlaceholderAIOrchestrator>();
         services.AddTransient<ITraceEngine, PlaceholderTraceEngine>();
         services.AddTransient<IEvaluationEngine, PlaceholderEvaluationEngine>();

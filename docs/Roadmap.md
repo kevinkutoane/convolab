@@ -12,7 +12,7 @@ This roadmap outlines the phased evolution of the ConvoLab platform, transitioni
 *   **Conversation Engine**: Stateful dialogue management (Completed).
 *   **Workflow Engine**: Execution pipelines and state machines (Completed).
 *   **Prompt Engine**: Enterprise prompt governance, versioning, and composition (Current Focus).
-*   **Knowledge Engine**: RAG capabilities, document ingestion, and vector storage.
+*   **Knowledge Engine**: Enterprise knowledge governance, retrieval strategies, and provider-agnostic packages (Completed).
 *   **AI Orchestrator**: Advanced model routing, fallback policies, and capability matching.
 
 ## Phase 3: Engineering Studio
