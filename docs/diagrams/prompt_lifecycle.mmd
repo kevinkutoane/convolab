@@ -1,0 +1,17 @@
+stateDiagram-v2
+    [*] --> Draft: Create Prompt
+    
+    Draft --> Review: Submit for Approval
+    Draft --> Draft: Edit (Creates new minor version)
+    
+    Review --> Approved: Approve
+    Review --> Draft: Reject
+    
+    Approved --> Active: Publish
+    
+    Active --> Deprecated: Deprecate
+    Active --> Draft: Clone/Edit (Creates new major version)
+    
+    Deprecated --> Archived: Archive
+    
+    Archived --> [*]
