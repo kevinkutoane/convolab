@@ -15,7 +15,7 @@ This document provides comprehensive instructions for deploying the ConvoLab app
 
 ### Prerequisites
 
-- .NET 10 SDK
+- .NET 8 SDK
 - Node.js 18+
 - Docker & Docker Compose (optional)
 

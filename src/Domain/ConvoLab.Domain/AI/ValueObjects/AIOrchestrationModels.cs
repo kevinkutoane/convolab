@@ -202,7 +202,7 @@ public class AICost : ValueObject
         Currency = currency;
     }
 
-    public static AICost Create(decimal amount, string currency = "USD") => 
+    public static AICost Create(decimal amount, string currency = "ZAR") =>
         new(amount, currency);
 
     protected override IEnumerable<object> GetEqualityComponents()
@@ -211,7 +211,7 @@ public class AICost : ValueObject
         yield return Currency;
     }
 
-    private AICost() { Currency = "USD"; }
+    private AICost() { Currency = "ZAR"; }
 }
 
 public class AIEmbedding : ValueObject

@@ -5,6 +5,12 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using ConvoLab.Application.Common.Interfaces;
 using ConvoLab.Application.Services;
+using ConvoLab.Application.Simulation;
+using ConvoLab.Application.KnowledgeStudio;
+using ConvoLab.Application.PromptStudio;
+using ConvoLab.Application.WorkflowStudio;
+using ConvoLab.Application.IntelligenceStudio;
+using ConvoLab.Application.EvaluationStudio;
 namespace ConvoLab.Application;
 public static class DependencyInjection {
     public static IServiceCollection AddApplication(this IServiceCollection services) {
@@ -27,13 +33,18 @@ public static class DependencyInjection {
         services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IIntelligenceProviderRepository, InMemoryIntelligenceProviderRepository>();
         services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IExecutionRequestRepository, InMemoryExecutionRequestRepository>();
         services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IExecutionBudgetRepository, InMemoryExecutionBudgetRepository>();
-        services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IIntelligenceExecutor, PlaceholderIntelligenceExecutor>();
         services.AddSingleton<ConvoLab.Domain.Intelligence.Services.ExecutionPlanner>();
-        services.AddTransient<IIntelligenceEngine, IntelligenceEngine>();
+        services.AddSingleton<IIntelligenceEngine, IntelligenceEngine>();
         services.AddTransient<ITraceEngine, PlaceholderTraceEngine>();
         services.AddTransient<IEvaluationEngine, PlaceholderEvaluationEngine>();
         services.AddTransient<IPluginManager, PlaceholderPluginManager>();
         services.AddTransient<IWorkflowEngine, ConvoLabWorkflowEngine>();
+        services.AddScoped<IKnowledgeStudioService, KnowledgeStudioService>();
+        services.AddScoped<IPromptStudioService, PromptStudioService>();
+        services.AddScoped<IWorkflowStudioService, WorkflowStudioService>();
+        services.AddScoped<IConversationSimulationService, ConversationSimulationService>();
+        services.AddScoped<IIntelligenceStudioService, IntelligenceStudioService>();
+        services.AddScoped<IEvaluationStudioService, EvaluationStudioService>();
         return services;
     }
 }

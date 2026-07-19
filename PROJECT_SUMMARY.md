@@ -2,7 +2,7 @@
 
 ## Overview
 
-**ConvoLab** is a production-grade, elegantly crafted full-stack enterprise application foundation built with **Clean Architecture** principles. It serves as a comprehensive starter template for building scalable applications with .NET 10 and React 19.
+**ConvoLab** is a production-grade, elegantly crafted full-stack enterprise application foundation built with **Clean Architecture** principles. It serves as a comprehensive starter template for building scalable applications with .NET 8 and React 19.
 
 ## Project Status
 
@@ -18,7 +18,7 @@
 
 ## Key Deliverables
 
-### 1. Backend Architecture (.NET 10)
+### 1. Backend Architecture (.NET 8)
 
 #### Organized into Clean Architecture Layers:
 
@@ -382,7 +382,7 @@ MIT License - See LICENSE file for details
 ConvoLab is a **complete, production-ready foundation** for enterprise applications. It demonstrates:
 
 - ✅ Clean Architecture principles in practice
-- ✅ Modern .NET 10 development patterns
+- ✅ Modern .NET 8 development patterns
 - ✅ React 19 best practices
 - ✅ Comprehensive documentation
 - ✅ Enterprise-grade infrastructure

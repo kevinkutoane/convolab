@@ -1,11 +1,16 @@
+using System.Text.Json.Serialization;
+using ConvoLab.Api.Health;
+using ConvoLab.Api.Middleware;
 using ConvoLab.Application;
 using ConvoLab.Infrastructure;
-using ConvoLab.Api.Middleware;
-using Serilog;
+using ConvoLab.Infrastructure.Data;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using OpenTelemetry.Metrics;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Serilog;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -16,39 +21,65 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     Log.Information("Starting ConvoLab API");
-
     var builder = WebApplication.CreateBuilder(args);
-
     builder.Host.UseSerilog();
 
-    // Add Clean Architecture Layers
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
 
-    // Add OpenTelemetry
+    var enableConsoleTelemetry = builder.Configuration.GetValue<bool>("Telemetry:ConsoleExporter:Enabled");
     builder.Services.AddOpenTelemetry()
-        .WithTracing(tracing => tracing
-            .AddSource("ConvoLab.Api")
-            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("ConvoLab.Api"))
-            .AddAspNetCoreInstrumentation()
-            .AddHttpClientInstrumentation()
-            .AddEntityFrameworkCoreInstrumentation()
-            .AddConsoleExporter())
-        .WithMetrics(metrics => metrics
-            .AddMeter("ConvoLab.Api")
-            .AddAspNetCoreInstrumentation()
-            .AddRuntimeInstrumentation()
-            .AddConsoleExporter());
+        .WithTracing(tracing =>
+        {
+            tracing
+                .AddSource("ConvoLab.Api")
+                .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("ConvoLab.Api"))
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
+                .AddEntityFrameworkCoreInstrumentation();
+            if (enableConsoleTelemetry) tracing.AddConsoleExporter();
+        })
+        .WithMetrics(metrics =>
+        {
+            metrics
+                .AddMeter("ConvoLab.Api")
+                .AddAspNetCoreInstrumentation()
+                .AddRuntimeInstrumentation();
+            if (enableConsoleTelemetry) metrics.AddConsoleExporter();
+        });
 
-    builder.Services.AddControllers();
+    builder.Services.AddControllers()
+        .AddJsonOptions(options =>
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen();
-    builder.Services.AddHealthChecks();
+    builder.Services.AddHealthChecks()
+        .AddCheck("self", () => HealthCheckResult.Healthy("ConvoLab API is running."), tags: ["live"])
+        .AddCheck<DatabaseReadinessHealthCheck>("database", tags: ["ready"])
+        .AddCheck<DocumentStorageHealthCheck>("document-storage", tags: ["ready"])
+        .AddCheck<ProviderConfigurationHealthCheck>("providers", tags: ["ready"]);
 
     var app = builder.Build();
 
-    // Middleware Workflow
+    var migrateOnStartup = app.Environment.IsDevelopment()
+        || app.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup");
+    if (migrateOnStartup)
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await db.Database.MigrateAsync();
+    }
+
+    app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseMiddleware<GlobalExceptionMiddleware>();
+    app.UseSerilogRequestLogging(options =>
+    {
+        options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+        {
+            diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
+            diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+        };
+    });
 
     if (app.Environment.IsDevelopment())
     {
@@ -56,37 +87,60 @@ try
         app.UseSwaggerUI();
     }
 
-    app.UseHttpsRedirection();
+    if (app.Configuration.GetValue("Http:UseHttpsRedirection", !app.Environment.IsDevelopment()))
+        app.UseHttpsRedirection();
     app.UseAuthorization();
     app.MapControllers();
-    
+
+    app.MapHealthChecks("/health/live", new HealthCheckOptions
+    {
+        Predicate = registration => registration.Tags.Contains("live"),
+        ResponseWriter = WriteHealthResponseAsync
+    });
+    app.MapHealthChecks("/health/ready", new HealthCheckOptions
+    {
+        Predicate = registration => registration.Tags.Contains("ready"),
+        ResponseWriter = WriteHealthResponseAsync
+    });
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
-        ResponseWriter = async (context, report) =>
-        {
-            context.Response.ContentType = "application/json";
-            var response = new
-            {
-                status = report.Status.ToString(),
-                checks = report.Entries.Select(x => new
-                {
-                    component = x.Key,
-                    status = x.Value.Status.ToString(),
-                    description = x.Value.Description
-                }),
-                duration = report.TotalDuration
-            };
-            await context.Response.WriteAsJsonAsync(response);
-        }
+        Predicate = registration => registration.Tags.Contains("ready"),
+        ResponseWriter = WriteHealthResponseAsync
     });
 
     await app.RunAsync();
 }
-catch (Exception ex)
+catch (HostAbortedException)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly");
+    throw;
+}
+catch (Exception exception)
+{
+    Log.Fatal(exception, "Application terminated unexpectedly");
+    throw;
 }
 finally
 {
     await Log.CloseAndFlushAsync();
 }
+
+static async Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json";
+    await context.Response.WriteAsJsonAsync(new
+    {
+        status = report.Status.ToString(),
+        correlationId = context.TraceIdentifier,
+        checks = report.Entries.Select(entry => new
+        {
+            component = entry.Key,
+            status = entry.Value.Status.ToString(),
+            description = entry.Value.Description,
+            durationMs = entry.Value.Duration.TotalMilliseconds,
+            data = entry.Value.Data
+        }),
+        durationMs = report.TotalDuration.TotalMilliseconds
+    });
+}
+
+public partial class Program { }

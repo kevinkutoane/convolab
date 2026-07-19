@@ -1,52 +1,131 @@
-using System.Net;
-using System.Text.Json;
+using ConvoLab.Application.Common.Errors;
 using FluentValidation;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ConvoLab.Api.Middleware;
 
-public class GlobalExceptionMiddleware
+public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
 {
-    private readonly RequestDelegate _next;
-    private readonly ILogger<GlobalExceptionMiddleware> _logger;
-
-    public GlobalExceptionMiddleware(RequestDelegate next, ILogger<GlobalExceptionMiddleware> logger)
-    {
-        _next = next;
-        _logger = logger;
-    }
-
     public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await _next(context);
+            await next(context);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
-            _logger.LogError(ex, "An unhandled exception has occurred.");
-            await HandleExceptionAsync(context, ex);
+            context.Response.StatusCode = 499;
+        }
+        catch (Exception exception)
+        {
+            var problem = Map(exception, context.TraceIdentifier);
+            if (problem.Status >= 500)
+                logger.LogError(exception, "Unhandled request failure {ErrorCode}", problem.Extensions["code"]);
+            else
+                logger.LogWarning(exception, "Request rejected {ErrorCode}", problem.Extensions["code"]);
+
+            context.Response.StatusCode = problem.Status ?? StatusCodes.Status500InternalServerError;
+            await context.Response.WriteAsJsonAsync(
+                problem,
+                options: null,
+                contentType: "application/problem+json");
         }
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private static ProblemDetails Map(Exception exception, string correlationId)
     {
-        var code = HttpStatusCode.InternalServerError;
-        var result = string.Empty;
-
-        switch (exception)
+        (int status, string title, string detail, string code, IReadOnlyDictionary<string, string[]> errors) mapped = exception switch
         {
-            case ValidationException validationException:
-                code = HttpStatusCode.BadRequest;
-                result = JsonSerializer.Serialize(new { errors = validationException.Errors.Select(e => e.ErrorMessage) });
-                break;
-            default:
-                result = JsonSerializer.Serialize(new { error = exception.Message });
-                break;
-        }
+            RequestValidationException validation => (
+                StatusCodes.Status400BadRequest,
+                "Validation failed",
+                validation.Message,
+                validation.Code,
+                validation.ValidationErrors),
+            ValidationException validation => (
+                StatusCodes.Status400BadRequest,
+                "Validation failed",
+                "One or more request values are invalid.",
+                "validation.failed",
+                validation.Errors
+                    .GroupBy(error => string.IsNullOrWhiteSpace(error.PropertyName) ? "request" : error.PropertyName)
+                    .ToDictionary(group => group.Key, group => group.Select(error => error.ErrorMessage).ToArray())),
+            ResourceNotFoundException missing => (
+                StatusCodes.Status404NotFound,
+                "Resource not found",
+                missing.Message,
+                missing.Code,
+                missing.ValidationErrors),
+            ResourceConflictException conflict => (
+                StatusCodes.Status409Conflict,
+                "Conflict",
+                conflict.Message,
+                conflict.Code,
+                conflict.ValidationErrors),
+            ConcurrencyConflictException conflict => (
+                StatusCodes.Status409Conflict,
+                "Concurrency conflict",
+                conflict.Message,
+                conflict.Code,
+                conflict.ValidationErrors),
+            DomainRuleViolationException rule => (
+                StatusCodes.Status422UnprocessableEntity,
+                "Domain rule violation",
+                rule.Message,
+                rule.Code,
+                rule.ValidationErrors),
+            CapabilityUnavailableException unavailable => (
+                StatusCodes.Status503ServiceUnavailable,
+                "Capability unavailable",
+                unavailable.Message,
+                unavailable.Code,
+                unavailable.ValidationErrors),
+            ExternalDependencyException dependency => (
+                StatusCodes.Status502BadGateway,
+                "External dependency failure",
+                dependency.Message,
+                dependency.Code,
+                dependency.ValidationErrors),
+            KeyNotFoundException => (
+                StatusCodes.Status404NotFound,
+                "Resource not found",
+                "The requested resource was not found.",
+                "resource.not_found",
+                EmptyErrors()),
+            ArgumentException argument => (
+                StatusCodes.Status400BadRequest,
+                "Invalid request",
+                argument.Message,
+                "request.invalid",
+                EmptyErrors()),
+            InvalidOperationException operation => (
+                StatusCodes.Status422UnprocessableEntity,
+                "Operation rejected",
+                operation.Message,
+                "operation.rejected",
+                EmptyErrors()),
+            _ => (
+                StatusCodes.Status500InternalServerError,
+                "Unexpected platform error",
+                "The platform could not complete the request. Use the correlation id when reviewing server logs.",
+                "platform.unexpected_error",
+                EmptyErrors())
+        };
 
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)code;
-
-        return context.Response.WriteAsync(result);
+        var problem = new ProblemDetails
+        {
+            Status = mapped.status,
+            Title = mapped.title,
+            Detail = mapped.detail,
+            Type = $"https://errors.convolab.dev/{mapped.code}",
+            Instance = correlationId
+        };
+        problem.Extensions["code"] = mapped.code;
+        problem.Extensions["correlationId"] = correlationId;
+        if (mapped.errors.Count > 0) problem.Extensions["errors"] = mapped.errors;
+        return problem;
     }
+
+    private static IReadOnlyDictionary<string, string[]> EmptyErrors()
+        => new Dictionary<string, string[]>();
 }

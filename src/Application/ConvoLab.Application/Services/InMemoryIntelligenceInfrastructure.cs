@@ -78,33 +78,3 @@ public class InMemoryExecutionBudgetRepository : IExecutionBudgetRepository
         return Task.CompletedTask;
     }
 }
-
-/// <summary>
-/// Placeholder executor: echoes a deterministic response with plausible usage
-/// and cost. Real provider adapters (OpenAI, Azure OpenAI, Gemini, Anthropic,
-/// Mistral, Ollama, internal models) implement IIntelligenceExecutor in the
-/// Infrastructure layer — this placeholder proves the port works end-to-end.
-/// </summary>
-public class PlaceholderIntelligenceExecutor : IIntelligenceExecutor
-{
-    public IReadOnlyCollection<ProviderKind> SupportedProviders { get; } =
-        Enum.GetValues<ProviderKind>();
-
-    public Task<ExecutionResult> ExecuteAsync(
-        ExecutionRequest request, string renderedPrompt, CancellationToken cancellationToken = default)
-    {
-        var responseText = $"[placeholder:{request.Plan?.ModelName}] response to: {Truncate(renderedPrompt, 120)}";
-
-        // Rough token estimate: ~4 characters per token.
-        var usage = ExecutionUsage.Create(
-            inputTokens: Math.Max(1, renderedPrompt.Length / 4),
-            outputTokens: Math.Max(1, responseText.Length / 4));
-
-        var cost = ExecutionCost.Create(0.0001m);
-
-        return Task.FromResult(ExecutionResult.FromText(responseText, usage, cost));
-    }
-
-    private static string Truncate(string value, int max)
-        => value.Length <= max ? value : value[..max] + "…";
-}

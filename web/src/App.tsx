@@ -1,56 +1,78 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { StudioShell } from "./components/StudioShell";
+import { designTimePlatformStatus, studioPages } from "./data/platform";
+import { useTheme } from "./hooks/useTheme";
+import { CapabilityPage } from "./pages/CapabilityPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { ConversationSimulatorPage } from "./pages/ConversationSimulatorPage";
+import { KnowledgeStudioPage } from "./pages/KnowledgeStudioPage";
+import { PromptStudioPage } from "./pages/PromptStudioPage";
+import { WorkflowDesignerPage } from "./pages/WorkflowDesignerPage";
+import { IntelligenceCenterPage } from "./pages/IntelligenceCenterPage";
+import { EvaluationStudioPage } from "./pages/EvaluationStudioPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+import { DocumentationPage } from "./pages/DocumentationPage";
+import { getPlatformStatus } from "./services/platformApi";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+function StudioRoutes() {
+  const { theme, toggleTheme } = useTheme();
+  const platformQuery = useQuery({
+    queryKey: ["platform-status"],
+    queryFn: getPlatformStatus,
+  });
+  const platformStatus = platformQuery.data ?? designTimePlatformStatus;
+
+  return (
+    <Routes>
+      <Route
+        element={
+          <StudioShell
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            status={platformStatus}
+            isFetching={platformQuery.isFetching}
+          />
+        }
+      >
+        <Route index element={<DashboardPage status={platformStatus} />} />
+        <Route path="conversations" element={<ConversationSimulatorPage />} />
+        <Route path="knowledge" element={<KnowledgeStudioPage />} />
+        <Route path="prompts" element={<PromptStudioPage />} />
+        <Route path="workflows" element={<WorkflowDesignerPage />} />
+        <Route path="intelligence" element={<IntelligenceCenterPage />} />
+        <Route path="evaluation" element={<EvaluationStudioPage />} />
+        <Route path="evaluations" element={<EvaluationStudioPage />} />
+        <Route path="documentation/:topic?" element={<DocumentationPage />} />
+        {Object.entries(studioPages).filter(([key]) => !["conversations", "knowledge", "prompts", "workflows", "intelligence", "evaluations"].includes(key)).map(([key, definition]) => (
+          <Route
+            key={key}
+            path={key}
+            element={<CapabilityPage definition={definition} topic={key} />}
+          />
+        ))}
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
+    </Routes>
+  );
+}
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router>
-        <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-          <header className="mb-8 text-center">
-            <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight mb-2">ConvoLab</h1>
-            <p className="text-xl text-slate-600">Enterprise React + .NET 10 Foundation</p>
-          </header>
-          
-          <main className="w-full max-w-2xl">
-            <Routes>
-              <Route path="/" element={<Home />} />
-            </Routes>
-          </main>
-          
-          <footer className="mt-auto py-6 text-slate-400 text-sm">
-            Sprint 0 - Architecture Foundation
-          </footer>
-        </div>
-      </Router>
+      <BrowserRouter>
+        <StudioRoutes />
+      </BrowserRouter>
     </QueryClientProvider>
-  );
-}
-
-function Home() {
-  return (
-    <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
-      <h2 className="text-2xl font-bold text-slate-800 mb-4">Architecture Verified</h2>
-      <ul className="space-y-3">
-        <li className="flex items-center text-slate-600">
-          <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
-          React 19 + TypeScript + Vite
-        </li>
-        <li className="flex items-center text-slate-600">
-          <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
-          Tailwind CSS 4.0
-        </li>
-        <li className="flex items-center text-slate-600">
-          <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
-          TanStack Query + Axios
-        </li>
-        <li className="flex items-center text-slate-600">
-          <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
-          React Router
-        </li>
-      </ul>
-    </div>
   );
 }
 

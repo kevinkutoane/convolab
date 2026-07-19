@@ -17,7 +17,7 @@ Before you begin, ensure you have the following installed:
 
 ### Required
 
-- **[.NET 10 SDK](https://dotnet.microsoft.com/download)** - Backend runtime
+- **[.NET 8 SDK](https://dotnet.microsoft.com/download)** - Backend runtime
 - **[Node.js 18+](https://nodejs.org/)** - Frontend runtime
 - **[Git](https://git-scm.com/)** - Version control
 

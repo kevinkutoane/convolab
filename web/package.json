@@ -1,13 +1,14 @@
 {
-  "name": "web",
+  "name": "convolab-studio",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0-alpha.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node scripts/run-tests.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
@@ -34,5 +35,6 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.1"
-  }
+  },
+  "description": "The engineering workspace for ConvoLab Platform Core."
 }

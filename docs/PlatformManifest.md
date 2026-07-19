@@ -1,61 +1,109 @@
 # ConvoLab Platform Manifest
 
 ## Vision
-To provide a unified, enterprise-grade foundation for orchestrating intelligent conversations, workflows, and AI interactions, ensuring that every capability is governed, scalable, and observable.
+
+ConvoLab is the engineering platform where enterprise teams design, simulate, evaluate, observe, govern, and continuously improve conversational intelligence across providers, channels, and business systems.
 
 ## Mission
-Treat ConvoLab as a real enterprise platform. Every architectural decision must be discoverable. Every capability must be independently understandable. The repository must be approachable for a new engineer joining the project, prioritizing clear domain boundaries and clean architecture.
 
-## Platform Principles
-1. **Capability Isolation**: Each engine and domain must operate independently with well-defined boundaries.
-2. **Observability First**: Tracing, metrics, and evaluation are not afterthoughts; they are core to the platform.
-3. **Immutability and Versioning**: Key assets like prompts and knowledge bases are treated as immutable, versioned artifacts.
-4. **Extensibility**: The platform must support new models, providers, and plugins without modifying core logic.
+Provide a coherent, provider-neutral Platform Core and a suite of engineering products that make conversational AI systems reproducible, inspectable, governable, and safe to evolve.
 
-## Architecture Principles
-1. **Clean Architecture**: Clear separation of concerns (Domain, Application, Infrastructure, Presentation).
-2. **Domain-Driven Design (DDD)**: Rich bounded contexts, ubiquitous language, and clear aggregate roots.
-3. **Event-Driven Integration**: Capabilities communicate via domain events to maintain loose coupling.
-4. **Provider Agnosticism**: Core domains must never depend on specific AI providers or infrastructure implementations.
+## Product model
 
-## Current Capabilities
-- **Conversation Engine**: Manages the lifecycle, state, and context of user interactions.
-- **Workflow Engine**: Orchestrates complex sequences of operations and AI interactions.
-- **Knowledge Engine**: Manages knowledge bases and retrieval-augmented generation (RAG) context.
-- **AI Orchestration**: Abstracts interactions with various LLM providers.
-- **Tracing Engine**: Provides end-to-end visibility into platform operations.
-- **Evaluation Engine**: Assesses the quality and accuracy of AI responses.
+- **ConvoLab Platform** contains reusable domain and application capabilities.
+- **ConvoLab Studio** is the visual engineering workspace that consumes Platform Core.
+- **Adapters and plugins** connect providers, models, enterprise knowledge, tools, channels, and storage.
 
-## Planned Capabilities
-- **Prompt Engine**: Enterprise governance, versioning, and composition of prompt assets.
-- **Plugin Engine**: Dynamic extension points for external tools and services.
-- **Conversation Simulator**: Automated testing of conversational flows.
-- **Prompt Studio**: UI for managing and experimenting with prompts.
-- **Knowledge Studio**: UI for managing document ingestion and vector stores.
+## Principles
 
-## Supported Scenarios
-- Multi-turn, stateful conversational agents.
-- Complex, multi-step AI workflows (e.g., document processing, automated reasoning).
-- Enterprise knowledge retrieval and Q&A.
-- A/B testing and evaluation of different AI models and prompts.
+1. Capabilities are reusable independently of any Studio page.
+2. Domain language drives the architecture.
+3. Business invariants live inside aggregates, not controllers or UI components.
+4. Providers, channels, storage, and vendors are replaceable adapters.
+5. Knowledge is governed before it is retrieved.
+6. Prompts are versioned enterprise assets.
+7. Intelligent execution is planned and policy-governed.
+8. Conversation timeline and engineering trace remain distinct.
+9. Every important execution can become reproducible and replayable.
+10. Studio consumes Platform Core; it never duplicates core orchestration.
 
-## Non Goals
-- Building our own foundational Large Language Models (LLMs).
-- Creating consumer-facing chat interfaces (we provide the platform/SDK).
-- Storing long-term raw user data without explicit compliance controls.
+## Current capabilities
 
-## Target Audience
-- **Internal Product Teams**: Building applications on top of the ConvoLab platform.
-- **Enterprise Customers**: Deploying ConvoLab in their own environments.
-- **Platform Engineers**: Extending the core capabilities and adding new integrations.
+### Stable Platform Core
 
-## Technology Principles
-- **.NET 8+**: Leveraging the latest C# features for performance and safety.
-- **MediatR**: For in-process CQRS and event dispatching.
-- **Entity Framework Core**: For infrastructure data access.
-- **xUnit & NetArchTest**: For rigorous unit and architectural testing.
+- Conversation Engine
+- Workflow Engine
+- Prompt Engine
+- Knowledge Engine
+- Intelligence Engine
+- Execution
 
-## Design Philosophy
-- **Developer Experience (DX)**: The codebase should read like a well-structured handbook.
-- **Predictability**: Given the same inputs and state, the platform should behave consistently.
-- **Governance**: Assets like prompts and workflows are business artifacts that require lifecycle management.
+### Capability foundations
+
+- Policy
+- Tracing
+- Plugins
+- Identity
+
+### Active product
+
+- ConvoLab Studio with functional Conversation Simulator, Knowledge Studio, and Prompt Studio
+
+## Planned products
+
+- Conversation Explorer
+- Workflow Designer
+- Prompt Studio
+- Knowledge Studio
+- Intelligence Center
+- Policy Center
+- Evaluation Studio
+- Trace Explorer
+- Replay Studio
+- AI Playground
+- Analytics and Operations Console
+
+## Target users
+
+- Conversational AI engineers
+- Software and platform engineers
+- Solution architects
+- Conversation designers
+- AI quality and evaluation teams
+- Contact-centre technology teams
+- Enterprise governance and risk teams
+- Operations and support engineers
+
+## Supported scenarios
+
+- Provider-neutral conversational orchestration
+- Enterprise knowledge retrieval with citations and governance
+- Prompt lifecycle management and experimentation
+- Conversation debugging and replay
+- Model, provider, prompt, workflow, and knowledge comparison
+- Human handoff and omnichannel integration through adapters
+- Quality, safety, cost, latency, and reliability analysis
+
+## Non-goals
+
+Platform Core is not:
+
+- an OpenAI-specific SDK wrapper;
+- a vector database implementation;
+- a contact-centre product;
+- a general-purpose workflow engine;
+- a UI-owned business application;
+- a replacement for enterprise systems of record.
+
+## Technology policy
+
+- .NET 8 for Platform Core and API
+- React and TypeScript for Studio
+- PostgreSQL as the first production persistence adapter
+- OpenTelemetry-aligned observability model
+- Vendor SDKs isolated inside Infrastructure or plugins
+- No framework types in Domain
+
+## Current maturity
+
+Platform Core is tagged conceptually as `v1.0.0-alpha`: its architecture is stable enough for Studio and adapter development. Evaluation Studio now provides persisted scorecards and quality-gate telemetry; Policy, Tracing, Plugins, authentication, generated API clients, and production operations remain incomplete. Prompt, Knowledge, Simulation, and Evaluation persistence are functional and under alpha hardening.

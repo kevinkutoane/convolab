@@ -2,7 +2,7 @@
 
 This document outlines the architectural foundation built for ConvoLab during Sprint 0.
 
-## Backend Architecture (.NET 10)
+## Backend Architecture (.NET 8)
 The backend follows **Clean Architecture** principles, divided into four distinct layers:
 
 | Layer | Responsibility | Key Technologies |

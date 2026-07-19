@@ -1,0 +1,10 @@
+import { api } from "./apiClient";
+import type { Classification, KnowledgeChunk, KnowledgeCollection, KnowledgeDocument, QueryResponse } from "../types/knowledge";
+export const listCollections=async()=> (await api.get<KnowledgeCollection[]>("/api/knowledge/collections")).data;
+export const createCollection=async(payload:{name:string;description:string;owner:string;classification:Classification})=>(await api.post<KnowledgeCollection>("/api/knowledge/collections",payload)).data;
+export const listDocuments=async(id:string)=>(await api.get<KnowledgeDocument[]>(`/api/knowledge/collections/${id}/documents`)).data;
+export const uploadDocument=async(id:string,file:File,owner:string,classification:Classification)=>{const f=new FormData();f.append("file",file);f.append("owner",owner);f.append("classification",classification);return (await api.post<KnowledgeDocument>(`/api/knowledge/collections/${id}/documents`,f)).data};
+export const processDocument=async(id:string)=>(await api.post<KnowledgeDocument>(`/api/knowledge/documents/${id}/process`)).data;
+export const transitionDocument=async(id:string,action:string,expectedRevision?:number)=>(await api.post<KnowledgeDocument>(`/api/knowledge/documents/${id}/${action}`,{actor:"Studio user",reason:`${action} from Knowledge Studio`,expectedRevision})).data;
+export const getChunks=async(id:string)=>(await api.get<KnowledgeChunk[]>(`/api/knowledge/documents/${id}/chunks`)).data;
+export const queryCollection=async(id:string,query:string)=>(await api.post<QueryResponse>(`/api/knowledge/collections/${id}/query`,{query,maxResults:6,minimumConfidence:0.05,tokenBudget:2000})).data;

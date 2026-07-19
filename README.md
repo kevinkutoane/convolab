@@ -1,475 +1,226 @@
 # ConvoLab
 
-A **production-grade, elegantly crafted full-stack enterprise application foundation** built with Clean Architecture principles. ConvoLab provides a robust, well-documented starter template for building scalable applications with .NET 10 and React.
+**ConvoLab is an Enterprise Conversational AI Engineering Platform.** It gives engineering teams a provider-neutral foundation for modelling conversations, workflows, governed prompts, enterprise knowledge, intelligent execution, policy, evaluation, tracing, and plugins.
 
-## Overview
+**ConvoLab Studio** is the visual workspace built on top of Platform Core. The Studio does not contain business orchestration; it consumes the ASP.NET Core platform API and presents each capability as an engineering workspace.
 
-ConvoLab is a complete monorepo solution featuring:
+## Current milestone
 
-- **Clean Architecture Backend**: .NET 10 with ASP.NET Core, MediatR, Entity Framework Core, and comprehensive logging
-- **Modern React Frontend**: React 19, TypeScript, Vite, Tailwind CSS with React Router and TanStack Query
-- **Production-Ready Infrastructure**: Docker, docker-compose, PostgreSQL, SQLite, and CI/CD workflow
-- **Comprehensive Documentation**: Every layer and component is thoroughly documented
-- **Enterprise-Grade Features**: Health checks, Swagger/OpenAPI, structured logging, distributed tracing
+- **Platform Core:** `v1.0.0-alpha`
+- **Functional Intelligence Center release:** `v1.0.0-alpha.5`
+- **Functional Evaluation Studio:** `v1`
+- **Backend:** ASP.NET Core / .NET 8
+- **Frontend:** React 19, TypeScript, Vite
+- **Database adapter:** PostgreSQL-ready infrastructure
+- **Architecture:** Clean Architecture and Domain-Driven Design
 
-## Quick Start
+## Platform capabilities
 
-### Prerequisites
-
-- **.NET 10 SDK** - [Download](https://dotnet.microsoft.com/download)
-- **Node.js 18+** - [Download](https://nodejs.org/)
-- **Docker & Docker Compose** - [Download](https://www.docker.com/products/docker-desktop)
-- **PostgreSQL 15+** (optional for production)
-
-### Local Development
-
-#### Backend
-
-```bash
-# Navigate to project root
-cd /home/ubuntu/convolab
-
-# Restore dependencies
-dotnet restore
-
-# Build solution
-dotnet build
-
-# Run tests
-dotnet test
-
-# Start API (runs on http://localhost:5000)
-dotnet run --project src/Api/ConvoLab.Api/ConvoLab.Api.csproj
-```
-
-#### Frontend
-
-```bash
-# Navigate to frontend directory
-cd web
-
-# Install dependencies
-npm install
-
-# Start development server (runs on http://localhost:3000)
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm run test
-```
-
-#### Using Docker Compose
-
-```bash
-# Start all services (API, PostgreSQL)
-docker-compose up
-
-# Stop services
-docker-compose down
-
-# View logs
-docker-compose logs -f
-```
-
-## Project Structure
-
-```
-ConvoLab/
-├── src/                          # Backend .NET solution
-│   ├── Api/                      # ASP.NET Core API layer
-│   ├── Application/              # Application layer (CQRS)
-│   ├── Domain/                   # Domain layer (business logic)
-│   └── Infrastructure/           # Infrastructure layer (data, services)
-├── web/                          # React TypeScript frontend
-│   ├── src/
-│   │   ├── components/           # Reusable React components
-│   │   ├── pages/                # Page components
-│   │   ├── hooks/                # Custom React hooks
-│   │   └── lib/                  # Utilities and helpers
-│   ├── public/                   # Static assets
-│   └── package.json
-├── shared/                       # Shared code and constants
-├── docker-compose.yml            # Local development orchestration
-├── Dockerfile                    # API container image
-├── ConvoLab.sln                  # .NET solution file
-├── ARCHITECTURE.md               # Architecture documentation
-└── README.md                     # This file
-```
+| Capability | Purpose | Maturity |
+| --- | --- | --- |
+| Conversation Engine | Lifecycle, sessions, participants, messages, memory, context, and timeline | Stable |
+| Workflow Engine | Versioned workflow definitions and governed runtime execution | Stable |
+| Prompt Engine | Governed prompt assets, composition, versioning, approvals, and experiments | Stable |
+| Knowledge Engine | Governed sources, retrieval strategies, citations, and sealed knowledge packages | Stable |
+| Intelligence Engine | Provider-neutral execution planning, budgets, tools, streaming, retry, and fallback | Stable |
+| Policy | Central runtime and governance decisions | Foundation |
+| Evaluation | Persisted scorecards, quality gates, safety, relevance, and groundedness telemetry | Stable |
+| Tracing | Cross-capability traces, spans, events, correlations, and artifacts | Foundation |
+| Plugins | Extensible providers, tools, connectors, channels, and evaluators | Foundation |
+| ConvoLab Studio | Visual engineering workspace consuming Platform Core | Active |
 
 ## Architecture
 
-ConvoLab follows **Clean Architecture** principles with clear separation of concerns:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    API Layer                             │
-│        (HTTP Endpoints, Controllers, Middleware)         │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│                Application Layer                         │
-│         (Commands, Queries, Handlers, DTOs)             │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│                  Domain Layer                            │
-│        (Entities, Value Objects, Business Logic)        │
-└────────────────────────┬────────────────────────────────┘
-                         │
-┌────────────────────────▼────────────────────────────────┐
-│              Infrastructure Layer                        │
-│    (Data Access, External Services, Logging, Config)    │
-└─────────────────────────────────────────────────────────┘
+```text
+ConvoLab Studio (React)
+          |
+          v
+ASP.NET Core Platform API
+          |
+          v
+Application contracts and use cases
+          |
+          v
+Domain capabilities
+          |
+          v
+Infrastructure adapters
 ```
 
-### Key Principles
+The dependency rule is inward-facing:
 
-1. **Dependency Inversion**: Dependencies always point inward toward the domain
-2. **Independence of Frameworks**: Business logic is independent of any framework
-3. **Testability**: Each layer can be tested in isolation
-4. **Business Rule Independence**: Rules are expressed in the domain layer
+```text
+API -> Application -> Domain
+Infrastructure -> Application + Domain
+Domain -> nothing
+```
 
-For detailed architecture information, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+Conversation does not select providers. Workflow does not implement retry. Prompt does not retrieve documents. Knowledge does not render prompts. Intelligence owns execution decisions. Policy owns governance decisions.
 
-## Technology Stack
+## Repository structure
 
-### Backend
+```text
+src/
+  Api/              ASP.NET Core presentation layer
+  Application/      capability contracts and application orchestration
+  Domain/           aggregates, entities, value objects, events, and invariants
+  Infrastructure/   persistence and external adapter implementations
+  tests/            domain and architecture test projects
+web/                 ConvoLab Studio
 
-| Technology | Version | Purpose |
-|---|---|---|
-| .NET | 10.0 | Runtime and framework |
-| ASP.NET Core | 10.0 | Web API framework |
-| Entity Framework Core | 8.0+ | ORM for data persistence |
-| MediatR | Latest | CQRS pattern implementation |
-| FluentValidation | Latest | Input validation |
-| Serilog | Latest | Structured logging |
-| OpenTelemetry | Latest | Distributed tracing |
-| PostgreSQL | 15+ | Production database |
-| SQLite | Latest | Development database |
+docs/
+  Architecture/      architecture handbook and fitness rules
+  adr/               architectural decision records
+  capabilities/      capability-specific documentation
+  diagrams/          Mermaid sources and generated diagrams
+  releases/          platform release notes
+```
 
-### Frontend
+## Run locally
 
-| Technology | Version | Purpose |
-|---|---|---|
-| React | 19+ | UI framework |
-| TypeScript | 5.0+ | Type-safe JavaScript |
-| Vite | Latest | Build tool and dev server |
-| Tailwind CSS | 4.0+ | Utility-first CSS |
-| React Router | 6+ | Client-side routing |
-| TanStack Query | 5+ | Server state management |
-| Axios | Latest | HTTP client |
+### API
 
-## Features
-
-### Backend Features
-
-- ✅ **Clean Architecture**: Organized into Domain, Application, Infrastructure, and API layers
-- ✅ **CQRS Pattern**: Command Query Responsibility Segregation with MediatR
-- ✅ **Entity Framework Core**: Support for PostgreSQL and SQLite
-- ✅ **Dependency Injection**: Built-in ASP.NET Core DI container
-- ✅ **Input Validation**: FluentValidation for robust input validation
-- ✅ **Structured Logging**: Serilog for comprehensive logging
-- ✅ **Distributed Tracing**: OpenTelemetry for observability
-- ✅ **Health Checks**: ASP.NET Core health check endpoints
-- ✅ **Swagger/OpenAPI**: Auto-generated API documentation
-- ✅ **Error Handling**: Global exception handling middleware
-- ✅ **Configuration Management**: Environment-specific settings
-
-### Frontend Features
-
-- ✅ **React 19**: Latest React with hooks and concurrent features
-- ✅ **TypeScript**: Full type safety across the application
-- ✅ **Vite**: Lightning-fast development and build experience
-- ✅ **Tailwind CSS**: Utility-first CSS framework
-- ✅ **React Router**: Client-side routing and navigation
-- ✅ **TanStack Query**: Powerful server state management
-- ✅ **Axios**: HTTP client with interceptors
-- ✅ **Component Library**: Pre-built UI components
-- ✅ **Responsive Design**: Mobile-first responsive layouts
-- ✅ **Dark Mode Support**: Built-in theme switching
-
-### DevOps Features
-
-- ✅ **Docker**: Containerized API and database
-- ✅ **docker-compose**: Local development environment
-- ✅ **GitHub Actions**: CI/CD workflow for build, test, and lint
-- ✅ **Database Migrations**: Entity Framework Core migrations
-- ✅ **Environment Configuration**: Multi-environment support
-
-## API Documentation
-
-The API includes comprehensive Swagger/OpenAPI documentation:
-
-1. **Start the API**:
-   ```bash
-   dotnet run --project src/Api/ConvoLab.Api/ConvoLab.Api.csproj
-   ```
-
-2. **Access Swagger UI**:
-   - Navigate to `http://localhost:5000/swagger`
-
-3. **View API Schema**:
-   - JSON schema available at `http://localhost:5000/swagger/v1/swagger.json`
-
-## Health Checks
-
-Monitor application health:
+Requirements: a compatible .NET 8 SDK. `global.json` permits roll-forward to the latest installed .NET 8 feature band.
 
 ```bash
-# Check API health
-curl http://localhost:5000/health
+dotnet restore src/Api/ConvoLab.Api/ConvoLab.Api.csproj
+dotnet run --project src/Api/ConvoLab.Api/ConvoLab.Api.csproj
 ```
 
-## Configuration
+The API listens using the local launch profile and exposes:
 
-### Environment Variables
+- `GET /health/live`
+- `GET /health/ready`
+- `GET /api/platform/status`
+- Swagger in Development
 
-Configuration is managed through:
-- `appsettings.json` - Default settings
-- `appsettings.Development.json` - Development overrides
-- `appsettings.Production.json` - Production overrides
-- Environment variables - Runtime overrides
-
-### Database Configuration
-
-**Development (SQLite)**:
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Data Source=convolab.db"
-  }
-}
-```
-
-**Production (PostgreSQL)**:
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=localhost;Database=convolab;User Id=postgres;Password=password;"
-  }
-}
-```
-
-## Database Migrations
-
-### Create a Migration
+### Studio
 
 ```bash
-dotnet ef migrations add MigrationName \
-  --project src/Infrastructure/ConvoLab.Infrastructure/ConvoLab.Infrastructure.csproj \
-  --startup-project src/Api/ConvoLab.Api/ConvoLab.Api.csproj
+cd web
+npm ci
+npm run dev
 ```
 
-### Apply Migrations
+Vite runs on `http://localhost:3000` and proxies `/api` and `/health` to the API on `http://localhost:5000`.
+
+### Docker Compose
 
 ```bash
-dotnet ef database update \
-  --project src/Infrastructure/ConvoLab.Infrastructure/ConvoLab.Infrastructure.csproj \
-  --startup-project src/Api/ConvoLab.Api/ConvoLab.Api.csproj
+docker compose up --build
 ```
 
-## Testing
+- Studio: `http://localhost:3000`
+- API: `http://localhost:5000`
+- PostgreSQL: `localhost:5432`
 
-### Backend Tests
-
-```bash
-# Run all tests
-dotnet test
-
-# Run specific test project
-dotnet test src/Domain/ConvoLab.Domain.Tests/
-
-# Run with coverage
-dotnet test /p:CollectCoverage=true
-```
-
-### Frontend Tests
+## Validate the Studio
 
 ```bash
-# Run tests
-npm run test
-
-# Run with coverage
-npm run test:coverage
-
-# Watch mode
-npm run test:watch
-```
-
-## Building for Production
-
-### Backend
-
-```bash
-# Build release configuration
-dotnet build -c Release
-
-# Publish
-dotnet publish -c Release -o ./publish
-```
-
-### Frontend
-
-```bash
-# Build production bundle
+cd web
+npm ci
+npm run lint
 npm run build
-
-# Output in dist/ directory
+npm run test -- --run
 ```
 
-### Docker
+## Platform Hardening Sprint 1
 
-```bash
-# Build image
-docker build -t convolab:latest .
+The functional Simulator, Knowledge Studio, and Prompt Studio now use application-layer use cases, domain-owned lifecycle policies, EF-isolated repositories, optimistic revisions, RFC 7807 errors, liveness/readiness checks, and CI quality gates. See [`PLATFORM_HARDENING_SPRINT_1_REPORT.md`](PLATFORM_HARDENING_SPRINT_1_REPORT.md).
 
-# Run container
-docker run -p 5000:8080 convolab:latest
-```
 
-## CI/CD Workflow
+## Functional Workflow Designer
 
-GitHub Actions automatically:
-1. ✅ Builds the .NET solution
-2. ✅ Runs backend tests
-3. ✅ Builds the React frontend
-4. ✅ Runs frontend tests
-5. ✅ Lints code
-6. ✅ Builds Docker image
+ConvoLab Studio now includes a governed visual Workflow Designer at `/workflows`.
 
-See `.github/workflows/` for workflow configuration.
+It supports:
+
+- Persistent workflow definitions
+- Immutable semantic versions
+- Start, Knowledge, Prompt, Decision, Intelligence, Response, and End nodes
+- Draggable node positioning and labelled transitions
+- Simple deterministic branch conditions using `contains:<term>`
+- Graph validation for start/end nodes, decision branches, unreachable nodes, and dead ends
+- Draft, approval, publication, deprecation, archive, and restore lifecycle
+- Optimistic concurrency through workflow and version revisions
+- Published workflow selection in Conversation Simulator
+- Immutable workflow-path snapshots persisted with every new simulation run
+
+A published workflow definition is separated from its runtime simulation snapshot, preserving the platform distinction between definition and execution.
+
+## Functional Intelligence Center
+
+Open `/intelligence` in ConvoLab Studio to inspect provider and model readiness, test provider connections, review persisted execution history, monitor tokens, cost, latency, retries and fallbacks, inspect individual runs, and preview provider/model admission decisions before execution.
+
+The monthly AI budget is configured natively in South African rand through `CONVOLAB_MONTHLY_AI_BUDGET_ZAR`. Gemini pricing is optional and can be supplied through `GEMINI_INPUT_PRICE_ZAR_PER_1K` and `GEMINI_OUTPUT_PRICE_ZAR_PER_1K`; ConvoLab does not invent provider pricing or exchange rates when they have not been configured. See [`docs/IntelligenceCenter.md`](docs/IntelligenceCenter.md).
+
+## Functional Evaluation Studio
+
+Open `/evaluation` in ConvoLab Studio to create reusable scorecards; review groundedness, relevance, safety, overall quality, failed gates, seven-day trends, and individual simulator runs; and preview a saved scorecard in the policy sandbox without duplicating evaluation logic in the browser.
+
+Quality thresholds can be configured through the `Evaluation` appsettings section or the `CONVOLAB_EVALUATION_*` environment variables documented in [`docs/EvaluationStudio.md`](docs/EvaluationStudio.md).
+
+## Product direction
+
+Platform Core exists to support engineering products without embedding business logic inside those products:
+
+- Conversation Explorer
+- Workflow Designer
+- Prompt Studio
+- Knowledge Studio
+- Intelligence Center
+- Policy Center
+- Evaluation Studio
+- Trace Explorer
+- Replay Studio
+- AI Playground
+- Enterprise operations and analytics
+
+The signature long-term experience is **Conversation Replay**: re-run an immutable conversation snapshot with a different prompt, knowledge snapshot, workflow, model, provider, or policy, then compare quality, latency, cost, and trace output.
 
 ## Documentation
 
-Each layer includes comprehensive documentation:
+Start with:
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Overall architecture and design decisions
-- [src/Api/README.md](./src/Api/ConvoLab.Api/README.md) - API layer documentation
-- [src/Application/README.md](./src/Application/README.md) - Application layer documentation
-- [src/Domain/README.md](./src/Domain/README.md) - Domain layer documentation
-- [src/Infrastructure/README.md](./src/Infrastructure/README.md) - Infrastructure layer documentation
-- [web/README.md](./web/README.md) - Frontend documentation
-
-## Development Guidelines
-
-### Adding a New Feature
-
-1. **Define Domain Model** in `src/Domain/`
-2. **Create Application Layer** in `src/Application/` (Commands/Queries)
-3. **Implement Infrastructure** in `src/Infrastructure/` (Repositories)
-4. **Expose API** in `src/Api/` (Endpoints)
-5. **Build Frontend** in `web/` (Components/Pages)
-6. **Write Tests** for each layer
-7. **Update Documentation**
-
-### Code Style
-
-- **C#**: Follow [Microsoft C# Coding Conventions](https://docs.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)
-- **TypeScript/React**: Follow [Airbnb JavaScript Style Guide](https://github.com/airbnb/javascript)
-- **Formatting**: Use built-in formatters (dotnet format, prettier)
-
-### Commit Messages
-
-Use conventional commits:
-```
-feat: Add user authentication
-fix: Resolve database connection issue
-docs: Update architecture documentation
-test: Add unit tests for user service
-refactor: Simplify error handling
-```
-
-## Troubleshooting
-
-### Build Issues
-
-```bash
-# Clean build
-dotnet clean
-dotnet build
-
-# Clear NuGet cache
-dotnet nuget locals all --clear
-```
-
-### Database Issues
-
-```bash
-# Reset database
-dotnet ef database drop --force
-dotnet ef database update
-```
-
-### Port Already in Use
-
-```bash
-# Find process using port 5000
-lsof -i :5000
-
-# Kill process
-kill -9 <PID>
-```
-
-## Performance Considerations
-
-- **Database**: Use indexes on frequently queried columns
-- **Caching**: Implement caching for read-heavy operations
-- **Logging**: Use appropriate log levels to avoid performance impact
-- **Async/Await**: Use async patterns for I/O operations
-- **Frontend**: Lazy load components and optimize bundle size
-
-## Security Considerations
-
-- **Authentication**: Implement JWT or OAuth2 for API authentication
-- **Authorization**: Use role-based access control (RBAC)
-- **Input Validation**: Always validate and sanitize user input
-- **HTTPS**: Use HTTPS in production
-- **Secrets**: Store sensitive data in environment variables or secret managers
-- **CORS**: Configure CORS appropriately for your frontend domain
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+- [`docs/PlatformManifest.md`](docs/PlatformManifest.md)
+- [`docs/CapabilityMap.md`](docs/CapabilityMap.md)
+- [`docs/ContextMap.md`](docs/ContextMap.md)
+- [`docs/EventCatalog.md`](docs/EventCatalog.md)
+- [`docs/Architecture/README.md`](docs/Architecture/README.md)
+- [`docs/Roadmap.md`](docs/Roadmap.md)
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT — see [`LICENSE`](LICENSE).
 
-## Support
+## Functional Conversation Simulator
 
-For issues, questions, or suggestions:
-1. Check existing documentation in [ARCHITECTURE.md](./ARCHITECTURE.md)
-2. Review layer-specific README files
-3. Check GitHub Issues for similar problems
-4. Create a new GitHub Issue with detailed information
+ConvoLab Studio now includes a functional end-to-end simulator backed by the ASP.NET Core Platform API and a deterministic local intelligence provider.
 
-## Roadmap
+Start the API:
 
-- [x] **Conversation Engine**: Behavior-rich Aggregate Root with full lifecycle management
-- [x] **Conversation Engine (Operational Behavior)**: Implemented rich aggregate behavior, session management, memory, context, message model, timeline, statistics, specifications, application layer, and comprehensive tests. See [Capability3_ConversationEngine_OperationalBehavior.md](./docs/Capability3_ConversationEngine_OperationalBehavior.md) for details.
-- [ ] Authentication and Authorization
-- [ ] Real-time features with SignalR
-- [ ] Advanced caching strategies
-- [ ] Performance monitoring and analytics
-- [ ] GraphQL API support
-- [ ] Mobile app with React Native
-- [ ] Kubernetes deployment configuration
+```bash
+dotnet run --project src/Api/ConvoLab.Api/ConvoLab.Api.csproj
+```
 
-## Acknowledgments
+Start Studio in a second terminal:
 
-ConvoLab is built on proven patterns and best practices from the software architecture community:
-- Clean Architecture by Robert C. Martin
-- Domain-Driven Design by Eric Evans
-- CQRS pattern by Greg Young
-- ASP.NET Core best practices
+```bash
+cd web
+npm install
+npm run dev
+```
 
----
+Open `http://localhost:3000/conversations`, create a simulation, and try:
 
-**Built with ❤️ for scalable, maintainable applications.**
+> Can I claim for hail damage?
+
+The inspector displays the governed knowledge package, rendered prompt, execution plan, token and cost telemetry, evaluation scores, trace timeline, and replay controls. Select **Retry once** or **Fallback** to exercise the Intelligence Engine recovery policies without external API keys.
+
+## Functional Knowledge Studio
+
+Open `/knowledge` in ConvoLab Studio to create a collection, upload PDF/DOCX/TXT/Markdown documents, process and publish them, inspect chunks, and test retrieval. Published collections automatically appear in Conversation Simulator and replace hardcoded knowledge packages.
+
+## Functional Prompt Studio
+
+ConvoLab Studio now supports persistent, governed prompt authoring at `/prompts`. Prompt versions are immutable, move through an approval lifecycle, render with runtime variables, and become selectable in Conversation Simulator only after publication. See `docs/PromptStudio.md`.

@@ -54,7 +54,7 @@ public class ExecutionUsage : ValueObject
 public class ExecutionCost : ValueObject
 {
     public decimal Amount { get; private set; }
-    public string Currency { get; private set; } = "USD";
+    public string Currency { get; private set; } = "ZAR";
 
     private ExecutionCost() { } // For EF Core
 
@@ -66,8 +66,8 @@ public class ExecutionCost : ValueObject
         Currency = currency.ToUpperInvariant();
     }
 
-    public static ExecutionCost Create(decimal amount, string currency = "USD") => new(amount, currency);
-    public static ExecutionCost Zero(string currency = "USD") => new(0m, currency);
+    public static ExecutionCost Create(decimal amount, string currency = "ZAR") => new(amount, currency);
+    public static ExecutionCost Zero(string currency = "ZAR") => new(0m, currency);
 
     public ExecutionCost Add(ExecutionCost other)
     {
@@ -103,7 +103,7 @@ public class ModelPricing : ValueObject
     public decimal InputPricePer1K { get; private set; }
     public decimal OutputPricePer1K { get; private set; }
     public decimal CachedInputPricePer1K { get; private set; }
-    public string Currency { get; private set; } = "USD";
+    public string Currency { get; private set; } = "ZAR";
 
     private ModelPricing() { } // For EF Core
 
@@ -117,10 +117,10 @@ public class ModelPricing : ValueObject
         Currency = currency.ToUpperInvariant();
     }
 
-    public static ModelPricing Create(decimal inputPricePer1K, decimal outputPricePer1K, decimal cachedInputPricePer1K = 0m, string currency = "USD")
+    public static ModelPricing Create(decimal inputPricePer1K, decimal outputPricePer1K, decimal cachedInputPricePer1K = 0m, string currency = "ZAR")
         => new(inputPricePer1K, outputPricePer1K, cachedInputPricePer1K, currency);
 
-    public static ModelPricing Free() => new(0m, 0m, 0m, "USD");
+    public static ModelPricing Free() => new(0m, 0m, 0m, "ZAR");
 
     /// <summary>Estimates the cost of a given usage against this pricing card.</summary>
     public ExecutionCost EstimateCost(ExecutionUsage usage)

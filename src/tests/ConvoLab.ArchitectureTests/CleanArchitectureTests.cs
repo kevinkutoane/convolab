@@ -140,4 +140,30 @@ public class CleanArchitectureTests
         }
         Assert.True(result.IsSuccessful);
     }
+
+    [Fact]
+    public void Application_Should_Not_Reference_EntityFrameworkCore()
+    {
+        var references = ApplicationAssembly.GetReferencedAssemblies()
+            .Select(reference => reference.Name)
+            .Where(name => name is not null)
+            .ToList();
+
+        Assert.DoesNotContain("Microsoft.EntityFrameworkCore", references);
+    }
+
+    [Fact]
+    public void Studio_Repositories_Should_Be_Interfaces_In_Application()
+    {
+        var result = Types.InAssembly(ApplicationAssembly)
+            .That()
+            .HaveNameEndingWith("Repository")
+            .And()
+            .ResideInNamespaceContaining("Studio")
+            .Should()
+            .BeInterfaces()
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, $"Failing types: {string.Join(", ", result.FailingTypeNames ?? Enumerable.Empty<string>())}");
+    }
 }

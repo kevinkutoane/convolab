@@ -1,6 +1,41 @@
-@ConvoLab.Api_HostAddress = http://localhost:5117
+@ConvoLab_Api_HostAddress = http://localhost:5000
 
-GET {{ConvoLab.Api_HostAddress}}/weatherforecast/
+GET {{ConvoLab_Api_HostAddress}}/api/platform/status
 Accept: application/json
 
 ###
+
+GET {{ConvoLab_Api_HostAddress}}/api/simulations/options
+Accept: application/json
+
+### Create a simulation
+
+POST {{ConvoLab_Api_HostAddress}}/api/simulations
+Content-Type: application/json
+
+{
+  "title": "Claims Assistant Simulation",
+  "workflow": "Claims Intake",
+  "promptVersion": "Claims Assistant v1.0",
+  "knowledgeCollection": "Claims Policies"
+}
+
+### Send a message — replace the id
+
+POST {{ConvoLab_Api_HostAddress}}/api/simulations/00000000-0000-0000-0000-000000000000/messages
+Content-Type: application/json
+
+{
+  "content": "Can I claim for hail damage?",
+  "mode": "Normal"
+}
+
+### Replay a run — replace both ids
+
+POST {{ConvoLab_Api_HostAddress}}/api/simulations/00000000-0000-0000-0000-000000000000/replay
+Content-Type: application/json
+
+{
+  "runId": "00000000-0000-0000-0000-000000000000",
+  "mode": "Fallback"
+}

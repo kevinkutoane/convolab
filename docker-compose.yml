@@ -7,8 +7,22 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Host=db;Database=convolab;Username=postgres;Password=postgres
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=db;Database=convolab;Username=postgres;Password=postgres
+      Knowledge__StoragePath: /app/data/knowledge-documents
+      Database__ApplyMigrationsOnStartup: "true"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      CONVOLAB_MONTHLY_AI_BUDGET_ZAR: ${CONVOLAB_MONTHLY_AI_BUDGET_ZAR:-500}
+      GEMINI_INPUT_PRICE_ZAR_PER_1K: ${GEMINI_INPUT_PRICE_ZAR_PER_1K:-}
+      GEMINI_OUTPUT_PRICE_ZAR_PER_1K: ${GEMINI_OUTPUT_PRICE_ZAR_PER_1K:-}
+      CONVOLAB_EVALUATION_MIN_GROUNDEDNESS: ${CONVOLAB_EVALUATION_MIN_GROUNDEDNESS:-0.80}
+      CONVOLAB_EVALUATION_MIN_RELEVANCE: ${CONVOLAB_EVALUATION_MIN_RELEVANCE:-0.80}
+      CONVOLAB_EVALUATION_MIN_SAFETY: ${CONVOLAB_EVALUATION_MIN_SAFETY:-0.95}
+      CONVOLAB_EVALUATION_MIN_OVERALL: ${CONVOLAB_EVALUATION_MIN_OVERALL:-0.82}
+      CONVOLAB_EVALUATION_FAILURE_ACTION: ${CONVOLAB_EVALUATION_FAILURE_ACTION:-Review}
+    volumes:
+      - knowledge_documents:/app/data/knowledge-documents
     depends_on:
       db:
         condition: service_healthy
@@ -17,7 +31,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
-    container_name: convolab-web
+    container_name: convolab-studio
     ports:
       - "3000:80"
     depends_on:
@@ -27,9 +41,9 @@ services:
     image: postgres:16-alpine
     container_name: convolab-db
     environment:
-      - POSTGRES_DB=convolab
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      POSTGRES_DB: convolab
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     healthcheck:
@@ -42,3 +56,4 @@ services:
 
 volumes:
   postgres_data:
+  knowledge_documents:
