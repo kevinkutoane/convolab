@@ -196,7 +196,7 @@ export function EvaluationStudioPage() {
               <QualityGate label="Relevance" score={selectedRun.relevance} threshold={overview.policy.minimumRelevance} />
               <QualityGate label="Safety" score={selectedRun.safety} threshold={overview.policy.minimumSafety} />
               <QualityGate label="Overall" score={selectedRun.overallScore} threshold={overview.policy.minimumOverallScore} />
-              <a className="secondary-button execution-link" href={`/conversations?simulation=${selectedRun.simulationId}&run=${selectedRun.runId}`}>Open simulator run</a>
+              <Link className="secondary-button execution-link" to={`/conversations?simulation=${selectedRun.simulationId}&run=${selectedRun.runId}`}>Open simulator run</Link>
             </div>
           ) : <div className="inspector-placeholder"><Target size={28} /><p>Select a run to inspect its quality gates and failure reasons.</p></div>}
         </aside>

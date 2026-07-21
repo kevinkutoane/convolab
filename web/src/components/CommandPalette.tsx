@@ -10,6 +10,7 @@ interface CommandPaletteProps {
 
 export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -50,6 +51,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     const handler = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setQuery("");
+        setActiveIndex(0);
         onClose();
       }
     };
@@ -61,12 +63,26 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   const close = () => {
     setQuery("");
+    setActiveIndex(0);
     onClose();
   };
 
   const go = (path: string) => {
     navigate(path);
     close();
+  };
+
+  const onSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveIndex(index => Math.min(index + 1, Math.max(0, results.length - 1)));
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveIndex(index => Math.max(0, index - 1));
+    } else if (event.key === "Enter" && results[activeIndex]) {
+      event.preventDefault();
+      go(results[activeIndex].path);
+    }
   };
 
   return (
@@ -83,7 +99,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
           <input
             ref={inputRef}
             value={query}
-            onChange={event => setQuery(event.target.value)}
+            onChange={event => { setQuery(event.target.value); setActiveIndex(0); }}
+            onKeyDown={onSearchKeyDown}
             placeholder="Search pages, capabilities, and actions..."
           />
           <button className="icon-button" onClick={close} aria-label="Close command palette">
@@ -99,8 +116,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
               return (
                 <button
                   key={`${item.group}-${item.label}-${index}`}
-                  className="palette-result"
+                  className={`palette-result${index === activeIndex ? " palette-result-active" : ""}`}
                   onClick={() => go(item.path)}
+                  onMouseEnter={() => setActiveIndex(index)}
                 >
                   <span className="palette-result-icon">
                     <Icon size={17} />

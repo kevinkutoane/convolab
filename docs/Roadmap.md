@@ -25,7 +25,10 @@
 | Workflow Designer editor | Complete |
 | Prompt Studio editor | Complete and hardened |
 | Knowledge Studio ingestion and retrieval | Complete and hardened |
-| Intelligence execution inspector | Next |
+| Intelligence Center and execution inspector | Complete and hardened |
+| Evaluation Studio and persisted scorecards | Complete and hardened |
+| Interaction and button audit gate | Complete |
+| Policy Center | Next |
 
 ## Platform Hardening Sprint 1
 
@@ -33,12 +36,12 @@
 - Application repository ports and EF isolation: Complete
 - Optimistic concurrency and structured errors: Complete
 - Liveness/readiness endpoints: Complete
-- Layered test projects and CI gates: Implemented; backend/Docker execution pending environment validation
+- Layered test projects and CI gates: Complete and Docker-validated
 
 ## Phase 3 — Platform maturity
 
-- Policy Engine behaviour and runtime decisions
-- Evaluation Engine behaviour and scorecards
+- Policy Engine behaviour and runtime decisions: Next
+- Evaluation Engine behaviour and persisted scorecards: Complete
 - Trace Engine persistence and OpenTelemetry adapter
 - Plugin SDK and adapter discovery
 - Identity, authorization, tenants, teams, and audit

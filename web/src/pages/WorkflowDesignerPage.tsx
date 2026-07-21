@@ -13,6 +13,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { getApiErrorMessage } from "../services/apiClient";
+import { CreateResourceDialog, type CreateResourceField } from "../components/CreateResourceDialog";
 import * as api from "../services/workflowApi";
 import type {
   WorkflowDetail,
@@ -25,6 +26,15 @@ import type {
 const kinds: WorkflowNodeKind[] = ["Start", "Knowledge", "Prompt", "Decision", "Intelligence", "Response", "End"];
 const nodeWidth = 180;
 const nodeHeight = 70;
+
+const workflowFields: CreateResourceField[] = [
+  { name: "name", label: "Workflow name", placeholder: "Claims Intake" },
+  { name: "owner", label: "Owner", placeholder: "Conversation team" },
+  { name: "tags", label: "Tags", placeholder: "conversation, enterprise", required: false },
+  { name: "description", label: "Description", type: "textarea", placeholder: "What journey this workflow governs" },
+];
+
+const initialWorkflowDraft = { name: "Claims Intake", description: "Governed conversational workflow", owner: "Kevin", tags: "conversation, enterprise" };
 
 function newId() {
   return crypto.randomUUID();
@@ -59,12 +69,18 @@ export function WorkflowDesignerPage() {
   const [changeSummary, setChangeSummary] = useState("Designed in Workflow Studio");
   const [linkFrom, setLinkFrom] = useState("");
   const [linkTo, setLinkTo] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [workflowDraft, setWorkflowDraft] = useState<Record<string, string>>(initialWorkflowDraft);
   const canvasRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | undefined>(undefined);
 
   const current = selectedVersionId ? detail?.versions.find(item => item.id === selectedVersionId) : undefined;
   const selectedNode = nodes.find(item => item.id === selectedNodeId);
   const editable = !current || current.status === "Draft";
+  const canAddTransition = editable && Boolean(linkFrom) && Boolean(linkTo) && linkFrom !== linkTo
+    && !transitions.some(item => item.fromNodeId === linkFrom && item.toNodeId === linkTo);
 
   const orderedIssues = useMemo(() => current?.validationIssues ?? [], [current]);
 
@@ -98,19 +114,23 @@ export function WorkflowDesignerPage() {
   }, []);
 
   async function create() {
-    const name = window.prompt("Workflow name", "Claims Intake");
-    if (!name) return;
+    setCreating(true);
+    setCreateError("");
     try {
       const created = await api.createWorkflow({
-        name,
-        description: "Governed conversational workflow",
-        owner: "Kevin",
-        tags: ["conversation", "enterprise"],
+        name: workflowDraft.name.trim(),
+        description: workflowDraft.description.trim(),
+        owner: workflowDraft.owner.trim(),
+        tags: workflowDraft.tags.split(",").map(value => value.trim()).filter(Boolean),
       });
       setMessage("Workflow created. Create its first version.");
       await refresh(created.id);
+      setCreateOpen(false);
+      setWorkflowDraft(initialWorkflowDraft);
     } catch (error) {
-      setMessage(getApiErrorMessage(error));
+      setCreateError(getApiErrorMessage(error));
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -267,12 +287,14 @@ export function WorkflowDesignerPage() {
     <section className="page-heading">
       <div className="page-heading-icon"><Workflow size={24} /></div>
       <div className="page-heading-copy">
-        <div className="page-heading-meta"><span>Workflow Engine</span><span>Versioned Â· validated Â· executable</span></div>
+        <div className="page-heading-meta"><span>Workflow Engine</span><span>Versioned · validated · executable</span></div>
         <h2>Workflow Designer</h2>
         <p>Compose governed conversational workflows and publish them for use in Conversation Simulator.</p>
       </div>
-      <button className="primary-button" onClick={create}><Plus size={16} /> New workflow</button>
+      <button className="primary-button" onClick={() => setCreateOpen(true)}><Plus size={16} /> New workflow</button>
     </section>
+
+    <CreateResourceDialog open={createOpen} title="New workflow" description="Create the governed workflow definition before designing and versioning its execution graph." submitLabel="Create workflow" fields={workflowFields} values={workflowDraft} busy={creating} error={createError} onChange={(name, value) => setWorkflowDraft(current => ({ ...current, [name]: value }))} onClose={() => !creating && setCreateOpen(false)} onSubmit={create} />
 
     {message && <div className="panel workflow-notice">{message}</div>}
 
@@ -280,7 +302,7 @@ export function WorkflowDesignerPage() {
       <aside className="panel workflow-library">
         <div className="panel-header"><div><span className="panel-eyebrow">Definitions</span><h3>{items.length} workflows</h3></div></div>
         {items.map(item => <button key={item.id} className={`workflow-list-item ${selectedId === item.id ? "active" : ""}`} onClick={() => selectWorkflow(item.id)}>
-          <strong>{item.name}</strong><span>v{item.latestVersion} Â· {item.versionCount} versions</span><small>{item.status} Â· {item.owner}</small>
+          <strong>{item.name}</strong><span>v{item.latestVersion} · {item.versionCount} versions</span><small>{item.status} · {item.owner}</small>
         </button>)}
         {!items.length && <div className="empty-state compact"><GitBranch size={28} /><h3>Create your first workflow</h3></div>}
       </aside>
@@ -291,7 +313,7 @@ export function WorkflowDesignerPage() {
           {detail && <div className="workflow-version-controls">
             <select value={selectedVersionId ?? ""} onChange={event => selectVersion(event.target.value)}>
               <option value="">New version</option>
-              {detail.versions.map(item => <option key={item.id} value={item.id}>v{item.version} Â· {item.status}</option>)}
+              {detail.versions.map(item => <option key={item.id} value={item.id}>v{item.version} · {item.status}</option>)}
             </select>
             <input className="workflow-summary-input" value={changeSummary} onChange={event => setChangeSummary(event.target.value)} aria-label="Change summary" placeholder="Change summary" />
             {!current && <><input value={version} onChange={event => setVersion(event.target.value)} aria-label="Version" /><button className="primary-button" onClick={createVersion}><Plus size={15} /> Create version</button></>}
@@ -345,10 +367,10 @@ export function WorkflowDesignerPage() {
           <span className="panel-eyebrow">Connect nodes</span>
           <select value={linkFrom} onChange={event => setLinkFrom(event.target.value)}><option value="">From</option>{nodes.map(node => <option key={node.id} value={node.id}>{node.name}</option>)}</select>
           <select value={linkTo} onChange={event => setLinkTo(event.target.value)}><option value="">To</option>{nodes.map(node => <option key={node.id} value={node.id}>{node.name}</option>)}</select>
-          <button onClick={addTransition} disabled={!editable}><Split size={14} /> Add transition</button>
+          <button onClick={addTransition} disabled={!canAddTransition}><Split size={14} /> Add transition</button>
           <div className="workflow-transition-list">
             {transitions.map(edge => <div key={edge.id}>
-              <span>{nodes.find(node => node.id === edge.fromNodeId)?.name ?? "?"} â†’ {nodes.find(node => node.id === edge.toNodeId)?.name ?? "?"}</span>
+              <span>{nodes.find(node => node.id === edge.fromNodeId)?.name ?? "?"} → {nodes.find(node => node.id === edge.toNodeId)?.name ?? "?"}</span>
               <input value={edge.label} onChange={event => updateTransition(edge.id, { label: event.target.value })} placeholder="Label" disabled={!editable} />
               <input value={edge.condition ?? ""} onChange={event => updateTransition(edge.id, { condition: event.target.value || null })} placeholder="contains:hail" disabled={!editable} />
               {editable && <button className="edge-delete" onClick={() => removeTransition(edge.id)} aria-label="Remove transition"><Trash2 size={13} /></button>}

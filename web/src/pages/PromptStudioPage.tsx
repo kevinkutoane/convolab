@@ -2,6 +2,7 @@ import { useEffect,useMemo,useState } from "react";
 import { Braces,CheckCircle2,Code2,GitCompare,Plus,Send,ShieldCheck,Sparkles } from "lucide-react";
 import * as api from "../services/promptApi";
 import { getApiErrorMessage } from "../services/apiClient";
+import { CreateResourceDialog, type CreateResourceField } from "../components/CreateResourceDialog";
 import type { PromptDetail,PromptSectionInput,PromptSectionKind,PromptSummary,RenderedPrompt } from "../types/prompt";
 
 const defaultSections:PromptSectionInput[]=[
@@ -12,21 +13,33 @@ const defaultSections:PromptSectionInput[]=[
  {kind:"Output",name:"Output contract",sequence:5,required:true,content:"Provide a concise answer and cite the relevant source. Never promise claim approval."},
 ];
 
+const promptFields: CreateResourceField[] = [
+ {name:"name",label:"Prompt name",placeholder:"Claims Assistant"},
+ {name:"owner",label:"Owner",placeholder:"Conversation team"},
+ {name:"category",label:"Category",placeholder:"Claims"},
+ {name:"tags",label:"Tags",placeholder:"claims, grounded",required:false},
+ {name:"description",label:"Description",type:"textarea",placeholder:"What this prompt governs and where it is used"},
+];
+
+const initialPromptDraft = {name:"Claims Assistant",description:"Governed claims assistant prompt",owner:"Kevin",category:"Claims",tags:"claims, grounded"};
+
 export function PromptStudioPage(){
  const [items,setItems]=useState<PromptSummary[]>([]),[selectedId,setSelectedId]=useState<string>(),[detail,setDetail]=useState<PromptDetail>(),[selectedVersion,setSelectedVersion]=useState<string>(),[sections,setSections]=useState(defaultSections),[version,setVersion]=useState("1.0.0"),[preview,setPreview]=useState<RenderedPrompt>(),[message,setMessage]=useState(""),[compareId,setCompareId]=useState<string>();
+ const [createOpen,setCreateOpen]=useState(false),[creating,setCreating]=useState(false),[createError,setCreateError]=useState(""),[promptDraft,setPromptDraft]=useState<Record<string,string>>(initialPromptDraft);
  const current=detail?.versions.find(v=>v.id===selectedVersion)??detail?.versions[0];
  const variables=useMemo(()=>({customerMessage:"Can I claim for hail damage?",knowledgePackage:"[1] Motor Policy — Hail damage: Comprehensive cover may include hail damage subject to schedule, excess and exclusions.",conversationHistory:"user: My vehicle was damaged in yesterday's storm.",workflow:"Claims Intake",knowledgeCollection:"Claims Policies",promptVersion:current?`${detail?.name} v${current.version}`:"Draft"}),[current,detail]);
  async function refresh(preferred?:string){const data=await api.listPrompts();setItems(data);const id=preferred??selectedId??data[0]?.id;if(id){setSelectedId(id);const d=await api.getPrompt(id);setDetail(d);setSelectedVersion(d.versions[0]?.id)}}
  // Initial API synchronization. State updates occur after the promise resolves.
  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
  useEffect(()=>{void refresh().catch(e=>setMessage(getApiErrorMessage(e)))},[]);
- async function create(){const name=prompt("Prompt name","Claims Assistant");if(!name)return;try{const d=await api.createPrompt({name,description:"Governed claims assistant prompt",owner:"Kevin",category:"Claims",tags:["claims","grounded"]});setMessage("Prompt created. Add its first version.");await refresh(d.id)}catch(error){setMessage(getApiErrorMessage(error))}}
+ async function create(){setCreating(true);setCreateError("");try{const d=await api.createPrompt({name:promptDraft.name.trim(),description:promptDraft.description.trim(),owner:promptDraft.owner.trim(),category:promptDraft.category.trim(),tags:promptDraft.tags.split(",").map(value=>value.trim()).filter(Boolean)});setMessage("Prompt created. Add its first version.");await refresh(d.id);setCreateOpen(false);setPromptDraft(initialPromptDraft)}catch(error){setCreateError(getApiErrorMessage(error))}finally{setCreating(false)}}
  async function saveVersion(){if(!selectedId)return;try{const v=await api.createPromptVersion(selectedId,{version,changeSummary:"Created in Prompt Studio",sections});setMessage(`Version ${v.version} created.`);await refresh(selectedId);setSelectedVersion(v.id)}catch(error){setMessage(getApiErrorMessage(error))}}
  async function transition(action:string){if(!current)return;try{await api.transitionPromptVersion(current.id,action,current.revision);setMessage(`Version ${action} complete.`);await refresh(selectedId)}catch(error){setMessage(getApiErrorMessage(error))}}
  async function render(){if(!current)return;try{setPreview(await api.renderPrompt(current.id,variables))}catch(error){setMessage(getApiErrorMessage(error))}}
  function editSection(index:number,field:keyof PromptSectionInput,value:string|number|boolean){setSections(s=>s.map((x,i)=>i===index?{...x,[field]:value}:x))}
  return <div className="page-stack prompt-studio-page">
-  <section className="page-heading"><div className="page-heading-icon"><Sparkles size={24}/></div><div className="page-heading-copy"><div className="page-heading-meta"><span>Prompt Engine</span><span>Versioned · governed · reusable</span></div><h2>Prompt Studio</h2><p>Compose, validate, approve and publish prompts that the Conversation Simulator can execute.</p></div><button className="primary-button" onClick={create}><Plus size={16}/> New prompt</button></section>
+  <section className="page-heading"><div className="page-heading-icon"><Sparkles size={24}/></div><div className="page-heading-copy"><div className="page-heading-meta"><span>Prompt Engine</span><span>Versioned · governed · reusable</span></div><h2>Prompt Studio</h2><p>Compose, validate, approve and publish prompts that the Conversation Simulator can execute.</p></div><button className="primary-button" onClick={()=>setCreateOpen(true)}><Plus size={16}/> New prompt</button></section>
+  <CreateResourceDialog open={createOpen} title="New prompt" description="Create a governed prompt definition. Versions and lifecycle controls become available after creation." submitLabel="Create prompt" fields={promptFields} values={promptDraft} busy={creating} error={createError} onChange={(name,value)=>setPromptDraft(current=>({...current,[name]:value}))} onClose={()=>!creating&&setCreateOpen(false)} onSubmit={create}/>
   {message&&<div className="panel knowledge-notice">{message}</div>}
   <section className="prompt-layout">
    <aside className="panel prompt-library"><div className="panel-header"><div><span className="panel-eyebrow">Library</span><h3>{items.length} prompts</h3></div></div>{items.map(p=><button key={p.id} className={`prompt-list-item ${p.id===selectedId?"active":""}`} onClick={()=>{setSelectedId(p.id);api.getPrompt(p.id).then(d=>{setDetail(d);setSelectedVersion(d.versions[0]?.id)}).catch(error=>setMessage(getApiErrorMessage(error)))}}><strong>{p.name}</strong><span>{p.latestVersion} · {p.versionCount} versions</span><small>{p.status} · {p.owner}</small></button>)}{!items.length&&<div className="empty-state compact"><Code2 size={28}/><h3>Create your first prompt</h3></div>}</aside>

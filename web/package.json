@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node scripts/run-tests.mjs"
+    "test": "node scripts/run-tests.mjs && node scripts/audit-interactions.mjs",
+    "test:interactions": "node scripts/audit-interactions.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",

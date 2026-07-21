@@ -477,11 +477,11 @@ export const studioPages: Record<string, StudioPageDefinition> = {
 };
 
 export const quickActions = [
-  { label: "Create conversation", path: "/conversations", icon: MessageSquareText },
-  { label: "Create prompt", path: "/prompts", icon: Braces },
-  { label: "Register knowledge", path: "/knowledge", icon: Database },
-  { label: "Inspect architecture", path: "/intelligence", icon: Sparkles },
-  { label: "View capabilities", path: "/", icon: Boxes },
-  { label: "Open policies", path: "/policies", icon: FileKey2 },
+  { label: "Open simulator", path: "/conversations", icon: MessageSquareText },
+  { label: "Open Prompt Studio", path: "/prompts", icon: Braces },
+  { label: "Open Knowledge Studio", path: "/knowledge", icon: Database },
+  { label: "Open Intelligence Center", path: "/intelligence", icon: Sparkles },
+  { label: "View capability map", path: "/", icon: Boxes },
+  { label: "Review Policy roadmap", path: "/policies", icon: FileKey2 },
   { label: "Provider planning", path: "/intelligence", icon: Bot },
 ];

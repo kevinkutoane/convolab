@@ -69,21 +69,32 @@ const topics = {
   },
 } as const;
 
+const workspacePaths: Record<keyof typeof topics, string> = {
+  evaluation: "/evaluation",
+  policies: "/policies",
+  traces: "/traces",
+  replay: "/replay",
+  plugins: "/plugins",
+  analytics: "/analytics",
+  settings: "/settings",
+};
+
 export function DocumentationPage() {
   const { topic = "evaluation" } = useParams();
-  const definition = topics[topic as keyof typeof topics] ?? topics.evaluation;
+  const activeTopic = topic in topics ? topic as keyof typeof topics : "evaluation";
+  const definition = topics[activeTopic];
 
   return (
     <div className="page-stack documentation-page">
       <section className="page-heading">
         <div className="page-heading-icon"><BookOpen size={24} /></div>
         <div className="page-heading-copy"><div className="page-heading-meta"><span>ConvoLab documentation</span></div><h2>{definition.title}</h2><p>{definition.summary}</p></div>
-        <Link className="secondary-button" to={topic === "evaluation" ? "/evaluation" : `/${topic}`}><ExternalLink size={15} /> Open workspace</Link>
+        <Link className="secondary-button" to={workspacePaths[activeTopic]}><ExternalLink size={15} /> Open workspace</Link>
       </section>
       <div className="documentation-layout">
         <nav className="panel documentation-nav" aria-label="Documentation topics">
           <span className="panel-eyebrow">Topics</span>
-          {Object.entries(topics).map(([key, item]) => <Link key={key} className={key === topic ? "active" : ""} to={`/documentation/${key}`}>{item.title}</Link>)}
+          {Object.entries(topics).map(([key, item]) => <Link key={key} className={key === activeTopic ? "active" : ""} to={`/documentation/${key}`}>{item.title}</Link>)}
         </nav>
         <main className="documentation-content">
           <section className="panel documentation-section"><div className="panel-header"><div><span className="panel-eyebrow">Available now</span><h3>Capabilities</h3></div><Layers3 size={19} /></div><div className="documentation-list">{definition.capabilities.map(item => <p key={item}><CheckCircle2 size={16} /><span>{item}</span></p>)}</div></section>

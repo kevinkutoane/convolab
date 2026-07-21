@@ -48,6 +48,7 @@ export function StudioShell({
           onToggleTheme={onToggleTheme}
           onOpenPalette={() => setPaletteOpen(true)}
           onOpenMobile={() => setMobileOpen(true)}
+          status={status}
         />
         <main className="studio-content">
           <Outlet />
