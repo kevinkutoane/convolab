@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-- **Platform Core / Studio:** `v1.0.0-alpha.10`
+- **Platform Core / Studio:** `v1.0.0-alpha.11`
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
 - **Functional Replay Studio:** `v1`
@@ -139,7 +139,7 @@ The browser smoke suite requires the Studio to be running on `http://localhost:3
 
 ## Platform Hardening Sprint 1
 
-The functional Simulator, Knowledge Studio, and Prompt Studio now use application-layer use cases, domain-owned lifecycle policies, EF-isolated repositories, optimistic revisions, RFC 7807 errors, liveness/readiness checks, and CI quality gates. See [`PLATFORM_HARDENING_SPRINT_1_REPORT.md`](PLATFORM_HARDENING_SPRINT_1_REPORT.md).
+The functional Simulator, Knowledge Studio, and Prompt Studio now use application-layer use cases, domain-owned lifecycle policies, EF-isolated repositories, optimistic revisions, RFC 7807 errors, liveness/readiness checks, and CI quality gates. See [`PLATFORM_HARDENING_SPRINT_1_REPORT.md`](docs/reports/PLATFORM_HARDENING_SPRINT_1_REPORT.md).
 
 
 ## Functional Workflow Designer

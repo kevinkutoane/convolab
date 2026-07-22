@@ -33,6 +33,8 @@ import type {
   EvaluationRun,
   EvaluationScorecard,
 } from "../types/evaluation";
+import "../App.css";
+import "../functional-workspaces.css";
 
 const defaultScorecard: CreateEvaluationScorecardRequest = {
   name: "Customer Support Quality",

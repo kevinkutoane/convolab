@@ -38,6 +38,22 @@ jobs:
   platform:
     name: Platform Core
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: convolab_test_host
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CONVOLAB_POSTGRES_TEST_CONNECTION: Host=127.0.0.1;Port=5432;Database=convolab_test_host;Username=postgres;Password=postgres
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -91,12 +107,49 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm run test -- --run
+      - run: npm run test:baseline
       - run: npm audit --audit-level=high
+      - name: Upload bundle manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-bundle-manifest
+          path: |
+            web/dist/.vite/manifest.json
+            web/dist/bundle-report.json
+            web/dist/bundle-report.md
+            web/dist/assets
 
   containers:
-    name: Docker build
+    name: Docker acceptance
     runs-on: ubuntu-latest
     needs: [platform, studio]
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: docker compose up --build -d
+      - name: Wait for readiness
+        run: timeout 120 sh -c 'until curl --fail --silent http://127.0.0.1:5000/health/ready; do sleep 2; done'
+      - run: npm run test:cross-capability
+        working-directory: web
+        env:
+          CONVOLAB_EVIDENCE_PATH: /tmp/convolab-evidence.json
+      - run: npm run test:browser
+        working-directory: web
+      - name: Restart persistence verification
+        run: |
+          docker compose restart db api
+          timeout 120 sh -c 'until curl --fail --silent http://127.0.0.1:5000/health/ready; do sleep 2; done'
+          CONVOLAB_EVIDENCE_PATH=/tmp/convolab-evidence.json npm --prefix web run test:restart
+          npm --prefix web run test:browser
+      - if: always()
+        run: docker compose logs --no-color
+      - if: always()
+        run: docker compose down

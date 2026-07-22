@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
 import { getApiErrorMessage } from "../services/apiClient";
+import { ErrorState, LoadingState } from "../components/AsyncStates";
 import {
   createPolicy,
   createPolicyVersion,
@@ -50,6 +51,8 @@ import type {
   PolicyScope,
   PolicyStatus,
 } from "../types/policy";
+import "../App.css";
+import "../functional-workspaces.css";
 
 const domains: PolicyDomain[] = [
   "ProviderAccess",
@@ -187,6 +190,9 @@ export function PolicyCenterPage() {
 
   const error = overviewQuery.error ?? detailQuery.error ?? createMutation.error ?? updateMutation.error
     ?? actionMutation.error ?? versionMutation.error ?? evaluationMutation.error;
+
+  if (overviewQuery.isLoading) return <LoadingState label="Loading Policy Center…" />;
+  if (overviewQuery.isError && !overview) return <ErrorState message={getApiErrorMessage(overviewQuery.error)} onRetry={() => void overviewQuery.refetch()} />;
 
   const startCreate = () => {
     setForm({ ...emptyForm, rules: emptyForm.rules.map(rule => ({ ...rule })) });

@@ -35,6 +35,8 @@ import type {
   IntelligenceExecution,
   IntelligenceModelDefinition,
 } from "../types/intelligence";
+import "../App.css";
+import "../functional-workspaces.css";
 
 const defaultPlan: ExecutionPlanPreviewRequest = {
   provider: "Deterministic",

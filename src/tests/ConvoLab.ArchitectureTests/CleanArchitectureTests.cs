@@ -166,4 +166,17 @@ public class CleanArchitectureTests
 
         Assert.True(result.IsSuccessful, $"Failing types: {string.Join(", ", result.FailingTypeNames ?? Enumerable.Empty<string>())}");
     }
+
+    [Fact]
+    public void Production_Assemblies_Should_Not_Contain_Placeholder_Or_InMemory_Adapters()
+    {
+        var forbidden = new[] { ApplicationAssembly, InfrastructureAssembly }
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type => type.Name.StartsWith("Placeholder", StringComparison.Ordinal)
+                || type.Name.StartsWith("InMemory", StringComparison.Ordinal))
+            .Select(type => type.FullName)
+            .ToArray();
+
+        Assert.Empty(forbidden);
+    }
 }

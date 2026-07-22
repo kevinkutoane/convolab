@@ -18,7 +18,7 @@ public class ConversationWindow : ValueObject
     protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return StartTime;
-        yield return EndTime;
+        if (EndTime.HasValue) yield return EndTime.Value;
     }
 
     private ConversationWindow() { }

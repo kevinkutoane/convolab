@@ -58,7 +58,7 @@ public sealed class PluginStudioController(IPluginStudioService plugins) : Contr
         CancellationToken cancellationToken)
         => Ok(await plugins.CheckHealthAsync(pluginId, cancellationToken));
 
-    [HttpPost("{pluginId:guid}/{lifecycleAction}")]
+    [HttpPost("{pluginId:guid}/{lifecycleAction:regex(^(activate|deactivate|disable|deprecate)$)}")]
     [ProducesResponseType<PluginDetailDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<PluginDetailDto>> Transition(
         Guid pluginId,
@@ -66,4 +66,3 @@ public sealed class PluginStudioController(IPluginStudioService plugins) : Contr
         CancellationToken cancellationToken)
         => Ok(await plugins.TransitionAsync(pluginId, lifecycleAction, cancellationToken));
 }
-

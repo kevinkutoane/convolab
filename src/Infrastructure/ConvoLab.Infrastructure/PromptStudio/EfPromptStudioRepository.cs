@@ -21,7 +21,7 @@ public sealed class EfPromptStudioRepository(ApplicationDbContext db) : IPromptS
     public async Task<IReadOnlyList<PromptDefinitionState>> ListPromptsAsync(CancellationToken ct = default)
         => (await db.Prompts.AsNoTracking().ToListAsync(ct))
             .OrderByDescending(item => item.UpdatedAt)
-            .Select(MapPrompt)
+            .Select(item => MapPrompt(item)!)
             .ToList();
 
     public async Task<PromptDefinitionState?> GetPromptAsync(Guid id, CancellationToken ct = default)
@@ -32,7 +32,7 @@ public sealed class EfPromptStudioRepository(ApplicationDbContext db) : IPromptS
                 .Where(item => item.PromptId == promptId)
                 .ToListAsync(ct))
             .OrderByDescending(item => item.CreatedAt)
-            .Select(MapVersion)
+            .Select(item => MapVersion(item)!)
             .ToList();
 
     public async Task<PromptVersionState?> GetVersionAsync(Guid id, CancellationToken ct = default)
@@ -48,7 +48,7 @@ public sealed class EfPromptStudioRepository(ApplicationDbContext db) : IPromptS
                 .OrderBy(item => item.PromptId)
                 .ThenBy(item => item.Version)
                 .ToListAsync(ct))
-            .Select(MapVersion)
+            .Select(item => MapVersion(item)!)
             .ToList();
 
     public Task AddPromptAsync(PromptDefinitionState prompt, CancellationToken ct = default)

@@ -1,8 +1,8 @@
-# Product Readiness Assessment — v1 Alpha
+# Product Readiness Assessment — v1.0.0-alpha.11
 
 ## Decision
 
-Platform Core is architecturally ready for Studio and adapter development. It is not yet production-ready for enterprise workloads.
+The functional Studio baseline is stabilized and suitable for controlled internal evaluation. It is not yet a secure multi-user beta or production-ready enterprise platform.
 
 ## Ready
 
@@ -18,25 +18,18 @@ Platform Core is architecturally ready for Studio and adapter development. It is
 
 ## Experimental
 
-- Policy behaviour
-- Evaluation behaviour
-- Trace persistence and export
-- Plugin discovery and loading
 - Identity and tenant boundaries
-- Studio product interactions beyond shell and empty states
+- Secure plugin invocation and sandboxing
+- Managed environments, promotion, and secret governance
 
 ## Not implemented
 
-- Production persistence and migration workflow
-- Provider adapters
+- Workspace authentication, authorization, and tenant isolation
 - Enterprise knowledge connectors
-- Authentication and authorization
 - Secret management
 - Streaming transport
 - Tool execution runtime
-- Production trace storage
 - Deployment automation and SLOs
-- Conversation simulation and replay execution
 
 ## Products that can now be built
 

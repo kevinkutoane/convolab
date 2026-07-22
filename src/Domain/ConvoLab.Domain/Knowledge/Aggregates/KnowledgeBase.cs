@@ -4,8 +4,8 @@ using ConvoLab.Domain.Knowledge.Entities;
 using ConvoLab.Domain.Knowledge.Events;
 namespace ConvoLab.Domain.Knowledge.Aggregates;
 public class KnowledgeBase : BaseAggregateRoot<KnowledgeBaseId> {
-    public string Name { get; private set; }
-    public string Description { get; private set; }
+    public string Name { get; private set; } = null!;
+    public string Description { get; private set; } = null!;
     private readonly List<KnowledgeItem> _items = new();
     public IReadOnlyCollection<KnowledgeItem> Items => _items.AsReadOnly();
     private KnowledgeBase() : base() { }

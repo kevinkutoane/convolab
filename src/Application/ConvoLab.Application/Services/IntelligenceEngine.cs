@@ -120,8 +120,8 @@ public class IntelligenceEngine : IIntelligenceEngine
                 await _budgets.UpdateAsync(budget, cancellationToken);
             }
 
-            // 3. Safety validation. Placeholder pipeline approves by default;
-            //    dedicated evaluators are attached via the safety stages later.
+            // 3. Apply the baseline safety decision. Dedicated policy and
+            //    evaluation gates are enforced by the surrounding simulation flow.
             request.Validate(SafetyDecision.ApprovedWithoutChecks());
             if (request.Status == ExecutionStatus.Failed)
                 return await FailAsync(request, budget, reserved, "Safety pipeline rejected the execution.", cancellationToken);

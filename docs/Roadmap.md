@@ -1,5 +1,7 @@
 # ConvoLab Roadmap
 
+Current stabilized baseline: `v1.0.0-alpha.11`.
+
 ## Phase 1 — Platform Core
 
 | Capability | Status |
@@ -28,7 +30,10 @@
 | Intelligence Center and execution inspector | Complete and hardened |
 | Evaluation Studio and persisted scorecards | Complete and hardened |
 | Interaction and button audit gate | Complete |
-| Policy Center | Next |
+| Policy Center | Complete and hardened |
+| Trace Explorer | Complete and hardened |
+| Replay Studio | Complete and hardened |
+| Plugin Center | Complete and hardened |
 
 ## Platform Hardening Sprint 1
 
@@ -40,11 +45,11 @@
 
 ## Phase 3 — Platform maturity
 
-- Policy Engine behaviour and runtime decisions: Next
+- Policy Engine behaviour and runtime decisions: Complete
 - Evaluation Engine behaviour and persisted scorecards: Complete
-- Trace Engine persistence and OpenTelemetry adapter
-- Plugin SDK and adapter discovery
-- Identity, authorization, tenants, teams, and audit
+- Trace Engine persistence and OpenTelemetry-aligned runtime model: Complete
+- Plugin registry, versioning, compatibility and health: Complete
+- Identity, authorization, tenants, teams, and audit: Next
 - Persistence repositories and migrations
 - Secret management and configuration governance
 

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { getApiErrorMessage } from "../services/apiClient";
 import { CreateResourceDialog, type CreateResourceField } from "../components/CreateResourceDialog";
+import { ErrorState, LoadingState } from "../components/AsyncStates";
 import * as api from "../services/workflowApi";
 import type {
   WorkflowDetail,
@@ -22,6 +23,8 @@ import type {
   WorkflowSummary,
   WorkflowTransition,
 } from "../types/workflow";
+import "../App.css";
+import "../functional-workspaces.css";
 
 const kinds: WorkflowNodeKind[] = ["Start", "Knowledge", "Prompt", "Decision", "Intelligence", "Response", "End"];
 const nodeWidth = 180;
@@ -73,6 +76,8 @@ export function WorkflowDesignerPage() {
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
   const [workflowDraft, setWorkflowDraft] = useState<Record<string, string>>(initialWorkflowDraft);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [initialError, setInitialError] = useState("");
   const canvasRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | undefined>(undefined);
 
@@ -106,7 +111,7 @@ export function WorkflowDesignerPage() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      void refresh().catch(error => setMessage(getApiErrorMessage(error)));
+      void refresh().catch(error => setInitialError(getApiErrorMessage(error))).finally(() => setInitialLoading(false));
     }, 0);
     return () => window.clearTimeout(timer);
     // Initial API synchronization only.
@@ -283,6 +288,8 @@ export function WorkflowDesignerPage() {
     drag.current = undefined;
   }
 
+  if (initialLoading) return <LoadingState label="Loading Workflow Designer…" />;
+  if (initialError && !items.length) return <ErrorState message={initialError} onRetry={() => { setInitialLoading(true); setInitialError(""); void refresh().catch(error => setInitialError(getApiErrorMessage(error))).finally(() => setInitialLoading(false)); }} />;
   return <div className="page-stack workflow-designer-page">
     <section className="page-heading">
       <div className="page-heading-icon"><Workflow size={24} /></div>
@@ -296,7 +303,7 @@ export function WorkflowDesignerPage() {
 
     <CreateResourceDialog open={createOpen} title="New workflow" description="Create the governed workflow definition before designing and versioning its execution graph." submitLabel="Create workflow" fields={workflowFields} values={workflowDraft} busy={creating} error={createError} onChange={(name, value) => setWorkflowDraft(current => ({ ...current, [name]: value }))} onClose={() => !creating && setCreateOpen(false)} onSubmit={create} />
 
-    {message && <div className="panel workflow-notice">{message}</div>}
+    {message && <div className="panel workflow-notice" role="status" aria-live="polite">{message}</div>}
 
     <section className="workflow-studio-layout">
       <aside className="panel workflow-library">

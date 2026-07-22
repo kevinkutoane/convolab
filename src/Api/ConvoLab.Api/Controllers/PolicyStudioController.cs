@@ -51,7 +51,7 @@ public sealed class PolicyStudioController(IPolicyStudioService policies) : Cont
         return CreatedAtAction(nameof(Get), new { policyId = created.Summary.Id }, created);
     }
 
-    [HttpPost("{policyId:guid}/{lifecycleAction}")]
+    [HttpPost("{policyId:guid}/{lifecycleAction:regex(^(submit|activate|suspend|retire)$)}")]
     [ProducesResponseType<PolicyDetailDto>(StatusCodes.Status200OK)]
     public async Task<ActionResult<PolicyDetailDto>> Transition(
         Guid policyId,

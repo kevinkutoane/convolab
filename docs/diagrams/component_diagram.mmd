@@ -1,67 +1,53 @@
 graph TD
-    subgraph Application Layer
-        subgraph ConvoLab.Application
-            direction LR
-            ICE[IConversationEngine]
-            IWE[IWorkflowEngine]
-            IPE[IPromptEngine]
-            IKE[IKnowledgeEngine]
-            IAIO[IAIOrchestrator]
-            ITE[ITraceEngine]
-            IEE[IEvaluationEngine]
-            IPM[IPluginManager]
+    Studio[ConvoLab Studio] --> API[ConvoLab API]
 
-            %% Relationships
-            IWE --> ICE
-            IPE --> ICE
-            IKE --> ICE
-            IAIO --> ICE
-            ITE --> ICE
-            IEE --> ICE
-            IPM --> ICE
-
-            subgraph Implementations
-                direction LR
-                CWE[ConvoLabWorkflowEngine]
-                CE[ConversationEngine]
-                PPE[PlaceholderPromptEngine]
-                PKE[PlaceholderKnowledgeEngine]
-                PAIO[PlaceholderAIOrchestrator]
-                PTE[PlaceholderTraceEngine]
-                PEE[PlaceholderEvaluationEngine]
-                PPM[PluginStudioService]
-
-                CWE --> CE
-                CE --> IPE
-                CE --> IKE
-                CE --> IAIO
-            end
-
-            ICE <--- CE
-            IPE <--- PPE
-            IKE <--- PKE
-            IAIO <--- PAIO
-            ITE <--- PTE
-            IEE <--- PEE
-            IPM <--- PPM
-            IWE <--- CWE
-        end
+    subgraph Application[Application services]
+        Simulation[ConversationSimulationService]
+        Knowledge[KnowledgeStudioService]
+        Prompt[PromptStudioService]
+        Workflow[WorkflowStudioService]
+        Intelligence[IntelligenceStudioService]
+        Evaluation[EvaluationStudioService]
+        Trace[TraceStudioService]
+        Replay[ReplayStudioService]
+        Policy[PolicyStudioService]
+        Plugin[PluginStudioService]
     end
 
-    style ICE fill:#f96,stroke:#333,stroke-width:4px
-    style IWE fill:#f9f,stroke:#333,stroke-width:2px
-    style IPE fill:#ccf,stroke:#333,stroke-width:2px
-    style IKE fill:#ddf,stroke:#333,stroke-width:2px
-    style IAIO fill:#eef,stroke:#333,stroke-width:2px
-    style ITE fill:#ffc,stroke:#333,stroke-width:2px
-    style IEE fill:#cfc,stroke:#333,stroke-width:2px
-    style IPM fill:#fcf,stroke:#333,stroke-width:2px
+    API --> Simulation
+    API --> Knowledge
+    API --> Prompt
+    API --> Workflow
+    API --> Intelligence
+    API --> Evaluation
+    API --> Trace
+    API --> Replay
+    API --> Policy
+    API --> Plugin
 
-    style CE fill:#f96,stroke:#333,stroke-width:2px
-    style CWE fill:#afa,stroke:#333,stroke-width:2px
-    style PPE fill:#ccf,stroke:#333,stroke-width:1px
-    style PKE fill:#ddf,stroke:#333,stroke-width:1px
-    style PAIO fill:#eef,stroke:#333,stroke-width:1px
-    style PTE fill:#ffc,stroke:#333,stroke-width:1px
-    style PEE fill:#cfc,stroke:#333,stroke-width:1px
-    style PPM fill:#fcf,stroke:#333,stroke-width:1px
+    Simulation --> Policy
+    Simulation --> Intelligence
+    Simulation --> Evaluation
+    Simulation --> Trace
+    Replay --> Policy
+    Replay --> Intelligence
+    Replay --> Evaluation
+    Replay --> Trace
+
+    subgraph Infrastructure[Production adapters]
+        EF[EF Core repositories]
+        PostgreSQL[(PostgreSQL)]
+        Documents[Local knowledge document storage]
+        Routing[Routing intelligence executor]
+        Gemini[Gemini adapter]
+        Deterministic[Explicit deterministic adapter]
+        PluginHealth[HTTP and built-in plugin health probe]
+    end
+
+    Application --> EF
+    EF --> PostgreSQL
+    Knowledge --> Documents
+    Intelligence --> Routing
+    Routing --> Gemini
+    Routing --> Deterministic
+    Plugin --> PluginHealth

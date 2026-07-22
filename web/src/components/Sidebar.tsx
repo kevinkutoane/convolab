@@ -84,7 +84,7 @@ export function Sidebar({
           {!collapsed && (
             <div className="workspace-card">
               <span className="workspace-kicker">Platform Core</span>
-              <strong>v1.0.0-alpha.10</strong>
+              <strong>v1.0.0-alpha.11</strong>
               <span>Policy, Trace, Replay, and Evaluation v1 integrated.</span>
             </div>
           )}

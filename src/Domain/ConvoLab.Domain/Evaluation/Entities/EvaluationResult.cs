@@ -1,8 +1,8 @@
 using ConvoLab.Domain.Common;
 namespace ConvoLab.Domain.Evaluation.Entities;
 public class EvaluationResult : BaseEntity<Guid> {
-    public string Aspect { get; private set; }
-    public string Result { get; private set; }
+    public string Aspect { get; private set; } = null!;
+    public string Result { get; private set; } = null!;
     public string? Details { get; private set; }
     private EvaluationResult() { }
     private EvaluationResult(Guid id, string aspect, string result, string? details) : base(id) {

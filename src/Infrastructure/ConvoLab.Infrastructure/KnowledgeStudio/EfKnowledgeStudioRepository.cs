@@ -12,7 +12,7 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
     public async Task<IReadOnlyList<KnowledgeCollectionState>> ListCollectionsAsync(CancellationToken ct = default)
         => (await db.KnowledgeCollections.AsNoTracking().ToListAsync(ct))
             .OrderByDescending(item => item.UpdatedAt)
-            .Select(MapCollection)
+            .Select(item => MapCollection(item)!)
             .ToList();
 
     public async Task<KnowledgeCollectionState?> GetCollectionAsync(Guid id, CancellationToken ct = default)
@@ -61,7 +61,7 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
                 .Where(item => item.CollectionId == collectionId)
                 .ToListAsync(ct))
             .OrderByDescending(item => item.UpdatedAt)
-            .Select(MapDocument)
+            .Select(item => MapDocument(item)!)
             .ToList();
 
     public async Task<KnowledgeDocumentState?> GetDocumentAsync(Guid id, CancellationToken ct = default)

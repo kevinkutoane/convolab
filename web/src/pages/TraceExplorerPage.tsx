@@ -27,6 +27,7 @@ import {
 import { getApiErrorMessage } from "../services/apiClient";
 import { getTrace, getTraceOverview, listTraces } from "../services/traceApi";
 import type { TraceArtifact, TraceDetail, TraceSummary } from "../types/trace";
+import "../functional-workspaces.css";
 
 type InspectorTab = "spans" | "events" | "artifacts" | "context";
 

@@ -3,10 +3,10 @@ using ConvoLab.Domain.AI.ValueObjects;
 using ConvoLab.Domain.AI.Enums;
 namespace ConvoLab.Domain.AI.Entities;
 public class AIModel : BaseEntity<AIModelId> {
-    public string Name { get; private set; }
-    public string Vendor { get; private set; }
+    public string Name { get; private set; } = null!;
+    public string Vendor { get; private set; } = null!;
     public AIModelType Type { get; private set; }
-    public string Version { get; private set; }
+    public string Version { get; private set; } = null!;
     public bool IsActive { get; private set; }
     private AIModel() : base() { }
     private AIModel(AIModelId id, string name, string vendor, AIModelType type, string version, bool isActive) : base(id) {

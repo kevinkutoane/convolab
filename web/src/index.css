@@ -3246,3 +3246,6 @@ input[type="radio"]:focus-visible {
     display: none;
   }
 }
+/* Shared asynchronous route states */
+.async-state{min-height:360px;display:grid;place-items:center;align-content:center;gap:.75rem;padding:2rem;text-align:center;color:var(--text-muted)}
+.async-state strong{color:var(--text);font-size:1rem}.async-state p{max-width:520px;line-height:1.55}.async-compact{min-height:140px}.async-error{color:var(--danger)}.async-empty svg{color:var(--accent)}.async-success svg{color:var(--green)}.async-offline svg{color:var(--amber)}.async-mutation{display:inline-flex;align-items:center;gap:.5rem;color:var(--text-muted);font-size:.8rem}

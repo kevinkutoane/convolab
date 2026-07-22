@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
 import { getApiErrorMessage } from "../services/apiClient";
+import { ErrorState, LoadingState } from "../components/AsyncStates";
 import {
   checkPluginHealth,
   getPlugin,
@@ -43,6 +44,8 @@ import type {
   PluginStatus,
   RegisterPluginInput,
 } from "../types/plugin";
+import "../functional-workspaces.css";
+import "../plugin-center.css";
 
 const categories: PluginCategory[] = [
   "Provider",
@@ -172,6 +175,9 @@ export function PluginCenterPage() {
 
   const error = overviewQuery.error ?? detailQuery.error ?? registerMutation.error ?? updateMutation.error
     ?? versionMutation.error ?? transitionMutation.error ?? healthMutation.error;
+
+  if (overviewQuery.isLoading) return <LoadingState label="Loading Plugin Center…" />;
+  if (overviewQuery.isError && !overview) return <ErrorState message={getApiErrorMessage(overviewQuery.error)} onRetry={() => void overviewQuery.refetch()} />;
 
   const startRegister = () => {
     setForm({ ...emptyForm });

@@ -44,7 +44,7 @@ public sealed class DocxTextExtractor : IDocumentTextExtractor
         var entry = archive.GetEntry("word/document.xml") ?? throw new InvalidDataException("DOCX document.xml is missing.");
         using var reader = new StreamReader(entry.Open());
         var xml = await reader.ReadToEndAsync(ct);
-        var paragraphs = Regex.Matches(xml, @"<w:p[\s\S]*?</w:p>").Select(m=>Regex.Replace(Regex.Replace(m.Value,@"<w:tab[^>]*/>","\t"),@"<[^>]+>","")).Select(System.Net.WebUtility.HtmlDecode).Where(x=>!string.IsNullOrWhiteSpace(x)).ToList();
+        var paragraphs = Regex.Matches(xml, @"<w:p[\s\S]*?</w:p>").Select(m=>Regex.Replace(Regex.Replace(m.Value,@"<w:tab[^>]*/>","\t"),@"<[^>]+>","")).Select(value => System.Net.WebUtility.HtmlDecode(value) ?? string.Empty).Where(x=>!string.IsNullOrWhiteSpace(x)).ToList();
         var sections=paragraphs.Select((x,i)=>new ExtractedSection(i==0?Path.GetFileNameWithoutExtension(fileName):null,null,x.Trim())).ToList();
         return new(Path.GetFileNameWithoutExtension(fileName), string.Join("\n\n",paragraphs), sections, []);
     }

@@ -103,7 +103,7 @@ public sealed class KnowledgeStudioService(
         => SetCollectionStatusAsync(id, KnowledgeCollectionStatus.Active, ct);
 
     public async Task<IReadOnlyList<KnowledgeDocumentDto>> ListDocumentsAsync(Guid collectionId, CancellationToken ct = default)
-        => (await repository.ListDocumentsAsync(collectionId, ct)).Select(MapDocument).ToList();
+        => (await repository.ListDocumentsAsync(collectionId, ct)).Select(item => MapDocument(item)!).ToList();
 
     public async Task<KnowledgeDocumentDto?> GetDocumentAsync(Guid id, CancellationToken ct = default)
         => MapDocument(await repository.GetDocumentAsync(id, ct));

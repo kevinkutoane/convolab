@@ -45,6 +45,7 @@ import type {
   ReplayRunSnapshot,
   ReplaySource,
 } from "../types/replay";
+import "../functional-workspaces.css";
 
 type ReplayForm = {
   label: string;

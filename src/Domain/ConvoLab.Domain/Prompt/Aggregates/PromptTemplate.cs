@@ -5,10 +5,10 @@ using ConvoLab.Domain.Prompt.Enums;
 using ConvoLab.Domain.Prompt.Events;
 namespace ConvoLab.Domain.Prompt.Aggregates;
 public class PromptTemplate : BaseAggregateRoot<PromptTemplateId> {
-    public string Name { get; private set; }
-    public string TemplateString { get; private set; }
+    public string Name { get; private set; } = null!;
+    public string TemplateString { get; private set; } = null!;
     public PromptType Type { get; private set; }
-    public string Version { get; private set; }
+    public string Version { get; private set; } = null!;
     public bool IsActive { get; private set; }
     private readonly List<PromptParameter> _parameters = new();
     public IReadOnlyCollection<PromptParameter> Parameters => _parameters.AsReadOnly();

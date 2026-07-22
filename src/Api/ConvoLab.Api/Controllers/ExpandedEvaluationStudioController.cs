@@ -5,7 +5,7 @@ namespace ConvoLab.Api.Controllers;
 
 [ApiController]
 [Route("api/evaluations")]
-public sealed class ExpandedEvaluationStudioController(IEvaluationStudioService evaluations) : ControllerBase
+public sealed class EvaluationStudioController(IEvaluationStudioService evaluations) : ControllerBase
 {
     [HttpGet("overview")]
     [ProducesResponseType<EvaluationOverviewDto>(StatusCodes.Status200OK)]

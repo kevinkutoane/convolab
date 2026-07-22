@@ -4,7 +4,7 @@ namespace ConvoLab.Domain.Conversation.ValueObjects;
 
 public class MessageContent : ValueObject
 {
-    public string Value { get; private set; }
+    public string Value { get; private set; } = null!;
 
     private MessageContent(string value)
     {

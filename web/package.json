@@ -1,16 +1,22 @@
 {
   "name": "convolab-studio",
   "private": true,
-  "version": "1.0.0-alpha.10",
+  "version": "1.0.0-alpha.11",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/check-bundle-budget.mjs",
+    "build:app": "tsc -b && vite build",
+    "test:bundle": "node scripts/check-bundle-budget.mjs",
+    "test:baseline": "node scripts/verify-baseline.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node scripts/run-tests.mjs && node scripts/audit-interactions.mjs",
     "test:interactions": "node scripts/audit-interactions.mjs",
-    "test:browser": "node scripts/browser-smoke.mjs"
+    "test:browser": "playwright test",
+    "test:browser:report": "playwright show-report",
+    "test:cross-capability": "node scripts/cross-capability-smoke.mjs",
+    "test:restart": "node scripts/verify-restart.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",
@@ -22,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
     "@tailwindcss/postcss": "^4.3.2",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",

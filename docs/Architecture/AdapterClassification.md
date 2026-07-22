@@ -5,13 +5,16 @@
 - `EfConversationSimulationStore`
 - `EfPromptStudioRepository`
 - `EfKnowledgeStudioRepository`
+- persisted Evaluation, Trace, Replay, Policy, and Plugin EF repositories
 - `LocalKnowledgeDocumentStorage` for the current single-node deployment profile
 - `RoutingIntelligenceExecutor`, `GeminiIntelligenceExecutor`, and `DeterministicIntelligenceExecutor`
 
-## Development foundations
+## Bounded runtime state
 
-The legacy `Placeholder*` engines and in-memory Knowledge/Intelligence repositories support bounded contexts whose operational implementation is not yet complete. They are registered as capability foundations, not as Prompt Studio, Knowledge Studio, or Simulation persistence. They must not be mistaken for production-complete engines.
+`RuntimeIntelligenceProviderRepository` is a configuration-derived provider catalogue rebuilt idempotently at startup. `RuntimeExecutionRequestRepository` holds only an execution while it is active; completed execution history is persisted through the Studio repositories. `RuntimeExecutionBudgetRepository` is rebuilt from configured ZAR budgets. These adapters do not represent user-authored or historical persistence.
+
+The retired legacy Workflow composition and no-op Conversation, Prompt, AI, Evaluation, Trace, Knowledge, and Intelligence adapters are not registered or shipped in the production graph.
 
 ## Test doubles
 
-In-memory repositories used by test projects stay inside test assemblies. No in-memory Conversation Simulator store is registered in the production application graph.
+In-memory repositories used by test projects stay inside test assemblies. An architecture test rejects production types named `Placeholder*` or `InMemory*`.

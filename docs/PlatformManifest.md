@@ -106,4 +106,4 @@ Platform Core is not:
 
 ## Current maturity
 
-Platform Core is tagged conceptually as `v1.0.0-alpha`: its architecture is stable enough for Studio and adapter development. Evaluation Studio now provides persisted scorecards and quality-gate telemetry; Policy, Tracing, Plugins, authentication, generated API clients, and production operations remain incomplete. Prompt, Knowledge, Simulation, and Evaluation persistence are functional and under alpha hardening.
+Platform Core and Studio are stabilized at `v1.0.0-alpha.11`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, and Plugin Center are functional persisted v1 capabilities. Authentication, tenant isolation, managed environments, secret governance, and production operations remain the blockers for beta.

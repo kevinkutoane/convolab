@@ -3,7 +3,10 @@ import { BookOpen, FileUp, FolderPlus, Play, Search, ShieldCheck } from "lucide-
 import * as api from "../services/knowledgeApi";
 import { getApiErrorMessage } from "../services/apiClient";
 import { CreateResourceDialog, type CreateResourceField } from "../components/CreateResourceDialog";
+import { ErrorState, LoadingState } from "../components/AsyncStates";
 import type { Classification, KnowledgeChunk, KnowledgeCollection, KnowledgeDocument, QueryResponse } from "../types/knowledge";
+import "../App.css";
+import "../functional-workspaces.css";
 
 const collectionFields: CreateResourceField[] = [
  {name:"name",label:"Collection name",placeholder:"Claims Policies"},
@@ -17,21 +20,23 @@ const initialCollectionDraft = {name:"Claims Policies",description:"Governed ent
 export function KnowledgeStudioPage(){
  const [collections,setCollections]=useState<KnowledgeCollection[]>([]); const [selected,setSelected]=useState<string>(); const [documents,setDocuments]=useState<KnowledgeDocument[]>([]); const [chunks,setChunks]=useState<KnowledgeChunk[]>([]); const [query,setQuery]=useState(""); const [results,setResults]=useState<QueryResponse>(); const [message,setMessage]=useState("");
  const [createOpen,setCreateOpen]=useState(false); const [creating,setCreating]=useState(false); const [createError,setCreateError]=useState(""); const [collectionDraft,setCollectionDraft]=useState<Record<string,string>>(initialCollectionDraft);
+ const [initialLoading,setInitialLoading]=useState(true); const [initialError,setInitialError]=useState("");
  const current=collections.find(x=>x.id===selected);
  const refresh=async()=>{const c=await api.listCollections();setCollections(c);if(!selected&&c[0])setSelected(c[0].id)};
- // Initial API synchronization. State updates occur after the promise resolves.
- // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
- useEffect(()=>{void refresh().catch(e=>setMessage(getApiErrorMessage(e)))},[]);
+ const load=async()=>{setInitialLoading(true);setInitialError("");try{await refresh()}catch(error){setInitialError(getApiErrorMessage(error))}finally{setInitialLoading(false)}};
+ useEffect(()=>{const timer=window.setTimeout(()=>void load(),0);return()=>window.clearTimeout(timer)},[]); // eslint-disable-line react-hooks/exhaustive-deps
  useEffect(()=>{if(selected)api.listDocuments(selected).then(setDocuments).catch(e=>setMessage(getApiErrorMessage(e)))},[selected]);
  async function create(){setCreating(true);setCreateError("");try{const created=await api.createCollection({name:collectionDraft.name.trim(),description:collectionDraft.description.trim(),owner:collectionDraft.owner.trim(),classification:collectionDraft.classification as Classification});await refresh();setSelected(created.id);setCreateOpen(false);setCollectionDraft(initialCollectionDraft);setMessage(`${created.name} created.`)}catch(error){setCreateError(getApiErrorMessage(error))}finally{setCreating(false)}}
  async function upload(file?:File){if(!file||!selected)return;setMessage("Uploading...");try{const d=await api.uploadDocument(selected,file,"Kevin","Internal");setDocuments(await api.listDocuments(selected));setMessage(`${d.title} uploaded. Process it next.`)}catch(error){setMessage(getApiErrorMessage(error))}}
  async function act(d:KnowledgeDocument,action:string){setMessage(`${action}...`);try{if(action==="process")await api.processDocument(d.id);else await api.transitionDocument(d.id,action,d.revision);setDocuments(await api.listDocuments(selected!));setMessage("Done")}catch(error){setMessage(getApiErrorMessage(error))}}
  async function inspect(d:KnowledgeDocument){try{setChunks(await api.getChunks(d.id))}catch(error){setMessage(getApiErrorMessage(error))}}
  async function search(){if(!selected||!query.trim())return;try{setResults(await api.queryCollection(selected,query))}catch(error){setMessage(getApiErrorMessage(error))}}
+ if(initialLoading)return <LoadingState label="Loading Knowledge Studio…"/>;
+ if(initialError&&!collections.length)return <ErrorState message={initialError} onRetry={()=>void load()}/>;
  return <div className="page-stack knowledge-studio">
   <section className="page-heading"><div className="page-heading-icon"><BookOpen size={24}/></div><div className="page-heading-copy"><div className="page-heading-meta"><span>Knowledge Engine</span></div><h2>Knowledge Studio</h2><p>Upload, govern, publish and test real enterprise knowledge.</p></div><button className="primary-button" onClick={()=>setCreateOpen(true)}><FolderPlus size={16}/> New collection</button></section>
   <CreateResourceDialog open={createOpen} title="New knowledge collection" description="Create a governed home for related documents and retrieval policies." submitLabel="Create collection" fields={collectionFields} values={collectionDraft} busy={creating} error={createError} onChange={(name,value)=>setCollectionDraft(current=>({...current,[name]:value}))} onClose={()=>!creating&&setCreateOpen(false)} onSubmit={create}/>
-  {message&&<div className="panel knowledge-notice">{message}</div>}
+  {message&&<div className="panel knowledge-notice" role="status" aria-live="polite">{message}</div>}
   <section className="knowledge-grid">
    <aside className="panel knowledge-list"><div className="panel-header"><div><span className="panel-eyebrow">Collections</span><h3>{collections.length} collections</h3></div></div>{collections.map(c=><button key={c.id} className={`knowledge-row ${selected===c.id?"active":""}`} onClick={()=>setSelected(c.id)}><strong>{c.name}</strong><span>{c.documentCount} docs · {c.chunkCount} chunks</span><small>{c.classification} · {c.status}</small></button>)}{!collections.length&&<p className="muted">Create your first collection.</p>}</aside>
    <main className="panel knowledge-main"><div className="workspace-toolbar"><div><span className="panel-eyebrow">Collection</span><h3>{current?.name??"Select a collection"}</h3></div>{current&&<label className="primary-button file-button"><FileUp size={16}/> Upload document<input type="file" accept=".pdf,.docx,.txt,.md,.markdown" onChange={e=>upload(e.target.files?.[0])}/></label>}</div>

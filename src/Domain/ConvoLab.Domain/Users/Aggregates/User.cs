@@ -4,8 +4,8 @@ using ConvoLab.Domain.Users.Enums;
 using ConvoLab.Domain.Users.Events;
 namespace ConvoLab.Domain.Users.Aggregates;
 public class User : BaseAggregateRoot<UserId> {
-    public string Username { get; private set; }
-    public string Email { get; private set; }
+    public string Username { get; private set; } = null!;
+    public string Email { get; private set; } = null!;
     public UserRole Role { get; private set; }
     public bool IsActive { get; private set; }
     private User() : base() { }

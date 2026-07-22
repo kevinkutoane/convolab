@@ -2,7 +2,7 @@
 
 ## Title: Centralized Orchestration of Conversational AI Workflow
 
-## Status: Accepted
+## Status: Superseded by the persisted simulation and capability-service architecture in v1.0.0-alpha.11
 
 ## Context
 
@@ -10,7 +10,7 @@ In an enterprise conversational AI platform like ConvoLab, a user request typica
 
 ## Decision
 
-We will centralize the orchestration of the conversational AI workflow within the `Execution` bounded context, specifically through the `IWorkflowEngine` interface and its implementation (`ConvoLabWorkflowEngine`). This engine will be responsible for defining the sequence of operations and coordinating interactions between various domain-specific engines (e.g., `IConversationEngine`, `IPromptEngine`, `IAIOrchestrator`).
+The original decision used a single legacy workflow-engine composition. The stabilized architecture preserves centralized coordination through `ConversationSimulationService`, with persisted Workflow, Prompt, Knowledge, Intelligence, Policy, Evaluation, and Trace services behind explicit ports. The unused legacy composition and its no-op adapters were removed from the production dependency graph in v1.0.0-alpha.11.
 
 ## Consequences
 

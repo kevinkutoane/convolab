@@ -1,8 +1,8 @@
 using ConvoLab.Domain.Common;
 namespace ConvoLab.Domain.Prompt.Entities;
 public class PromptParameter : BaseEntity<Guid> {
-    public string Name { get; private set; }
-    public string Type { get; private set; }
+    public string Name { get; private set; } = null!;
+    public string Type { get; private set; } = null!;
     public bool IsRequired { get; private set; }
     public string? DefaultValue { get; private set; }
     private PromptParameter() { }
