@@ -1,2 +1,9 @@
 namespace ConvoLab.Domain.Plugins.Enums;
-public enum PluginStatus { Active, Inactive, Deprecated }
+
+public enum PluginStatus
+{
+    Installed,
+    Active,
+    Inactive,
+    Deprecated
+}

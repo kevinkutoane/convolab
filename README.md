@@ -6,9 +6,12 @@
 
 ## Current milestone
 
-- **Platform Core:** `v1.0.0-alpha`
-- **Functional Intelligence Center release:** `v1.0.0-alpha.5`
+- **Platform Core / Studio:** `v1.0.0-alpha.10`
 - **Functional Evaluation Studio:** `v1`
+- **Functional Trace Explorer:** `v1`
+- **Functional Replay Studio:** `v1`
+- **Functional Policy Center:** `v1`
+- **Functional Plugin Center:** `v1`
 - **Backend:** ASP.NET Core / .NET 8
 - **Frontend:** React 19, TypeScript, Vite
 - **Database adapter:** PostgreSQL-ready infrastructure
@@ -23,10 +26,11 @@
 | Prompt Engine | Governed prompt assets, composition, versioning, approvals, and experiments | Stable |
 | Knowledge Engine | Governed sources, retrieval strategies, citations, and sealed knowledge packages | Stable |
 | Intelligence Engine | Provider-neutral execution planning, budgets, tools, streaming, retry, and fallback | Stable |
-| Policy | Central runtime and governance decisions | Foundation |
-| Evaluation | Persisted scorecards, quality gates, safety, relevance, and groundedness telemetry | Stable |
-| Tracing | Cross-capability traces, spans, events, correlations, and artifacts | Foundation |
-| Plugins | Extensible providers, tools, connectors, channels, and evaluators | Foundation |
+| Policy Center | Immutable versions, scoped rules, approvals, enforced constraints, and decision history | Stable |
+| Evaluation Studio | Versioned scorecards, persisted results, reviews, tests, batches, and comparisons | Stable |
+| Trace Explorer | Persisted traces, spans, events, correlations, redaction, and artifacts | Stable |
+| Replay Studio | Immutable baselines, governed candidates, comparisons, findings, and lifecycle | Stable |
+| Plugin Center | Persistent registry, immutable versions, compatibility, lifecycle, health, capabilities, and permissions | Stable |
 | ConvoLab Studio | Visual engineering workspace consuming Platform Core | Active |
 
 ## Architecture
@@ -92,6 +96,12 @@ The API listens using the local launch profile and exposes:
 - `GET /health/live`
 - `GET /health/ready`
 - `GET /api/platform/status`
+- `/api/evaluation/*` (compatibility Evaluation API)
+- `/api/evaluations/*` (versioned scorecards, runs, reviews, tests, batches, and comparisons)
+- `/api/traces/*` (trace overview, search, detail, waterfall data, and redacted artifacts)
+- `/api/replay/*` (sources, experiments, candidates, comparisons, completion, and archive)
+- `/api/policies/*` (versions, lifecycle, decisions, evaluation, and runtime constraints)
+- `/api/plugins/*` (registry, immutable versions, compatibility, lifecycle, and health evidence)
 - Swagger in Development
 
 ### Studio
@@ -122,7 +132,10 @@ npm ci
 npm run lint
 npm run build
 npm run test -- --run
+npm run test:browser
 ```
+
+The browser smoke suite requires the Studio to be running on `http://localhost:3000` and uses an installed Edge or Chrome browser. Set `CONVOLAB_BROWSER_BASE_URL` to target another deployment.
 
 ## Platform Hardening Sprint 1
 
@@ -156,9 +169,37 @@ The monthly AI budget is configured natively in South African rand through `CONV
 
 ## Functional Evaluation Studio
 
-Open `/evaluation` in ConvoLab Studio to create reusable scorecards; review groundedness, relevance, safety, overall quality, failed gates, seven-day trends, and individual simulator runs; and preview a saved scorecard in the policy sandbox without duplicating evaluation logic in the browser.
+Open `/evaluation` or its compatible alias `/evaluations` to create and publish versioned scorecards; inspect persisted simulator and replay results; perform human reviews; preserve runs as regression test cases; execute batches; and compare deterministic metric deltas. The original singular `/api/evaluation/*` contract remains available while new consumers can use `/api/evaluations/*`.
 
 Quality thresholds can be configured through the `Evaluation` appsettings section or the `CONVOLAB_EVALUATION_*` environment variables documented in [`docs/EvaluationStudio.md`](docs/EvaluationStudio.md).
+
+## Functional Trace Explorer
+
+Open `/traces` to search persisted execution traces, inspect their span waterfall and event timeline, and review correlated workflow, prompt, knowledge, execution, evaluation, and response artifacts. Sensitive prompt and response content is redacted by default and is revealed only through the explicit inspector action.
+
+## Functional Replay Studio
+
+Open `/replay` after completing a simulation. Replay Studio captures an immutable baseline, runs governed candidates with controlled configuration overrides, persists their Evaluation and Trace records, and compares quality, latency, tokens, ZAR cost, citations, and response characteristics. Experiments can be completed and then archived; completed baselines and candidates remain immutable.
+
+## Functional Policy Center
+
+Open `/policies` to create scoped, ordered policies; submit or activate versions; inspect immutable history; evaluate sample contexts; and review persisted runtime decisions. Active policies are evaluated immediately before Simulator or Replay planning/provider execution. A denial stops the call, while constraints can cap ZAR cost and output tokens or disable fallback and streaming. Activation is transactional, so an existing active version is retired only when its successor activates successfully.
+
+Fresh databases receive permissive provider, model, and safety policies plus a `R1.00` execution budget. Seeding and legacy Evaluation backfill are idempotent.
+
+## Functional Plugin Center
+
+Open `/plugins` to register and govern providers, tools, knowledge connectors, channels, evaluators, trace exporters, workflow nodes, and enterprise connectors. Plugin Center preserves immutable versions, enforces Platform API compatibility, records capability and permission contracts, and persists health evidence. Activating a successor version deactivates the previous active version in the same transaction.
+
+Plugin Center is deliberately a governance registry: it does not upload or execute arbitrary assemblies, grant permissions, or store plugin secrets. Fresh databases receive four healthy built-in registrations describing adapters already compiled into ConvoLab. See [`docs/PluginCenter.md`](docs/PluginCenter.md).
+
+The additive capability migrations are:
+
+- `202607220001_EvaluationStudioExpansionV1`
+- `202607220002_TraceStudioV1`
+- `202607220003_ReplayStudioV1`
+- `202607220004_PolicyStudioV1`
+- `202607220005_PluginStudioV1`
 
 ## Product direction
 
@@ -176,7 +217,7 @@ Platform Core exists to support engineering products without embedding business 
 - AI Playground
 - Enterprise operations and analytics
 
-The signature long-term experience is **Conversation Replay**: re-run an immutable conversation snapshot with a different prompt, knowledge snapshot, workflow, model, provider, or policy, then compare quality, latency, cost, and trace output.
+The signature **Conversation Replay** experience is available at `/replay`: re-run an immutable conversation snapshot with controlled prompt, knowledge, workflow, model, provider, and execution changes, then compare quality, latency, tokens, ZAR cost, and trace output.
 
 ## Documentation
 

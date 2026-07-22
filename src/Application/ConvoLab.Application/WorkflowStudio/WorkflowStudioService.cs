@@ -201,7 +201,7 @@ public sealed class WorkflowStudioService(
         return new WorkflowSummaryDto(
             workflow.Id, workflow.Name, workflow.Description, workflow.Owner, workflow.Tags.ToList(), workflow.IsActive,
             published?.Status ?? latest?.Status ?? WorkflowLifecycleStatus.Draft,
-            latest?.VersionString ?? "â€”", workflow.Versions.Count,
+            latest?.VersionString ?? "—", workflow.Versions.Count,
             new DateTimeOffset(workflow.LastModifiedAt ?? workflow.CreatedAt, TimeSpan.Zero), workflow.Revision);
     }
 

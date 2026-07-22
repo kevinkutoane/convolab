@@ -137,7 +137,7 @@ public sealed class IntelligenceStudioServiceTests
             new SimulationExecutionPlan(
                 Guid.NewGuid(),
                 "LegacyProvider",
-                "legacy-usd-model",
+                "legacy-zar-model",
                 false,
                 false,
                 1,
@@ -145,11 +145,11 @@ public sealed class IntelligenceStudioServiceTests
                 1_000,
                 250,
                 10m,
-                "USD",
+                "ZAR",
                 220,
                 1,
                 0),
-            new SimulationExecutionMetrics(1_000, 250, 1_250, 10m, "USD", 320, 180),
+            new SimulationExecutionMetrics(1_000, 250, 1_250, 10m, "ZAR", 320, 180),
             new SimulationEvaluation(0.88, 0.85, 1, "Pass"),
             [],
             null,
@@ -163,7 +163,7 @@ public sealed class IntelligenceStudioServiceTests
         Assert.Equal(2, overview.Metrics.TotalExecutions);
         Assert.Equal(2, overview.Metrics.SuccessfulExecutions);
         Assert.Equal(2_500, overview.Metrics.TotalTokens);
-        Assert.Equal(0.04m, overview.Metrics.TotalCost);
+        Assert.Equal(10.04m, overview.Metrics.TotalCost);
         Assert.Equal("ZAR", overview.Metrics.Currency);
         Assert.Equal(1, overview.Metrics.RetryExecutions);
         Assert.Equal(1, overview.Metrics.FallbackExecutions);

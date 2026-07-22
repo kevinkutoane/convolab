@@ -25,7 +25,7 @@ public sealed class EvaluationStudioServiceTests
     {
         var service = CreateService();
 
-        var preview = await service.PreviewAsync(new EvaluationPreviewCommand(.7, .9, .99));
+        var preview = await service.PreviewAsync(new LegacyEvaluationPreviewCommand(.7, .9, .99));
 
         Assert.False(preview.Passed);
         Assert.Contains("Groundedness", preview.FailedGates);
@@ -39,7 +39,7 @@ public sealed class EvaluationStudioServiceTests
         var service = CreateService();
 
         var exception = await Assert.ThrowsAsync<RequestValidationException>(() =>
-            service.PreviewAsync(new EvaluationPreviewCommand(1.1, .9, -.1)));
+            service.PreviewAsync(new LegacyEvaluationPreviewCommand(1.1, .9, -.1)));
 
         Assert.Equal("evaluation.preview.invalid", exception.Code);
         Assert.Contains("groundedness", exception.ValidationErrors.Keys);
@@ -51,7 +51,7 @@ public sealed class EvaluationStudioServiceTests
     {
         var repository = new InMemoryScorecardRepository();
         var service = CreateService(repository);
-        var scorecard = await service.CreateScorecardAsync(new CreateEvaluationScorecardCommand(
+        var scorecard = await service.CreateScorecardAsync(new CreateLegacyEvaluationScorecardCommand(
             "Strict release gate",
             "Used before production release.",
             .95,
@@ -61,7 +61,7 @@ public sealed class EvaluationStudioServiceTests
             "Block"));
 
         var listed = await service.ListScorecardsAsync();
-        var preview = await service.PreviewAsync(new EvaluationPreviewCommand(.9, .95, .995, scorecard.Id));
+        var preview = await service.PreviewAsync(new LegacyEvaluationPreviewCommand(.9, .95, .995, scorecard.Id));
 
         Assert.Single(listed);
         Assert.Equal(scorecard.Id, listed[0].Id);
@@ -70,7 +70,7 @@ public sealed class EvaluationStudioServiceTests
         Assert.Contains("Groundedness", preview.FailedGates);
     }
 
-    private static EvaluationStudioService CreateService(InMemoryScorecardRepository? repository = null)
+    private static LegacyEvaluationStudioService CreateService(InMemoryScorecardRepository? repository = null)
         => new(
             new EmptySimulationStore(),
             new TestConfiguration(),
@@ -79,7 +79,7 @@ public sealed class EvaluationStudioServiceTests
 
     private sealed class TestConfiguration : IEvaluationStudioConfiguration
     {
-        public EvaluationPolicyDto GetPolicy() => new(.8, .8, .95, .82, "Review");
+        public LegacyEvaluationPolicyDto GetPolicy() => new(.8, .8, .95, .82, "Review");
     }
 
     private sealed class EmptySimulationStore : IConversationSimulationStore
@@ -104,18 +104,18 @@ public sealed class EvaluationStudioServiceTests
 
     private sealed class InMemoryScorecardRepository : IEvaluationScorecardRepository
     {
-        private readonly List<EvaluationScorecardState> _items = [];
+        private readonly List<LegacyEvaluationScorecardState> _items = [];
 
-        public Task<IReadOnlyList<EvaluationScorecardState>> ListAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<EvaluationScorecardState>>(_items);
+        public Task<IReadOnlyList<LegacyEvaluationScorecardState>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LegacyEvaluationScorecardState>>(_items);
 
-        public Task<EvaluationScorecardState?> GetAsync(Guid id, CancellationToken cancellationToken = default)
+        public Task<LegacyEvaluationScorecardState?> GetAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(_items.FirstOrDefault(item => item.Id == id));
 
         public Task<bool> NameExistsAsync(string name, CancellationToken cancellationToken = default)
             => Task.FromResult(_items.Any(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)));
 
-        public Task AddAsync(EvaluationScorecardState scorecard, CancellationToken cancellationToken = default)
+        public Task AddAsync(LegacyEvaluationScorecardState scorecard, CancellationToken cancellationToken = default)
         {
             _items.Add(scorecard);
             return Task.CompletedTask;

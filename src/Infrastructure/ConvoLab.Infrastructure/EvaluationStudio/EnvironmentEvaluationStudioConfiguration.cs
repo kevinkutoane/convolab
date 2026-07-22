@@ -13,7 +13,7 @@ public sealed class EnvironmentEvaluationStudioConfiguration : IEvaluationStudio
         _configuration = configuration;
     }
 
-    public EvaluationPolicyDto GetPolicy() => new(
+    public LegacyEvaluationPolicyDto GetPolicy() => new(
         Read("Evaluation:MinimumGroundedness", "CONVOLAB_EVALUATION_MIN_GROUNDEDNESS", .80),
         Read("Evaluation:MinimumRelevance", "CONVOLAB_EVALUATION_MIN_RELEVANCE", .80),
         Read("Evaluation:MinimumSafety", "CONVOLAB_EVALUATION_MIN_SAFETY", .95),

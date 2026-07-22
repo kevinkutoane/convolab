@@ -4,7 +4,7 @@ namespace ConvoLab.Domain.Plugins.ValueObjects;
 
 public class PluginVersion : ValueObject
 {
-    public string Value { get; private set; }
+    public string Value { get; private set; } = string.Empty;
 
     private PluginVersion(string value)
     {

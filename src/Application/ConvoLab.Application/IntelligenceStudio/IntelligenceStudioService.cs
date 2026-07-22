@@ -169,7 +169,9 @@ public sealed class IntelligenceStudioService : IIntelligenceStudioService
         var simulations = await _simulations.ListAsync(cancellationToken);
         return simulations
             .Select(state => state.Snapshot())
-            .SelectMany(simulation => simulation.Runs.Select(run => MapExecution(simulation, run)))
+            .SelectMany(simulation => simulation.Runs
+                .Where(run => run.ExecutionPlan is not null)
+                .Select(run => MapExecution(simulation, run)))
             .OrderByDescending(item => item.CreatedAt)
             .ToList();
     }

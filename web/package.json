@@ -1,7 +1,7 @@
 {
   "name": "convolab-studio",
   "private": true,
-  "version": "1.0.0-alpha.5",
+  "version": "1.0.0-alpha.10",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node scripts/run-tests.mjs && node scripts/audit-interactions.mjs",
-    "test:interactions": "node scripts/audit-interactions.mjs"
+    "test:interactions": "node scripts/audit-interactions.mjs",
+    "test:browser": "node scripts/browser-smoke.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",

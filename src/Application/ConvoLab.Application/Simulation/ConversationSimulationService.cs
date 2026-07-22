@@ -4,6 +4,10 @@ using ConvoLab.Application.KnowledgeStudio;
 using ConvoLab.Application.PromptStudio;
 using ConvoLab.Application.WorkflowStudio;
 using ConvoLab.Application.IntelligenceStudio;
+using ConvoLab.Application.EvaluationStudio;
+using ConvoLab.Application.TraceStudio;
+using ConvoLab.Application.PolicyStudio;
+using ConvoLab.Application.Common.Errors;
 using ConvoLab.Domain.Intelligence.Aggregates;
 using ConvoLab.Domain.Intelligence.Enums;
 using ConvoLab.Domain.Intelligence.ValueObjects;
@@ -19,8 +23,10 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
     private readonly IPromptStudioService _promptStudio;
     private readonly IWorkflowStudioService _workflowStudio;
     private readonly IIntelligenceStudioConfiguration _intelligenceConfiguration;
-    private readonly SemaphoreSlim _catalogueGate = new(1, 1);
-    private bool _catalogueReady;
+    private readonly IEvaluationStudioService _evaluationStudio;
+    private readonly ITraceStudioService _traceStudio;
+    private readonly IIntelligenceCatalogueBootstrapper _catalogueBootstrapper;
+    private readonly IPolicyDecisionService _policyStudio;
 
     public ConversationSimulationService(
         IConversationSimulationStore store,
@@ -28,7 +34,11 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         IKnowledgeStudioService knowledgeStudio,
         IPromptStudioService promptStudio,
         IWorkflowStudioService workflowStudio,
-        IIntelligenceStudioConfiguration intelligenceConfiguration)
+        IIntelligenceStudioConfiguration intelligenceConfiguration,
+        IEvaluationStudioService evaluationStudio,
+        ITraceStudioService traceStudio,
+        IIntelligenceCatalogueBootstrapper catalogueBootstrapper,
+        IPolicyDecisionService policyStudio)
     {
         _store = store;
         _intelligence = intelligence;
@@ -36,6 +46,10 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         _promptStudio = promptStudio;
         _workflowStudio = workflowStudio;
         _intelligenceConfiguration = intelligenceConfiguration;
+        _evaluationStudio = evaluationStudio;
+        _traceStudio = traceStudio;
+        _catalogueBootstrapper = catalogueBootstrapper;
+        _policyStudio = policyStudio;
     }
 
     public async Task<SimulationOptions> GetOptionsAsync(CancellationToken cancellationToken = default)
@@ -90,7 +104,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         if (state is null) return null;
 
         var userMessage = state.AddMessage("user", command.Content.Trim());
-        await ExecuteRunAsync(state, userMessage, command.Mode, null, false, command.Provider, command.Model, command.Temperature, command.MaxOutputTokens, cancellationToken);
+        await ExecuteRunAsync(state, userMessage, command.Mode, null, false, command.Provider, command.Model, command.Temperature, command.MaxOutputTokens, state.Workflow, state.PromptVersion, state.KnowledgeCollection, cancellationToken);
         await _store.SaveAsync(state, cancellationToken);
         return state.Snapshot();
     }
@@ -108,7 +122,20 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         var userMessage = state.FindMessage(sourceRun.UserMessageId)
             ?? throw new InvalidOperationException("The source user message is no longer available.");
 
-        await ExecuteRunAsync(state, userMessage, command.Mode, sourceRun.Id, true, command.Provider, command.Model, command.Temperature, command.MaxOutputTokens, cancellationToken);
+        await ExecuteRunAsync(
+            state,
+            userMessage,
+            command.Mode,
+            sourceRun.Id,
+            true,
+            command.Provider,
+            command.Model,
+            command.Temperature,
+            command.MaxOutputTokens,
+            string.IsNullOrWhiteSpace(command.Workflow) ? sourceRun.Configuration?.Workflow ?? state.Workflow : command.Workflow.Trim(),
+            string.IsNullOrWhiteSpace(command.PromptVersion) ? sourceRun.Configuration?.PromptVersion ?? state.PromptVersion : command.PromptVersion.Trim(),
+            string.IsNullOrWhiteSpace(command.KnowledgeCollection) ? sourceRun.Configuration?.KnowledgeCollection ?? state.KnowledgeCollection : command.KnowledgeCollection.Trim(),
+            cancellationToken);
         await _store.SaveAsync(state, cancellationToken);
         return state.Snapshot();
     }
@@ -132,17 +159,20 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         string? model,
         double temperature,
         int maxOutputTokens,
+        string workflow,
+        string promptVersion,
+        string knowledgeCollection,
         CancellationToken cancellationToken)
     {
-        await EnsureDeterministicCatalogueAsync(cancellationToken);
+        await _catalogueBootstrapper.EnsureReadyAsync(cancellationToken);
 
         var timeline = new List<SimulationTimelineStep>();
         var runId = Guid.NewGuid();
         var runCreatedAt = DateTimeOffset.UtcNow;
         SimulationMessage? assistantMessage = null;
         string renderedPrompt = string.Empty;
-        SimulationKnowledgePackage knowledgePackage = EmptyKnowledgePackage(state.KnowledgeCollection);
-        SimulationWorkflowSnapshot workflowSnapshot = DemoWorkflowSnapshot(state.Workflow);
+        SimulationKnowledgePackage knowledgePackage = EmptyKnowledgePackage(knowledgeCollection);
+        SimulationWorkflowSnapshot workflowSnapshot = DemoWorkflowSnapshot(workflow);
         SimulationExecutionPlan? planView = null;
         SimulationExecutionMetrics? metrics = null;
         SimulationEvaluation evaluation = new(0, 0, 1, "Not evaluated");
@@ -153,13 +183,13 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
             AddInstantStep(timeline, "Conversation accepted", "Conversation", "Completed",
                 isReplay ? "Existing customer message accepted for replay." : "Customer message added to the active simulation.");
 
-            workflowSnapshot = await BuildWorkflowSnapshotAsync(state.Workflow, userMessage.Content, cancellationToken);
+            workflowSnapshot = await BuildWorkflowSnapshotAsync(workflow, userMessage.Content, cancellationToken);
             AddInstantStep(timeline, "Workflow path resolved", "Workflow", "Completed",
                 $"{workflowSnapshot.Name} v{workflowSnapshot.Version}: {string.Join(" → ", workflowSnapshot.Nodes.Select(node => node.Name))}.");
 
             var knowledgeStartedAt = DateTimeOffset.UtcNow;
             var knowledgeTimer = Stopwatch.StartNew();
-            knowledgePackage = await BuildKnowledgePackageAsync(state.KnowledgeCollection, userMessage.Content, cancellationToken);
+            knowledgePackage = await BuildKnowledgePackageAsync(knowledgeCollection, userMessage.Content, cancellationToken);
             knowledgeTimer.Stop();
             AddStep(timeline, "Knowledge retrieved", "Knowledge", "Completed",
                 $"{knowledgePackage.Citations.Count} governed citation(s), {knowledgePackage.TokenEstimate} estimated tokens.",
@@ -167,29 +197,52 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
 
             var promptStartedAt = DateTimeOffset.UtcNow;
             var promptTimer = Stopwatch.StartNew();
-            renderedPrompt = await RenderPromptAsync(state, userMessage.Content, knowledgePackage, mode, provider, model, temperature, maxOutputTokens, cancellationToken);
+            renderedPrompt = await RenderPromptAsync(state, userMessage.Content, knowledgePackage, workflow, promptVersion, knowledgeCollection, mode, provider, model, temperature, maxOutputTokens, cancellationToken);
             promptTimer.Stop();
             AddStep(timeline, "Prompt rendered", "Prompt", "Completed",
-                $"{state.PromptVersion} rendered with a sealed knowledge package.",
+                $"{promptVersion} rendered with a sealed knowledge package.",
                 promptStartedAt, promptTimer.Elapsed);
+
+            var policyStartedAt = DateTimeOffset.UtcNow;
+            var policyTimer = Stopwatch.StartNew();
+            var guardrails = await _policyStudio.EvaluateExecutionAsync(new PolicyExecutionRequest(
+                provider,
+                model ?? "default",
+                1.00m,
+                "ZAR",
+                Math.Clamp(maxOutputTokens, 32, 8192),
+                AllowFallback: true,
+                AllowStreaming: true,
+                Source: isReplay ? "ReplayStudio" : "ConversationSimulator",
+                Environment: ResolveRuntimeEnvironment(),
+                SimulationId: state.Id,
+                RunId: runId), cancellationToken);
+            policyTimer.Stop();
+            AddStep(timeline, "Policy decision", "Policy", guardrails.IsAllowed ? "Completed" : "Denied",
+                $"{guardrails.Decisions.Count} governance decision(s); {guardrails.Reason}",
+                policyStartedAt, policyTimer.Elapsed);
+            if (!guardrails.IsAllowed)
+                throw new DomainRuleViolationException("policy.execution.denied", guardrails.Reason);
 
             var context = IntelligenceExecutionContext.Create(
                 conversationId: state.Id,
-                workflowId: StableGuid(state.Workflow),
-                promptTemplateId: StableGuid(state.PromptVersion),
+                workflowId: StableGuid(workflow),
+                promptTemplateId: StableGuid(promptVersion),
                 knowledgePackageId: knowledgePackage.Id,
                 estimatedPromptTokens: Math.Max(1, renderedPrompt.Length / 4));
 
             var requirement = ExecutionRequirement.Create(
                 capabilities: CapabilitySet.Of(IntelligenceCapability.Chat, IntelligenceCapability.TextGeneration),
                 latency: LatencyTarget.Create(TimeSpan.FromMilliseconds(500), TimeSpan.FromSeconds(3)),
-                requiresStreaming: true,
-                maxOutputTokens: Math.Clamp(maxOutputTokens, 32, 8192));
+                requiresStreaming: guardrails.AllowStreaming,
+                maxOutputTokens: guardrails.MaxOutputTokens,
+                requiredProviderKind: ResolveProviderKind(provider),
+                preferredModelName: model);
 
             var policy = ExecutionPolicy.Create(
-                maxCostPerExecution: ExecutionCost.Create(1.00m, "ZAR"),
-                allowFallback: true,
-                allowStreaming: true,
+                maxCostPerExecution: ExecutionCost.Create(guardrails.MaxCostPerExecution, guardrails.Currency),
+                allowFallback: guardrails.AllowFallback,
+                allowStreaming: guardrails.AllowStreaming,
                 allowTools: false,
                 timeout: TimeSpan.FromSeconds(10));
 
@@ -246,8 +299,6 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
                     evaluationStartedAt, evaluationTimer.Elapsed);
             }
 
-            AddInstantStep(timeline, "Trace recorded", "Tracing", "Completed",
-                $"Run {runId} captured with prompt, knowledge, plan, usage, evaluation, and correlation data.");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -256,7 +307,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
             evaluation = new(0, 0, 1, "Execution failed");
         }
 
-        state.AddRun(new SimulationRun(
+        var completedRun = new SimulationRun(
             runId,
             userMessage.Id,
             assistantMessage?.Id,
@@ -271,66 +322,52 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
             evaluation,
             timeline,
             failureReason,
-            runCreatedAt));
-    }
-
-    private async Task EnsureDeterministicCatalogueAsync(CancellationToken cancellationToken)
-    {
-        if (_catalogueReady) return;
-
-        await _catalogueGate.WaitAsync(cancellationToken);
+            runCreatedAt,
+            new SimulationRunConfiguration(
+                workflow,
+                promptVersion,
+                knowledgeCollection,
+                provider,
+                model ?? planView?.Model ?? "default",
+                temperature,
+                maxOutputTokens,
+                mode));
+        state.AddRun(completedRun);
         try
         {
-            if (_catalogueReady) return;
-
-            var providerId = await _intelligence.RegisterProviderAsync(
-                "ConvoLab Deterministic Runtime",
-                ProviderKind.InternalModel,
-                RateLimitWindow.Unlimited(),
-                cancellationToken);
-
-            await _intelligence.ReportProviderHealthAsync(
-                providerId,
-                ProviderHealthSnapshot.Create(
-                    ProviderAvailability.Available,
-                    TimeSpan.FromMilliseconds(140),
-                    errorRate: 0,
-                    capacityUtilisation: 0.05),
-                cancellationToken);
-
-            var capabilities = CapabilitySet.Of(
-                IntelligenceCapability.Chat,
-                IntelligenceCapability.TextGeneration,
-                IntelligenceCapability.Streaming,
-                IntelligenceCapability.StructuredOutput);
-
-            await _intelligence.RegisterModelAsync(
-                providerId,
-                "ConvoLab Deterministic Primary",
-                capabilities,
-                ModelPricing.Create(0.02m, 0.04m, currency: "ZAR"),
-                maxContextTokens: 32_000,
-                maxOutputTokens: 4_000,
-                typicalLatency: TimeSpan.FromMilliseconds(140),
-                cancellationToken: cancellationToken);
-
-            await _intelligence.RegisterModelAsync(
-                providerId,
-                "ConvoLab Deterministic Fallback",
-                capabilities,
-                ModelPricing.Create(0.04m, 0.06m, currency: "ZAR"),
-                maxContextTokens: 32_000,
-                maxOutputTokens: 4_000,
-                typicalLatency: TimeSpan.FromMilliseconds(220),
-                cancellationToken: cancellationToken);
-
-            _catalogueReady = true;
+            await _evaluationStudio.RecordSimulationRunAsync(state.Id, state.Title, completedRun, cancellationToken: cancellationToken);
+            AddInstantStep(timeline, "Evaluation recorded", "Evaluation", "Completed",
+                $"Run {runId} was persisted in Evaluation Studio.");
         }
-        finally
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            _catalogueGate.Release();
+            AddInstantStep(timeline, "Evaluation persistence deferred", "Evaluation", "Warning",
+                $"The simulation remains available and Evaluation Studio will synchronize it later. {exception.Message}");
+        }
+        try
+        {
+            await _traceStudio.RecordSimulationRunAsync(state.Id, state.Title, completedRun, assistantMessage?.Content, cancellationToken);
+            AddInstantStep(timeline, "Trace recorded", "Tracing", "Completed",
+                $"Run {runId} was persisted with prompt, knowledge, plan, usage, evaluation, and correlation data.");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            AddInstantStep(timeline, "Trace persistence deferred", "Tracing", "Warning",
+                $"The simulation remains available and Trace Explorer will synchronize it later. {exception.Message}");
         }
     }
+
+    private static string ResolveRuntimeEnvironment()
+        => Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+            ?? "Development";
+
+    private static ProviderKind ResolveProviderKind(string provider)
+        => provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase)
+            ? ProviderKind.Gemini
+            : provider.Equals("Deterministic", StringComparison.OrdinalIgnoreCase)
+                ? ProviderKind.InternalModel
+                : ProviderKind.Custom;
 
     private static SimulationExecutionPlan MapPlan(ExecutionRequest? request, ExecutionPlan preview)
     {
@@ -439,12 +476,15 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         SimulationState state,
         string userMessage,
         SimulationKnowledgePackage package,
+        string workflow,
+        string promptVersion,
+        string knowledgeCollection,
         SimulationMode mode, string provider, string? model, double temperature, int maxOutputTokens,
         CancellationToken cancellationToken)
     {
         var knowledge = string.Join("\n", package.Citations.Select((citation, index) =>
             $"[{index + 1}] {citation.Source} — {citation.Section}: {citation.Snippet}"));
-        var template = await _promptStudio.ResolvePublishedAsync(state.PromptVersion, cancellationToken);
+        var template = await _promptStudio.ResolvePublishedAsync(promptVersion, cancellationToken);
         var runtimeHeaders = $"[SIMULATION_MODE:{mode}]\n[PROVIDER:{provider}]\n[MODEL:{model ?? "default"}]\n[TEMPERATURE:{temperature:0.00}]\n[MAX_OUTPUT_TOKENS:{maxOutputTokens}]";
         if (template is not null)
         {
@@ -453,9 +493,9 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
                 ["customerMessage"] = userMessage,
                 ["knowledgePackage"] = knowledge,
                 ["conversationHistory"] = string.Join("\n", state.Snapshot().Messages.TakeLast(10).Select(x => $"{x.Role}: {x.Content}")),
-                ["workflow"] = state.Workflow,
-                ["knowledgeCollection"] = state.KnowledgeCollection,
-                ["promptVersion"] = state.PromptVersion
+                ["workflow"] = workflow,
+                ["knowledgeCollection"] = knowledgeCollection,
+                ["promptVersion"] = promptVersion
             };
             return $"{runtimeHeaders}\n\n{_promptStudio.RenderRuntime(template, variables)}";
         }
@@ -465,9 +505,9 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
             You are a careful motor-insurance claims assistant operating inside ConvoLab Studio.
             Answer only from the supplied governed knowledge package. Explain uncertainty and never promise claim approval.
 
-            WORKFLOW: {state.Workflow}
-            PROMPT VERSION: {state.PromptVersion}
-            KNOWLEDGE COLLECTION: {state.KnowledgeCollection}
+            WORKFLOW: {workflow}
+            PROMPT VERSION: {promptVersion}
+            KNOWLEDGE COLLECTION: {knowledgeCollection}
 
             KNOWLEDGE PACKAGE:
             {knowledge}

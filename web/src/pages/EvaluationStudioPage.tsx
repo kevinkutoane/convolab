@@ -1,295 +1,325 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
-  Activity,
-  BadgeCheck,
+  AlertTriangle,
   BarChart3,
+  BookOpenCheck,
   CheckCircle2,
-  CircleAlert,
   ClipboardCheck,
-  BookOpen,
-  Gauge,
+  FlaskConical,
+  GitCompareArrows,
   LoaderCircle,
   Plus,
-  RefreshCw,
+  RefreshCcw,
   ShieldCheck,
-  SlidersHorizontal,
-  Target,
+  Sparkles,
   XCircle,
 } from "lucide-react";
 import { MetricCard } from "../components/MetricCard";
+import { StatusPill } from "../components/StatusPill";
 import { getApiErrorMessage } from "../services/apiClient";
 import {
+  compareEvaluationRuns,
   createEvaluationScorecard,
+  createEvaluationTestCase,
   getEvaluationOverview,
-  listEvaluationScorecards,
-  previewEvaluation,
+  publishEvaluationScorecard,
+  reviewEvaluationRun,
+  runEvaluationBatch,
 } from "../services/evaluationApi";
 import type {
   CreateEvaluationScorecardRequest,
-  EvaluationPreviewRequest,
   EvaluationRun,
+  EvaluationScorecard,
 } from "../types/evaluation";
 
-const defaultPreview: EvaluationPreviewRequest = {
-  groundedness: 0.88,
-  relevance: 0.86,
-  safety: 0.98,
-};
-
 const defaultScorecard: CreateEvaluationScorecardRequest = {
-  name: "",
-  description: "",
-  minimumGroundedness: 0.8,
-  minimumRelevance: 0.8,
-  minimumSafety: 0.95,
-  minimumOverallScore: 0.82,
-  failureAction: "Review",
+  name: "Customer Support Quality",
+  description: "Quality gate for grounded, relevant, safe and complete customer support responses.",
+  version: "1.0",
+  qualityGateThreshold: 0.85,
 };
-
-const percentage = (value: number) => `${Math.round(value * 100)}%`;
 
 export function EvaluationStudioPage() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(() => searchParams.get("run"));
+  const [showCreateScorecard, setShowCreateScorecard] = useState(false);
+  const [scorecardRequest, setScorecardRequest] = useState(defaultScorecard);
+  const [testCaseName, setTestCaseName] = useState("Regression case");
+  const [expectedVerdict, setExpectedVerdict] = useState("Passed");
+  const [baselineId, setBaselineId] = useState("");
+  const [candidateId, setCandidateId] = useState("");
+
   const overviewQuery = useQuery({
     queryKey: ["evaluation-overview"],
     queryFn: getEvaluationOverview,
-    refetchInterval: 30_000,
+    retry: 1,
   });
-  const [selectedRun, setSelectedRun] = useState<EvaluationRun | null>(null);
-  const [previewRequest, setPreviewRequest] = useState<EvaluationPreviewRequest>(defaultPreview);
-  const [selectedScorecardId, setSelectedScorecardId] = useState<string | null>(null);
-  const [showScorecardForm, setShowScorecardForm] = useState(false);
-  const [scorecardDraft, setScorecardDraft] = useState<CreateEvaluationScorecardRequest>(defaultScorecard);
-  const previewMutation = useMutation({ mutationFn: previewEvaluation });
-  const scorecardsQuery = useQuery({
-    queryKey: ["evaluation-scorecards"],
-    queryFn: listEvaluationScorecards,
-  });
+
+  const overview = overviewQuery.data;
+  const runs = useMemo(() => overview?.recentRuns ?? [], [overview?.recentRuns]);
+  const selectedRun = useMemo(
+    () => runs.find(run => run.id === selectedRunId) ?? runs[0] ?? null,
+    [runs, selectedRunId],
+  );
+  const publishedScorecard = overview?.scorecards.find(item => item.status === "Published") ?? overview?.scorecards[0];
+
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["evaluation-overview"] });
+
   const createScorecardMutation = useMutation({
     mutationFn: createEvaluationScorecard,
-    onSuccess: async scorecard => {
-      setSelectedScorecardId(scorecard.id);
-      setShowScorecardForm(false);
-      setScorecardDraft(defaultScorecard);
-      await queryClient.invalidateQueries({ queryKey: ["evaluation-scorecards"] });
+    onSuccess: () => {
+      setShowCreateScorecard(false);
+      setScorecardRequest(defaultScorecard);
+      void refresh();
     },
   });
-  const overview = overviewQuery.data;
-  const maxDailyRuns = useMemo(
-    () => Math.max(1, ...(overview?.dailyTrend.map(item => item.runs) ?? [1])),
-    [overview],
-  );
+
+  const publishMutation = useMutation({
+    mutationFn: ({ id, revision }: { id: string; revision: number }) => publishEvaluationScorecard(id, revision),
+    onSuccess: () => void refresh(),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) => reviewEvaluationRun(id, status, "ConvoLab Studio reviewer"),
+    onSuccess: () => void refresh(),
+  });
+
+  const testCaseMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedRun) throw new Error("Select an evaluation run first.");
+      return createEvaluationTestCase({
+        name: testCaseName,
+        description: `Regression protection for ${selectedRun.simulationTitle}.`,
+        simulationId: selectedRun.simulationId,
+        sourceRunId: selectedRun.sourceRunId,
+        scorecardId: selectedRun.scorecardId,
+        expectedVerdict,
+        tags: ["studio", "regression"],
+      });
+    },
+    onSuccess: () => void refresh(),
+  });
+
+  const batchMutation = useMutation({
+    mutationFn: async () => {
+      if (!publishedScorecard) throw new Error("Publish a scorecard before running a suite.");
+      const testCaseIds = overview?.testCases.map(item => item.id) ?? [];
+      if (testCaseIds.length === 0) throw new Error("Create at least one test case before running a suite.");
+      return runEvaluationBatch({
+        name: `Evaluation suite ${new Date().toLocaleDateString("en-ZA")}`,
+        scorecardId: publishedScorecard.id,
+        testCaseIds,
+      });
+    },
+    onSuccess: () => void refresh(),
+  });
+
+  const comparisonMutation = useMutation({
+    mutationFn: () => compareEvaluationRuns(baselineId, candidateId),
+  });
 
   if (overviewQuery.isLoading) {
-    return <div className="page-loading"><LoaderCircle className="spin" /> Loading Evaluation Studio</div>;
+    return <div className="page-loading"><LoaderCircle className="spin" size={28} /> Loading Evaluation Studio…</div>;
   }
 
   if (overviewQuery.isError || !overview) {
     return (
-      <section className="panel evaluation-error-state">
-        <CircleAlert size={28} />
-        <h2>Evaluation Studio is unavailable</h2>
-        <p>{getApiErrorMessage(overviewQuery.error)}</p>
-        <button className="primary-button" onClick={() => void overviewQuery.refetch()}>
-          <RefreshCw size={15} /> Retry
-        </button>
+      <section className="panel api-offline-panel">
+        <div className="empty-state-icon"><AlertTriangle size={22} /></div>
+        <div><span className="panel-eyebrow">Evaluation API unavailable</span><h3>Evaluation Studio could not load</h3><p>{getApiErrorMessage(overviewQuery.error)}</p></div>
+        <button className="secondary-button" onClick={() => void overviewQuery.refetch()}><RefreshCcw size={15} /> Retry</button>
       </section>
     );
   }
 
   return (
-    <div className="page-stack evaluation-studio">
-      <section className="page-heading">
-        <div className="page-heading-icon"><ClipboardCheck size={25} /></div>
+    <div className="page-stack evaluation-page">
+      <section className="page-heading evaluation-heading">
+        <div className="page-heading-icon"><BookOpenCheck size={24} /></div>
         <div className="page-heading-copy">
-          <div className="page-heading-meta">
-            <span>Evaluation Engine</span>
-            <span className="source-chip"><Activity size={13} /> Persisted quality telemetry</span>
-          </div>
+          <div className="page-heading-meta"><span>Functional vertical slice</span><StatusPill status="stable" /></div>
           <h2>Evaluation Studio</h2>
-          <p>Measure groundedness, relevance, safety, and overall response quality. Inspect failed gates before a conversational AI change reaches production.</p>
+          <p>Govern quality with versioned scorecards, persisted run evaluations, regression suites, human review and side-by-side comparison.</p>
         </div>
-        <div className="page-heading-actions">
-          <Link className="secondary-button" to="/documentation/evaluation"><BookOpen size={15} /> Documentation</Link>
-          <button className="secondary-button" onClick={() => void overviewQuery.refetch()} disabled={overviewQuery.isFetching}>
-            <RefreshCw className={overviewQuery.isFetching ? "spin" : ""} size={15} /> Refresh
-          </button>
-          <button className="primary-button" onClick={() => setShowScorecardForm(value => !value)}>
-            <Plus size={15} /> New scorecard
-          </button>
+        <div className="evaluation-heading-actions">
+          <Link className="secondary-button" to="/documentation/evaluation"><BookOpenCheck size={15} /> Documentation</Link>
+          <button className="secondary-button" onClick={() => void overviewQuery.refetch()}><RefreshCcw size={15} /> Sync runs</button>
+          <button className="primary-button" onClick={() => setShowCreateScorecard(value => !value)}><Plus size={16} /> New scorecard</button>
         </div>
       </section>
 
       <section className="metrics-grid evaluation-metrics">
-        <MetricCard label="Evaluated runs" value={overview.evaluatedRuns.toLocaleString()} detail={`${overview.passingRuns} passed · ${overview.failingRuns} require review`} icon={ClipboardCheck} tone="accent" />
-        <MetricCard label="Pass rate" value={percentage(overview.passRate)} detail={`Failure action: ${overview.policy.failureAction}`} icon={BadgeCheck} tone={overview.passRate >= .8 ? "positive" : "warning"} />
-        <MetricCard label="Average quality" value={percentage(overview.averageOverallScore)} detail={`Gate: ${percentage(overview.policy.minimumOverallScore)}`} icon={Gauge} />
-        <MetricCard label="Safety gate" value={percentage(overview.policy.minimumSafety)} detail="Minimum permitted safety score" icon={ShieldCheck} tone="positive" />
+        <MetricCard label="Evaluated runs" value={String(overview.metrics.totalRuns)} detail={`${overview.metrics.passedRuns} passed · ${overview.metrics.reviewRuns} review`} icon={ClipboardCheck} tone="accent" />
+        <MetricCard label="Pass rate" value={formatPercent(overview.metrics.passRate)} detail={`${overview.metrics.failedRuns} failed quality gates`} icon={CheckCircle2} />
+        <MetricCard label="Average quality" value={formatPercent(overview.metrics.averageScore)} detail={`${overview.metrics.publishedScorecards} published scorecard(s)`} icon={BarChart3} />
+        <MetricCard label="Regression suite" value={String(overview.metrics.testCases)} detail={`${overview.metrics.regressionCount} mismatched expectation(s)`} icon={FlaskConical} />
       </section>
 
-      <section className="evaluation-overview-grid">
-        <article className="panel evaluation-metrics-panel">
-          <div className="panel-header"><div><span className="panel-eyebrow">Quality dimensions</span><h3>Metric performance</h3></div><Target size={20} /></div>
-          <div className="evaluation-metric-list">
-            {overview.metrics.map(metric => (
-              <div key={metric.name} className="evaluation-metric-row">
-                <div className="evaluation-metric-title"><strong>{metric.name}</strong><span>{metric.passing} passed · {metric.failing} failed</span></div>
-                <div className="evaluation-progress"><span style={{ width: `${Math.max(2, metric.average * 100)}%` }} /><i style={{ left: `${metric.threshold * 100}%` }} /></div>
-                <div className="evaluation-metric-values"><span>Avg {percentage(metric.average)}</span><span>Gate {percentage(metric.threshold)}</span><span>Range {percentage(metric.minimum)}–{percentage(metric.maximum)}</span></div>
+      {showCreateScorecard && (
+        <section className="panel evaluation-create-panel">
+          <div className="panel-header"><div><span className="panel-eyebrow">Governed quality profile</span><h3>Create scorecard</h3></div></div>
+          <div className="evaluation-form-grid">
+            <label><span>Name</span><input value={scorecardRequest.name} onChange={event => setScorecardRequest(current => ({ ...current, name: event.target.value }))} /></label>
+            <label><span>Version</span><input value={scorecardRequest.version} onChange={event => setScorecardRequest(current => ({ ...current, version: event.target.value }))} /></label>
+            <label><span>Quality gate</span><input type="number" min="0" max="1" step="0.01" value={scorecardRequest.qualityGateThreshold} onChange={event => setScorecardRequest(current => ({ ...current, qualityGateThreshold: Number(event.target.value) }))} /></label>
+            <label className="evaluation-description-field"><span>Description</span><textarea value={scorecardRequest.description} onChange={event => setScorecardRequest(current => ({ ...current, description: event.target.value }))} /></label>
+          </div>
+          <div className="evaluation-form-footer">
+            <p>New scorecards start with ConvoLab’s groundedness, relevance, safety and completeness metrics. Publish to use them for evaluation.</p>
+            <button className="primary-button" disabled={createScorecardMutation.isPending} onClick={() => createScorecardMutation.mutate(scorecardRequest)}>
+              {createScorecardMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <Plus size={15} />} Create draft
+            </button>
+          </div>
+          {createScorecardMutation.isError && <div className="provider-warning"><XCircle size={15} /> {getApiErrorMessage(createScorecardMutation.error)}</div>}
+        </section>
+      )}
+
+      <section className="evaluation-top-grid">
+        <article className="panel evaluation-trend-panel">
+          <div className="panel-header"><div><span className="panel-eyebrow">Seven-day signal</span><h3>Quality trend</h3></div><span className="evaluation-generated">Synced {new Date(overview.generatedAt).toLocaleTimeString("en-ZA")}</span></div>
+          <div className="quality-trend-chart">
+            {overview.qualityTrend.map(day => (
+              <div key={day.date} className="quality-trend-column">
+                <div className="quality-trend-track"><span style={{ height: `${Math.max(day.averageScore * 100, day.runs > 0 ? 4 : 0)}%` }} /></div>
+                <strong>{day.runs ? formatPercent(day.averageScore) : "—"}</strong>
+                <small>{formatDay(day.date)}</small>
               </div>
             ))}
           </div>
         </article>
 
-        <aside className="panel evaluation-trend-panel">
-          <div className="panel-header"><div><span className="panel-eyebrow">Last seven days</span><h3>Quality trend</h3></div><BarChart3 size={20} /></div>
-          <div className="evaluation-trend-bars">
-            {overview.dailyTrend.map(item => (
-              <div key={item.date} className="evaluation-trend-item" title={`${item.runs} runs · ${percentage(item.averageScore)} average`}>
-                <div className="evaluation-trend-track"><span style={{ height: `${Math.max(4, item.runs / maxDailyRuns * 100)}%` }} /></div>
-                <strong>{percentage(item.passRate)}</strong>
-                <small>{new Date(`${item.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" })}</small>
-              </div>
-            ))}
+        <article className="panel scorecard-panel">
+          <div className="panel-header"><div><span className="panel-eyebrow">Versioned policy</span><h3>Scorecards</h3></div><ShieldCheck size={18} /></div>
+          <div className="scorecard-list">
+            {overview.scorecards.map(scorecard => <ScorecardRow key={scorecard.id} scorecard={scorecard} onPublish={() => publishMutation.mutate({ id: scorecard.id, revision: scorecard.revision })} publishing={publishMutation.isPending} />)}
           </div>
-        </aside>
+        </article>
       </section>
 
-      <section className="evaluation-main-grid">
+      <section className="evaluation-workspace-grid">
         <article className="panel evaluation-runs-panel">
-          <div className="panel-header"><div><span className="panel-eyebrow">Persisted simulator runs</span><h3>Recent evaluations</h3></div><span className="source-chip">{overview.recentRuns.length} recent</span></div>
-          {overview.recentRuns.length === 0 ? (
-            <div className="empty-state compact-empty"><ClipboardCheck size={28} /><h3>No evaluations yet</h3><p>Run a conversation simulation to generate groundedness, relevance, and safety telemetry.</p></div>
+          <div className="panel-header"><div><span className="panel-eyebrow">Persisted execution quality</span><h3>Evaluation runs</h3></div><span>{runs.length} recent</span></div>
+          {runs.length === 0 ? (
+            <div className="inspector-placeholder"><Sparkles size={24} /><p>Run a conversation simulation. Its evaluation will be persisted here automatically.</p></div>
           ) : (
-            <div className="execution-table-wrap">
-              <table className="execution-table evaluation-table">
-                <thead><tr><th>Simulation</th><th>Provider</th><th>Grounded</th><th>Relevant</th><th>Safe</th><th>Overall</th><th>Verdict</th></tr></thead>
-                <tbody>
-                  {overview.recentRuns.map(run => (
-                    <tr key={run.runId} onClick={() => setSelectedRun(run)} className={selectedRun?.runId === run.runId ? "selected" : ""}>
-                      <td><strong>{run.simulationTitle}</strong><span>{new Date(run.createdAt).toLocaleString()}</span></td>
-                      <td><strong>{run.provider}</strong><span>{run.model}</span></td>
-                      <td>{percentage(run.groundedness)}</td>
-                      <td>{percentage(run.relevance)}</td>
-                      <td>{percentage(run.safety)}</td>
-                      <td>{percentage(run.overallScore)}</td>
-                      <td><span className={`runtime-badge ${run.passed ? "runtime-ready" : "runtime-blocked"}`}>{run.verdict}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
+            <div className="evaluation-run-table-wrap">
+              <table className="evaluation-run-table">
+                <thead><tr><th>Simulation</th><th>Scorecard</th><th>Quality</th><th>Verdict</th><th>Review</th></tr></thead>
+                <tbody>{runs.map(run => (
+                  <tr
+                    key={run.id}
+                    className={selectedRun?.id === run.id ? "selected" : ""}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selectedRun?.id === run.id}
+                    onClick={() => setSelectedRunId(run.id)}
+                    onKeyDown={event => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setSelectedRunId(run.id);
+                      }
+                    }}
+                  >
+                    <td><strong>{run.simulationTitle}</strong><span>{new Date(run.createdAt).toLocaleString("en-ZA")}</span></td>
+                    <td>{run.scorecardName}<span>v{run.scorecardVersion}</span></td>
+                    <td><strong>{formatPercent(run.overallScore)}</strong></td>
+                    <td><span className={`evaluation-verdict verdict-${run.verdict.toLowerCase()}`}>{run.verdict}</span></td>
+                    <td>{run.reviewStatus}</td>
+                  </tr>
+                ))}</tbody>
               </table>
             </div>
           )}
         </article>
 
-        <aside className="panel evaluation-inspector-panel">
-          <div className="panel-header"><div><span className="panel-eyebrow">Run inspector</span><h3>Gate decisions</h3></div>{selectedRun ? (selectedRun.passed ? <CheckCircle2 size={20} /> : <XCircle size={20} />) : <Target size={20} />}</div>
-          {selectedRun ? (
-            <div className="evaluation-inspector-content">
-              <div className={`evaluation-verdict ${selectedRun.passed ? "evaluation-pass" : "evaluation-fail"}`}>
-                {selectedRun.passed ? <CheckCircle2 size={18} /> : <CircleAlert size={18} />}
-                <div><strong>{selectedRun.verdict}</strong><span>{selectedRun.passed ? "Every quality gate passed." : `Failed: ${selectedRun.failedGates.join(", ")}`}</span></div>
-              </div>
-              <QualityGate label="Groundedness" score={selectedRun.groundedness} threshold={overview.policy.minimumGroundedness} />
-              <QualityGate label="Relevance" score={selectedRun.relevance} threshold={overview.policy.minimumRelevance} />
-              <QualityGate label="Safety" score={selectedRun.safety} threshold={overview.policy.minimumSafety} />
-              <QualityGate label="Overall" score={selectedRun.overallScore} threshold={overview.policy.minimumOverallScore} />
-              <Link className="secondary-button execution-link" to={`/conversations?simulation=${selectedRun.simulationId}&run=${selectedRun.runId}`}>Open simulator run</Link>
-            </div>
-          ) : <div className="inspector-placeholder"><Target size={28} /><p>Select a run to inspect its quality gates and failure reasons.</p></div>}
+        <aside className="panel evaluation-inspector">
+          <div className="panel-header"><div><span className="panel-eyebrow">Quality gate inspector</span><h3>{selectedRun?.simulationTitle ?? "Select a run"}</h3></div></div>
+          {selectedRun ? <RunInspector run={selectedRun} onReview={status => reviewMutation.mutate({ id: selectedRun.id, status })} reviewing={reviewMutation.isPending} /> : <div className="inspector-placeholder"><ClipboardCheck size={24} /><p>Select an evaluation run to inspect metric thresholds and review status.</p></div>}
         </aside>
       </section>
 
-      <section className="panel evaluation-scorecards-panel">
-        <div className="panel-header">
-          <div><span className="panel-eyebrow">Reusable evaluation policy</span><h3>Scorecards</h3></div>
-          <span className="source-chip">{scorecardsQuery.data?.length ?? 0} saved</span>
-        </div>
-        {showScorecardForm && (
-          <form className="evaluation-scorecard-form" onSubmit={event => {
-            event.preventDefault();
-            createScorecardMutation.mutate(scorecardDraft);
-          }}>
-            <div className="evaluation-scorecard-fields">
-              <label><span>Name</span><input required maxLength={120} value={scorecardDraft.name} onChange={event => setScorecardDraft(current => ({ ...current, name: event.target.value }))} placeholder="Production quality gate" /></label>
-              <label><span>Failure action</span><input required maxLength={80} value={scorecardDraft.failureAction} onChange={event => setScorecardDraft(current => ({ ...current, failureAction: event.target.value }))} placeholder="Review" /></label>
-              <label className="evaluation-scorecard-description"><span>Description</span><textarea maxLength={500} value={scorecardDraft.description} onChange={event => setScorecardDraft(current => ({ ...current, description: event.target.value }))} placeholder="When and where this scorecard should be used" /></label>
-            </div>
-            <div className="evaluation-scorecard-thresholds">
-              {(["minimumGroundedness", "minimumRelevance", "minimumSafety", "minimumOverallScore"] as const).map(key => (
-                <label key={key}><span>{key.replace("minimum", "")}</span><input type="range" min="0" max="1" step="0.01" value={scorecardDraft[key]} onChange={event => setScorecardDraft(current => ({ ...current, [key]: Number(event.target.value) }))} /><strong>{percentage(scorecardDraft[key])}</strong></label>
+      <section className="evaluation-bottom-grid">
+        <article className="panel test-suite-panel">
+          <div className="panel-header"><div><span className="panel-eyebrow">Repeatable regression protection</span><h3>Test cases and batch suites</h3></div><FlaskConical size={18} /></div>
+          <div className="test-case-create-row">
+            <input value={testCaseName} onChange={event => setTestCaseName(event.target.value)} placeholder="Test case name" />
+            <select value={expectedVerdict} onChange={event => setExpectedVerdict(event.target.value)}><option>Passed</option><option>Review</option><option>Failed</option></select>
+            <button className="secondary-button" disabled={!selectedRun || testCaseMutation.isPending} onClick={() => testCaseMutation.mutate()}><Plus size={14} /> Add selected run</button>
+          </div>
+          <div className="test-case-list">
+            {overview.testCases.length === 0 ? <p className="muted-copy">No regression cases yet. Select a run and preserve its expected verdict.</p> : overview.testCases.map(testCase => (
+              <div key={testCase.id}><span><strong>{testCase.name}</strong><small>{testCase.description}</small></span><span className="evaluation-verdict">Expect {testCase.expectedVerdict}</span></div>
+            ))}
+          </div>
+          <button className="primary-button suite-run-button" disabled={!overview.testCases.length || batchMutation.isPending} onClick={() => batchMutation.mutate()}>
+            {batchMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <FlaskConical size={15} />} Run all test cases
+          </button>
+          {batchMutation.data && <div className={`suite-result ${batchMutation.data.passRate === 1 ? "suite-passed" : "suite-failed"}`}><strong>{formatPercent(batchMutation.data.passRate)} suite pass rate</strong><span>{batchMutation.data.passedCases} of {batchMutation.data.totalCases} expectations matched.</span></div>}
+          {(testCaseMutation.isError || batchMutation.isError) && <div className="provider-warning"><XCircle size={15} /> {getApiErrorMessage(testCaseMutation.error ?? batchMutation.error)}</div>}
+        </article>
+
+        <article className="panel comparison-panel">
+          <div className="panel-header"><div><span className="panel-eyebrow">Replay-ready analysis</span><h3>Compare evaluation runs</h3></div><GitCompareArrows size={18} /></div>
+          <div className="comparison-selectors">
+            <label><span>Baseline</span><select value={baselineId} onChange={event => setBaselineId(event.target.value)}><option value="">Select baseline</option>{runs.map(run => <option key={run.id} value={run.id}>{run.simulationTitle} · {formatPercent(run.overallScore)}</option>)}</select></label>
+            <label><span>Candidate</span><select value={candidateId} onChange={event => setCandidateId(event.target.value)}><option value="">Select candidate</option>{runs.map(run => <option key={run.id} value={run.id}>{run.simulationTitle} · {formatPercent(run.overallScore)}</option>)}</select></label>
+            <button className="secondary-button" disabled={!baselineId || !candidateId || baselineId === candidateId || comparisonMutation.isPending} onClick={() => comparisonMutation.mutate()}><GitCompareArrows size={15} /> Compare</button>
+          </div>
+          {comparisonMutation.data ? (
+            <div className="comparison-result">
+              <div className={`comparison-outcome outcome-${comparisonMutation.data.outcome.toLowerCase()}`}><strong>{comparisonMutation.data.outcome}</strong><span>{formatSignedPercent(comparisonMutation.data.overallDelta)} overall quality</span></div>
+              {comparisonMutation.data.metrics.map(metric => (
+                <div key={metric.key} className="comparison-metric"><span>{metric.displayName}</span><strong>{formatPercent(metric.baselineScore)} → {formatPercent(metric.candidateScore)}</strong><small className={metric.delta < 0 ? "negative-delta" : "positive-delta"}>{formatSignedPercent(metric.delta)}</small></div>
               ))}
+              <div className="comparison-findings">{comparisonMutation.data.findings.map(finding => <p key={finding}>{finding}</p>)}</div>
             </div>
-            {createScorecardMutation.isError && <p className="form-error">{getApiErrorMessage(createScorecardMutation.error)}</p>}
-            <div className="evaluation-scorecard-form-actions">
-              <button type="button" className="secondary-button" onClick={() => setShowScorecardForm(false)}>Cancel</button>
-              <button type="submit" className="primary-button" disabled={createScorecardMutation.isPending}>
-                {createScorecardMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <Plus size={15} />} Save scorecard
-              </button>
-            </div>
-          </form>
-        )}
-        {scorecardsQuery.isError ? (
-          <div className="evaluation-inline-error"><CircleAlert size={18} /><span>{getApiErrorMessage(scorecardsQuery.error)}</span><button onClick={() => void scorecardsQuery.refetch()}>Retry</button></div>
-        ) : scorecardsQuery.data?.length ? (
-          <div className="evaluation-scorecard-grid">
-            <button className={`evaluation-scorecard-card ${selectedScorecardId === null ? "selected" : ""}`} onClick={() => setSelectedScorecardId(null)}>
-              <span className="scorecard-card-heading"><strong>Environment default</strong><i>Configured</i></span>
-              <p>Uses the deployed Evaluation settings.</p>
-              <span>{percentage(overview.policy.minimumGroundedness)} grounded · {percentage(overview.policy.minimumSafety)} safe · {percentage(overview.policy.minimumOverallScore)} overall</span>
-            </button>
-            {scorecardsQuery.data.map(scorecard => (
-              <button key={scorecard.id} className={`evaluation-scorecard-card ${selectedScorecardId === scorecard.id ? "selected" : ""}`} onClick={() => setSelectedScorecardId(scorecard.id)}>
-                <span className="scorecard-card-heading"><strong>{scorecard.name}</strong><i>Saved</i></span>
-                <p>{scorecard.description || `Failure action: ${scorecard.failureAction}`}</p>
-                <span>{percentage(scorecard.minimumGroundedness)} grounded · {percentage(scorecard.minimumSafety)} safe · {percentage(scorecard.minimumOverallScore)} overall</span>
-              </button>
-            ))}
-          </div>
-        ) : !showScorecardForm ? (
-          <div className="empty-state compact-empty"><ClipboardCheck size={28} /><h3>No saved scorecards</h3><p>Create a reusable set of quality gates, then select it in the policy sandbox.</p><button className="primary-button" onClick={() => setShowScorecardForm(true)}><Plus size={15} /> Create scorecard</button></div>
-        ) : null}
-      </section>
-
-      <section className="panel evaluation-preview-panel">
-        <div className="panel-header"><div><span className="panel-eyebrow">Policy sandbox</span><h3>Quality-gate preview</h3></div><SlidersHorizontal size={20} /></div>
-        <div className="evaluation-preview-layout">
-          <div className="evaluation-preview-form">
-            {(["groundedness", "relevance", "safety"] as const).map(key => (
-              <label key={key}><span>{key}</span><input type="range" min="0" max="1" step="0.01" value={previewRequest[key]} onChange={event => setPreviewRequest(current => ({ ...current, [key]: Number(event.target.value) }))} /><strong>{percentage(previewRequest[key])}</strong></label>
-            ))}
-            <div className="evaluation-preview-profile"><span>Scorecard</span><strong>{scorecardsQuery.data?.find(item => item.id === selectedScorecardId)?.name ?? "Environment default"}</strong></div>
-            <button className="primary-button" onClick={() => previewMutation.mutate({ ...previewRequest, scorecardId: selectedScorecardId ?? undefined })} disabled={previewMutation.isPending}>
-              {previewMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <Target size={15} />} Evaluate sample
-            </button>
-          </div>
-          <div className="evaluation-preview-result">
-            {previewMutation.data ? (
-              <>
-                <div className={`evaluation-verdict ${previewMutation.data.passed ? "evaluation-pass" : "evaluation-fail"}`}>
-                  {previewMutation.data.passed ? <CheckCircle2 size={18} /> : <XCircle size={18} />}
-                  <div><strong>{previewMutation.data.verdict}</strong><span>Overall score {percentage(previewMutation.data.overallScore)}</span></div>
-                </div>
-                <div className="evaluation-decision-list">{previewMutation.data.decisions.map(decision => <QualityGate key={decision.name} label={decision.name} score={decision.score} threshold={decision.threshold} />)}</div>
-              </>
-            ) : <div className="inspector-placeholder"><SlidersHorizontal size={27} /><p>Adjust sample scores to see how the current evaluation policy behaves.</p></div>}
-          </div>
-        </div>
+          ) : <div className="inspector-placeholder"><GitCompareArrows size={24} /><p>Compare two persisted evaluations to expose quality improvement or regression.</p></div>}
+          {comparisonMutation.isError && <div className="provider-warning"><XCircle size={15} /> {getApiErrorMessage(comparisonMutation.error)}</div>}
+        </article>
       </section>
     </div>
   );
 }
 
-function QualityGate({ label, score, threshold }: { label: string; score: number; threshold: number }) {
-  const passed = score >= threshold;
+function ScorecardRow({ scorecard, onPublish, publishing }: { scorecard: EvaluationScorecard; onPublish: () => void; publishing: boolean }) {
   return (
-    <div className="quality-gate-row">
-      <span>{passed ? <CheckCircle2 size={15} /> : <XCircle size={15} />}{label}</span>
-      <div><i style={{ width: `${score * 100}%` }} /></div>
-      <strong>{percentage(score)}</strong>
-      <small>Gate {percentage(threshold)}</small>
+    <div className="scorecard-row">
+      <div className="scorecard-row-heading"><span><strong>{scorecard.name}</strong><small>v{scorecard.version} · gate {formatPercent(scorecard.qualityGateThreshold)}</small></span><span className={`evaluation-verdict ${scorecard.status === "Published" ? "verdict-passed" : "verdict-review"}`}>{scorecard.status}</span></div>
+      <p>{scorecard.description}</p>
+      <div className="scorecard-metrics">{scorecard.metrics.map(metric => <span key={metric.id}>{metric.displayName} ≥ {formatPercent(metric.threshold)}</span>)}</div>
+      {scorecard.status !== "Published" && <button className="secondary-button" disabled={publishing} onClick={onPublish}><CheckCircle2 size={14} /> Publish</button>}
     </div>
   );
 }
+
+function RunInspector({ run, onReview, reviewing }: { run: EvaluationRun; onReview: (status: string) => void; reviewing: boolean }) {
+  return (
+    <div className="evaluation-inspector-content">
+      <div className="evaluation-score-hero"><div><span>Overall quality</span><strong>{formatPercent(run.overallScore)}</strong></div><span className={`evaluation-verdict verdict-${run.verdict.toLowerCase()}`}>{run.verdict}</span></div>
+      <div className="evaluation-metric-list">
+        {run.metrics.map(metric => (
+          <div key={metric.id} className="evaluation-metric-row">
+            <div><span>{metric.displayName}</span><small>{metric.detail}</small></div>
+            <progress max="1" value={metric.score} />
+            <strong className={metric.passed ? "metric-passed" : "metric-failed"}>{formatPercent(metric.score)}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="inspector-section-title">Human review</div>
+      <div className="review-status-row"><span>Status</span><strong>{run.reviewStatus}</strong></div>
+      {run.reviewer && <div className="review-status-row"><span>Reviewer</span><strong>{run.reviewer}</strong></div>}
+      <div className="review-actions">
+        <button className="secondary-button" disabled={reviewing} onClick={() => onReview("Approved")}><CheckCircle2 size={14} /> Approve</button>
+        <button className="secondary-button" disabled={reviewing} onClick={() => onReview("NeedsChanges")}><AlertTriangle size={14} /> Needs changes</button>
+      </div>
+      <a className="secondary-button execution-link" href={`/conversations?simulation=${run.simulationId}&run=${run.sourceRunId}`}>Open source simulation</a>
+    </div>
+  );
+}
+
+function formatPercent(value: number): string { return `${Math.round(value * 100)}%`; }
+function formatSignedPercent(value: number): string { return `${value >= 0 ? "+" : ""}${(value * 100).toFixed(1)}%`; }
+function formatDay(value: string): string { return new Date(`${value}T00:00:00`).toLocaleDateString("en-ZA", { weekday: "short" }); }

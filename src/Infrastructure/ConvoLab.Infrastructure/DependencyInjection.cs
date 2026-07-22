@@ -15,6 +15,14 @@ using ConvoLab.Application.IntelligenceStudio;
 using ConvoLab.Infrastructure.IntelligenceStudio;
 using ConvoLab.Application.EvaluationStudio;
 using ConvoLab.Infrastructure.EvaluationStudio;
+using ConvoLab.Application.TraceStudio;
+using ConvoLab.Infrastructure.TraceStudio;
+using ConvoLab.Application.ReplayStudio;
+using ConvoLab.Infrastructure.ReplayStudio;
+using ConvoLab.Application.PolicyStudio;
+using ConvoLab.Infrastructure.PolicyStudio;
+using ConvoLab.Application.PluginStudio;
+using ConvoLab.Infrastructure.PluginStudio;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -61,6 +69,13 @@ public static class DependencyInjection
         services.AddScoped<IPromptStudioRepository, EfPromptStudioRepository>();
         services.AddScoped<IWorkflowStudioRepository, EfWorkflowStudioRepository>();
         services.AddScoped<IEvaluationScorecardRepository, EfEvaluationScorecardRepository>();
+        services.AddScoped<IEvaluationStudioRepository, EfEvaluationStudioRepository>();
+        services.AddScoped<ITraceStudioRepository, EfTraceStudioRepository>();
+        services.AddScoped<IReplayStudioRepository, EfReplayStudioRepository>();
+        services.AddScoped<IPolicyStudioRepository, EfPolicyStudioRepository>();
+        services.AddScoped<IPluginStudioRepository, EfPluginStudioRepository>();
+        services.AddScoped<IPluginHealthProbe, HttpPluginHealthProbe>();
+        services.AddScoped<ITraceEngine, PersistentTraceEngine>();
         services.AddSingleton<IKnowledgeChunker, DeterministicKnowledgeChunker>();
         services.AddSingleton<IKeywordKnowledgeRetriever, KeywordKnowledgeRetriever>();
         services.AddSingleton<IKnowledgeDocumentStorage, LocalKnowledgeDocumentStorage>();
@@ -70,6 +85,8 @@ public static class DependencyInjection
         services.AddSingleton<IDocumentTextExtractorResolver, DocumentTextExtractorResolver>();
         services.AddSingleton<DeterministicIntelligenceExecutor>();
         services.AddHttpClient("Gemini");
+        services.AddHttpClient("PluginHealth")
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton<GeminiIntelligenceExecutor>();
         services.AddSingleton<IIntelligenceExecutor, RoutingIntelligenceExecutor>();
         services.AddSingleton<IIntelligenceStudioConfiguration, EnvironmentIntelligenceStudioConfiguration>();

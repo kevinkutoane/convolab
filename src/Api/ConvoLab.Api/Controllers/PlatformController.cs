@@ -13,7 +13,7 @@ public sealed class PlatformController : ControllerBase
         var response = new PlatformStatusResponse(
             PlatformName: "ConvoLab Platform",
             ProductName: "ConvoLab Studio",
-            Version: "1.0.0-alpha.5",
+            Version: "1.0.0-alpha.10",
             Environment: HttpContext.RequestServices
                 .GetRequiredService<IHostEnvironment>()
                 .EnvironmentName,
@@ -26,11 +26,12 @@ public sealed class PlatformController : ControllerBase
                 new("prompt", "Prompt Engine", "Governed prompt assets, versions, rendering, and experiments.", "stable", "1.0", 10),
                 new("knowledge", "Knowledge Engine", "Governed retrieval, packages, citations, and connectors.", "stable", "1.0", 13),
                 new("intelligence", "Intelligence Engine", "Provider-neutral planning, budgets, tools, and fallback.", "stable", "1.0", 14),
-                new("policy", "Policy", "Central governance and runtime decision constraints.", "foundation", "0.5", 4),
+                new("policy", "Policy", "Versioned governance, scoped runtime decisions, and enforced execution constraints.", "stable", "1.0", 8),
                 new("evaluation", "Evaluation", "Persisted scorecards, quality gates, safety, relevance, and groundedness telemetry.", "stable", "1.0", 5),
-                new("tracing", "Tracing", "Distributed trace model, spans, events, and artifacts.", "foundation", "0.5", 7),
-                new("plugins", "Plugin Engine", "Extensible capabilities, lifecycle, health, and metadata.", "foundation", "0.5", 4),
-                new("studio", "ConvoLab Studio", "Functional engineering workspace with conversation simulation, workflow design, prompt governance, knowledge ingestion, trace inspection, and replay.", "active", "0.3", 0),
+                new("tracing", "Tracing", "Persisted traces, spans, events, correlations, and redacted artifacts.", "stable", "1.0", 7),
+                new("replay", "Replay Studio", "Controlled re-execution, immutable baselines, candidate comparisons, and findings.", "stable", "1.0", 3),
+                new("plugins", "Plugin Engine", "Persistent extension registry, immutable versions, compatibility, lifecycle, health, and capability contracts.", "stable", "1.0", 4),
+                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, evaluation, trace inspection, replay, and plugin governance.", "active", "0.10", 0),
             ],
             GeneratedAt: DateTimeOffset.UtcNow,
             Source: "api");

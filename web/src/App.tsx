@@ -11,6 +11,10 @@ import { PromptStudioPage } from "./pages/PromptStudioPage";
 import { WorkflowDesignerPage } from "./pages/WorkflowDesignerPage";
 import { IntelligenceCenterPage } from "./pages/IntelligenceCenterPage";
 import { EvaluationStudioPage } from "./pages/EvaluationStudioPage";
+import { TraceExplorerPage } from "./pages/TraceExplorerPage";
+import { ReplayStudioPage } from "./pages/ReplayStudioPage";
+import { PolicyCenterPage } from "./pages/PolicyCenterPage";
+import { PluginCenterPage } from "./pages/PluginCenterPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { DocumentationPage } from "./pages/DocumentationPage";
 import { getPlatformStatus } from "./services/platformApi";
@@ -52,8 +56,12 @@ function StudioRoutes() {
         <Route path="intelligence" element={<IntelligenceCenterPage />} />
         <Route path="evaluation" element={<EvaluationStudioPage />} />
         <Route path="evaluations" element={<EvaluationStudioPage />} />
+        <Route path="traces" element={<TraceExplorerPage />} />
+        <Route path="replay" element={<ReplayStudioPage />} />
+        <Route path="policies" element={<PolicyCenterPage />} />
+        <Route path="plugins" element={<PluginCenterPage />} />
         <Route path="documentation/:topic?" element={<DocumentationPage />} />
-        {Object.entries(studioPages).filter(([key]) => !["conversations", "knowledge", "prompts", "workflows", "intelligence", "evaluations"].includes(key)).map(([key, definition]) => (
+        {Object.entries(studioPages).filter(([key]) => !["conversations", "knowledge", "prompts", "workflows", "intelligence", "evaluations", "traces", "replay", "policies", "plugins"].includes(key)).map(([key, definition]) => (
           <Route
             key={key}
             path={key}

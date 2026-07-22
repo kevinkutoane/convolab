@@ -27,13 +27,11 @@ export function Topbar({
   onToggleTheme,
   onOpenPalette,
   onOpenMobile,
-  status,
 }: TopbarProps) {
   const location = useLocation();
   const current = navigationItems.find(item => item.path === location.pathname);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
-  const foundationCount = status?.capabilities.filter(item => item.status === "foundation").length ?? 0;
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -79,8 +77,8 @@ export function Topbar({
           </button>
           {notificationsOpen && <section className="notification-popover panel" role="dialog" aria-label="Platform notifications">
             <div className="notification-heading"><div><span className="panel-eyebrow">Platform updates</span><h3>Notifications</h3></div><button className="text-button" onClick={() => setHasUnread(false)}><CheckCheck size={14} /> Mark read</button></div>
-            <Link className="notification-item" to="/evaluation" onClick={() => { setNotificationsOpen(false); setHasUnread(false); }}><ClipboardCheck size={17} /><span><strong>Evaluation Studio is stable</strong><small>Scorecards, quality gates, and documentation are ready.</small></span></Link>
-            <Link className="notification-item" to="/policies" onClick={() => { setNotificationsOpen(false); setHasUnread(false); }}><ShieldAlert size={17} /><span><strong>{foundationCount} foundations remain</strong><small>Policy Center is the recommended next capability.</small></span></Link>
+            <Link className="notification-item" to="/evaluation" onClick={() => { setNotificationsOpen(false); setHasUnread(false); }}><ClipboardCheck size={17} /><span><strong>Evaluation Studio is stable</strong><small>Versioned scorecards, reviews, batches, and comparisons are ready.</small></span></Link>
+            <Link className="notification-item" to="/policies" onClick={() => { setNotificationsOpen(false); setHasUnread(false); }}><ShieldAlert size={17} /><span><strong>Governed execution is active</strong><small>Policy, Trace, and Replay workspaces are available.</small></span></Link>
           </section>}
         </div>
         <button

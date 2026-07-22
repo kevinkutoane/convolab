@@ -1,4 +1,4 @@
-# Functional Workflow Designer v1 â€” Implementation Report
+# Functional Workflow Designer v1 — Implementation Report
 
 ## Delivered
 
@@ -23,9 +23,9 @@
 
 ## Validation completed in this environment
 
-- `npm run lint` â€” passed
-- `npm run build` â€” passed
-- `npm run test -- --run` â€” passed
+- `npm run lint` — passed
+- `npm run build` — passed
+- `npm run test -- --run` — passed
 
 ## Runtime validation
 

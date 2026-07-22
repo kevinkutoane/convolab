@@ -26,11 +26,20 @@ public enum PolicyDomain
     Safety
 }
 
-/// <summary>Lifecycle of a policy definition.</summary>
+/// <summary>Lifecycle of a versioned policy definition.</summary>
 public enum PolicyStatus
 {
     Draft,
+    PendingApproval,
     Active,
     Suspended,
     Retired
+}
+
+/// <summary>The scope at which a policy participates in a decision.</summary>
+public enum PolicyScope
+{
+    Global,
+    Environment,
+    Tenant
 }

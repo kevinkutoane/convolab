@@ -66,10 +66,20 @@ public class ExecutionRequirement : ValueObject
     public bool RequiresTools { get; private set; }
     public bool RequiresStructuredOutput { get; private set; }
     public int MaxOutputTokens { get; private set; }
+    public ProviderKind? RequiredProviderKind { get; private set; }
+    public string? PreferredModelName { get; private set; }
 
     private ExecutionRequirement() { } // For EF Core
 
-    private ExecutionRequirement(CapabilitySet capabilities, LatencyTarget latency, bool streaming, bool tools, bool structured, int maxOutputTokens)
+    private ExecutionRequirement(
+        CapabilitySet capabilities,
+        LatencyTarget latency,
+        bool streaming,
+        bool tools,
+        bool structured,
+        int maxOutputTokens,
+        ProviderKind? requiredProviderKind,
+        string? preferredModelName)
     {
         if (maxOutputTokens < 0) throw new ArgumentException("MaxOutputTokens cannot be negative.");
 
@@ -85,6 +95,8 @@ public class ExecutionRequirement : ValueObject
         RequiresTools = tools;
         RequiresStructuredOutput = structured;
         MaxOutputTokens = maxOutputTokens;
+        RequiredProviderKind = requiredProviderKind;
+        PreferredModelName = string.IsNullOrWhiteSpace(preferredModelName) ? null : preferredModelName.Trim();
     }
 
     public static ExecutionRequirement Create(
@@ -93,10 +105,13 @@ public class ExecutionRequirement : ValueObject
         bool requiresStreaming = false,
         bool requiresTools = false,
         bool requiresStructuredOutput = false,
-        int maxOutputTokens = 2048)
+        int maxOutputTokens = 2048,
+        ProviderKind? requiredProviderKind = null,
+        string? preferredModelName = null)
         => new(capabilities ?? CapabilitySet.Of(IntelligenceCapability.Chat),
                latency ?? LatencyTarget.Default(),
-               requiresStreaming, requiresTools, requiresStructuredOutput, maxOutputTokens);
+               requiresStreaming, requiresTools, requiresStructuredOutput, maxOutputTokens,
+               requiredProviderKind, preferredModelName);
 
     protected override IEnumerable<object> GetEqualityComponents()
     {
@@ -106,6 +121,8 @@ public class ExecutionRequirement : ValueObject
         yield return RequiresTools;
         yield return RequiresStructuredOutput;
         yield return MaxOutputTokens;
+        yield return RequiredProviderKind ?? (ProviderKind)(-1);
+        yield return PreferredModelName ?? string.Empty;
     }
 }
 

@@ -35,7 +35,7 @@ public class PolicyEvaluationContext : ValueObject
     {
         Domain = domain;
         TenantId = tenantId;
-        _attributes = new Dictionary<string, string>(attributes);
+        _attributes = new Dictionary<string, string>(attributes, StringComparer.OrdinalIgnoreCase);
     }
 
     public static PolicyEvaluationContext Create(PolicyDomain domain, Guid? tenantId = null, IDictionary<string, string>? attributes = null)
@@ -78,7 +78,7 @@ public class PolicyDecision : ValueObject
         Effect = effect;
         Reason = reason ?? string.Empty;
         DecidedBy = decidedBy;
-        _constraints = new Dictionary<string, string>(constraints);
+        _constraints = new Dictionary<string, string>(constraints, StringComparer.OrdinalIgnoreCase);
     }
 
     public static PolicyDecision Allow(string reason = "", PolicyDefinitionId? decidedBy = null)
@@ -127,8 +127,8 @@ public class PolicyRule : ValueObject
         Name = name;
         Effect = effect;
         Priority = priority;
-        _match = new Dictionary<string, string>(match);
-        _constraints = new Dictionary<string, string>(constraints);
+        _match = new Dictionary<string, string>(match, StringComparer.OrdinalIgnoreCase);
+        _constraints = new Dictionary<string, string>(constraints, StringComparer.OrdinalIgnoreCase);
     }
 
     public static PolicyRule Create(string name, PolicyEffect effect, int priority = 0, IDictionary<string, string>? match = null, IDictionary<string, string>? constraints = null)
@@ -136,7 +136,7 @@ public class PolicyRule : ValueObject
 
     /// <summary>True when every match attribute equals the context's value.</summary>
     public bool Matches(PolicyEvaluationContext context)
-        => _match.All(kv => context.Get(kv.Key) == kv.Value);
+        => _match.All(kv => string.Equals(context.Get(kv.Key), kv.Value, StringComparison.OrdinalIgnoreCase));
 
     protected override IEnumerable<object> GetEqualityComponents()
     {

@@ -37,12 +37,23 @@ public class ExecutionPlanner
         // Rank: prefer healthy providers, then models meeting the latency
         // target, then lowest estimated cost. Deterministic and explainable.
         var expectedUsage = EstimateUsage(context, requirement);
-        var best = candidates
+        var ranked = candidates
             .OrderByDescending(c => c.Provider.Health.Availability == ProviderAvailability.Available)
             .ThenByDescending(c => c.Model.TypicalLatency <= requirement.Latency.Target)
             .ThenBy(c => c.Model.EstimateCost(expectedUsage).Amount)
             .ThenBy(c => c.Model.TypicalLatency)
-            .First();
+            .ToList();
+
+        var best = ranked.First();
+        if (!string.IsNullOrWhiteSpace(requirement.PreferredModelName))
+        {
+            var preferred = ranked.FirstOrDefault(candidate =>
+                ModelNamesMatch(candidate.Model.Name, requirement.PreferredModelName));
+            if (preferred.Provider is null || preferred.Model is null)
+                throw new InvalidOperationException(
+                    $"Requested model '{requirement.PreferredModelName}' is not routable for the selected provider and execution requirement.");
+            best = preferred;
+        }
 
         var estimatedCost = best.Model.EstimateCost(expectedUsage);
 
@@ -123,6 +134,18 @@ public class ExecutionPlanner
         ExecutionRequirement requirement,
         IReadOnlyList<IntelligenceProvider> providers)
         => providers
-            .Where(p => p.IsRoutable)
-            .SelectMany(p => p.ModelsServing(requirement, context.EstimatedPromptTokens).Select(m => (p, m)));
+            .Where(provider => provider.IsRoutable)
+            .Where(provider => !requirement.RequiredProviderKind.HasValue || provider.Kind == requirement.RequiredProviderKind.Value)
+            .SelectMany(provider => provider.ModelsServing(requirement, context.EstimatedPromptTokens).Select(model => (provider, model)));
+
+    private static bool ModelNamesMatch(string registeredName, string requestedName)
+        => NormalizeModelName(registeredName).Equals(NormalizeModelName(requestedName), StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeModelName(string value)
+    {
+        var normalized = new string(value.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+        return normalized.StartsWith("convolab", StringComparison.Ordinal)
+            ? normalized["convolab".Length..]
+            : normalized;
+    }
 }

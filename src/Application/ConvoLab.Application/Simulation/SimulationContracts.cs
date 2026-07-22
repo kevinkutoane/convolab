@@ -27,7 +27,10 @@ public sealed record ReplaySimulationCommand(
     string Provider = "Deterministic",
     string? Model = null,
     double Temperature = 0.2,
-    int MaxOutputTokens = 400);
+    int MaxOutputTokens = 400,
+    string? Workflow = null,
+    string? PromptVersion = null,
+    string? KnowledgeCollection = null);
 
 public sealed record SimulationSummary(
     Guid Id,
@@ -76,7 +79,18 @@ public sealed record SimulationRun(
     SimulationEvaluation Evaluation,
     IReadOnlyList<SimulationTimelineStep> Timeline,
     string? FailureReason,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    SimulationRunConfiguration? Configuration = null);
+
+public sealed record SimulationRunConfiguration(
+    string Workflow,
+    string PromptVersion,
+    string KnowledgeCollection,
+    string Provider,
+    string Model,
+    double Temperature,
+    int MaxOutputTokens,
+    SimulationMode Mode);
 
 
 public sealed record SimulationWorkflowSnapshot(

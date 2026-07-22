@@ -1,6 +1,6 @@
 namespace ConvoLab.Application.EvaluationStudio;
 
-public sealed record EvaluationScorecardState(
+public sealed record LegacyEvaluationScorecardState(
     Guid Id,
     string Name,
     string Description,
@@ -14,8 +14,8 @@ public sealed record EvaluationScorecardState(
 
 public interface IEvaluationScorecardRepository
 {
-    Task<IReadOnlyList<EvaluationScorecardState>> ListAsync(CancellationToken cancellationToken = default);
-    Task<EvaluationScorecardState?> GetAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<LegacyEvaluationScorecardState>> ListAsync(CancellationToken cancellationToken = default);
+    Task<LegacyEvaluationScorecardState?> GetAsync(Guid id, CancellationToken cancellationToken = default);
     Task<bool> NameExistsAsync(string name, CancellationToken cancellationToken = default);
-    Task AddAsync(EvaluationScorecardState scorecard, CancellationToken cancellationToken = default);
+    Task AddAsync(LegacyEvaluationScorecardState scorecard, CancellationToken cancellationToken = default);
 }

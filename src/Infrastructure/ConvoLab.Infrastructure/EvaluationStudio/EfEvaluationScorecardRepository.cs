@@ -7,14 +7,14 @@ namespace ConvoLab.Infrastructure.EvaluationStudio;
 public sealed class EfEvaluationScorecardRepository(ApplicationDbContext db)
     : IEvaluationScorecardRepository
 {
-    public async Task<IReadOnlyList<EvaluationScorecardState>> ListAsync(
+    public async Task<IReadOnlyList<LegacyEvaluationScorecardState>> ListAsync(
         CancellationToken cancellationToken = default)
         => (await db.EvaluationScorecards.AsNoTracking().ToListAsync(cancellationToken))
             .OrderByDescending(item => item.UpdatedAt)
             .Select(item => Map(item)!)
             .ToList();
 
-    public async Task<EvaluationScorecardState?> GetAsync(
+    public async Task<LegacyEvaluationScorecardState?> GetAsync(
         Guid id,
         CancellationToken cancellationToken = default)
         => Map(await db.EvaluationScorecards.AsNoTracking()
@@ -25,7 +25,7 @@ public sealed class EfEvaluationScorecardRepository(ApplicationDbContext db)
             .AnyAsync(item => item.Name.ToLower() == name.ToLower(), cancellationToken);
 
     public Task AddAsync(
-        EvaluationScorecardState scorecard,
+        LegacyEvaluationScorecardState scorecard,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -34,6 +34,11 @@ public sealed class EfEvaluationScorecardRepository(ApplicationDbContext db)
             Id = scorecard.Id,
             Name = scorecard.Name,
             Description = scorecard.Description,
+            Status = "Published",
+            Version = "1.0",
+            QualityGateThreshold = scorecard.MinimumOverallScore,
+            IsDefault = false,
+            Revision = 1,
             MinimumGroundedness = scorecard.MinimumGroundedness,
             MinimumRelevance = scorecard.MinimumRelevance,
             MinimumSafety = scorecard.MinimumSafety,
@@ -45,10 +50,10 @@ public sealed class EfEvaluationScorecardRepository(ApplicationDbContext db)
         return Task.CompletedTask;
     }
 
-    private static EvaluationScorecardState? Map(EvaluationScorecardRecord? record)
+    private static LegacyEvaluationScorecardState? Map(EvaluationScorecardRecord? record)
         => record is null
             ? null
-            : new EvaluationScorecardState(
+            : new LegacyEvaluationScorecardState(
                 record.Id,
                 record.Name,
                 record.Description,
