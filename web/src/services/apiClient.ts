@@ -16,6 +16,10 @@ export class PlatformApiError extends Error {
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "",
   timeout: 30_000,
+  withCredentials: true,
+  withXSRFToken: true,
+  xsrfCookieName: "XSRF-TOKEN",
+  xsrfHeaderName: "X-XSRF-TOKEN",
 });
 
 api.interceptors.response.use(

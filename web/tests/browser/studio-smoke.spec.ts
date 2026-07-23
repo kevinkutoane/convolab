@@ -16,7 +16,20 @@ const routes = [
   ["/analytics", "Platform Analytics"],
   ["/settings", "Studio Settings"],
   ["/documentation", "ConvoLab documentation"],
+  ["/workspace", "Default Workspace"],
 ] as const;
+
+const adminEmail = process.env.CONVOLAB_ACCEPTANCE_ADMIN_EMAIL ?? process.env.CONVOLAB_BOOTSTRAP_ADMIN_EMAIL;
+const adminPassword = process.env.CONVOLAB_ACCEPTANCE_ADMIN_PASSWORD ?? process.env.CONVOLAB_BOOTSTRAP_ADMIN_PASSWORD;
+
+test.beforeEach(async ({ page }) => {
+  if (!adminEmail || !adminPassword) throw new Error("Browser acceptance requires the configured bootstrap administrator credentials.");
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(adminEmail);
+  await page.getByLabel("Password").fill(adminPassword);
+  await page.getByRole("button", { name: /sign in/i }).click();
+  await expect(page).toHaveURL(/\/$/);
+});
 
 test("every canonical and compatibility route loads without browser errors", async ({ page }) => {
   const errors: string[] = [];
@@ -70,6 +83,16 @@ test("responsive navigation remains keyboard and touch reachable", async ({ page
   await page.getByRole("link", { name: /trace explorer/i }).click();
   await expect(page).toHaveURL(/\/traces/);
   await expect(page.locator("#root")).toContainText("Trace Explorer");
+});
+
+test("administrator can inspect workspace identity and access controls", async ({ page }) => {
+  await page.goto("/workspace");
+  for (const tab of ["Overview", "Members", "Roles", "Service Accounts", "Audit", "Settings"])
+    await expect(page.getByRole("button", { name: tab, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Members", exact: true }).click();
+  await expect(page.getByText(adminEmail!)).toBeVisible();
+  await page.getByRole("button", { name: "Audit", exact: true }).click();
+  await expect(page.locator("main")).toContainText(/Authentication\.Login|audit activity/i);
 });
 
 test("API failures show a recoverable error state", async ({ page }) => {

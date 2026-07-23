@@ -1,6 +1,6 @@
 # ConvoLab Roadmap
 
-Current stabilized baseline: `v1.0.0-alpha.11`.
+Current release candidate: `v1.0.0-alpha.12`.
 
 ## Phase 1 — Platform Core
 
@@ -34,6 +34,7 @@ Current stabilized baseline: `v1.0.0-alpha.11`.
 | Trace Explorer | Complete and hardened |
 | Replay Studio | Complete and hardened |
 | Plugin Center | Complete and hardened |
+| Workspace, Identity and Access | Implemented; security and isolation acceptance in progress |
 
 ## Platform Hardening Sprint 1
 
@@ -49,7 +50,7 @@ Current stabilized baseline: `v1.0.0-alpha.11`.
 - Evaluation Engine behaviour and persisted scorecards: Complete
 - Trace Engine persistence and OpenTelemetry-aligned runtime model: Complete
 - Plugin registry, versioning, compatibility and health: Complete
-- Identity, authorization, tenants, teams, and audit: Next
+- Identity, authorization, workspaces, memberships, service identities, and audit: Implemented; acceptance in progress
 - Persistence repositories and migrations
 - Secret management and configuration governance
 

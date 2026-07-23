@@ -11,6 +11,8 @@ services:
       ConnectionStrings__DefaultConnection: Host=db;Database=convolab;Username=postgres;Password=postgres
       Knowledge__StoragePath: /app/data/knowledge-documents
       Database__ApplyMigrationsOnStartup: "true"
+      Bootstrap__Administrator__Email: ${CONVOLAB_BOOTSTRAP_ADMIN_EMAIL:-}
+      Bootstrap__Administrator__Password: ${CONVOLAB_BOOTSTRAP_ADMIN_PASSWORD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       CONVOLAB_MONTHLY_AI_BUDGET_ZAR: ${CONVOLAB_MONTHLY_AI_BUDGET_ZAR:-500}
@@ -23,6 +25,7 @@ services:
       CONVOLAB_EVALUATION_FAILURE_ACTION: ${CONVOLAB_EVALUATION_FAILURE_ACTION:-Review}
     volumes:
       - knowledge_documents:/app/data/knowledge-documents
+      - data_protection_keys:/root/.aspnet/DataProtection-Keys
     depends_on:
       db:
         condition: service_healthy
@@ -57,3 +60,4 @@ services:
 volumes:
   postgres_data:
   knowledge_documents:
+  data_protection_keys:

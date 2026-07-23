@@ -3,6 +3,8 @@ namespace ConvoLab.Infrastructure.PluginStudio;
 public sealed class PluginRecord
 {
     public Guid Id { get; set; }
+    public string OwnershipScope { get; set; } = "Workspace";
+    public Guid? WorkspaceId { get; set; }
     public Guid PluginKey { get; set; }
     public string Key { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
@@ -36,4 +38,3 @@ public sealed class PluginHealthCheckRecord
     public string Source { get; set; } = string.Empty;
     public DateTimeOffset CheckedAt { get; set; }
 }
-

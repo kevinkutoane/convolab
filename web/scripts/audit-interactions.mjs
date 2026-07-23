@@ -34,6 +34,13 @@ function literalAttributeValue(value) {
   return undefined;
 }
 
+function isInsideForm(node, source) {
+  for (let parent = node.parent; parent; parent = parent.parent) {
+    if (ts.isJsxElement(parent) && parent.openingElement.tagName.getText(source) === "form") return true;
+  }
+  return false;
+}
+
 collect(sourceRoot);
 
 for (const file of files) {
@@ -47,7 +54,7 @@ for (const file of files) {
       if (tag === "button") {
         const onClick = attribute(opening, source, "onClick");
         const type = literalAttributeValue(attribute(opening, source, "type"));
-        if (!onClick && type !== "submit") {
+        if (!onClick && type !== "submit" && !(type === undefined && isInsideForm(opening, source))) {
           failures.push(`${location(source, opening)} button has no onClick handler and is not a submit button`);
         }
       }

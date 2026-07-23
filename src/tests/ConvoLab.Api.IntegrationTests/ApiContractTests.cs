@@ -23,6 +23,43 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
     }
 
     [Fact]
+    public async Task Local_login_issues_revocable_http_only_session_and_workspace_context()
+    {
+        var login = await _client.PostAsJsonAsync("/api/auth/login", new { email = "admin@convolab.test", password = "Ephemeral-Alpha12!" });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        Assert.Contains(login.Headers.GetValues("Set-Cookie"), value => value.Contains("convolab_session=", StringComparison.Ordinal) && value.Contains("httponly", StringComparison.OrdinalIgnoreCase));
+        var payload = await ReadJsonAsync(login);
+        Assert.Equal("admin@convolab.test", payload.RootElement.GetProperty("email").GetString());
+        Assert.Equal("Default Workspace", payload.RootElement.GetProperty("workspaces")[0].GetProperty("name").GetString());
+        Assert.NotEqual(Guid.Empty, payload.RootElement.GetProperty("activeWorkspaceId").GetGuid());
+        var antiforgery = await ReadJsonAsync(await _client.GetAsync("/api/auth/antiforgery"));
+        using var refresh = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
+        refresh.Headers.Add("X-XSRF-TOKEN", antiforgery.RootElement.GetProperty("token").GetString());
+        var refreshed = await _client.SendAsync(refresh);
+        Assert.Equal(HttpStatusCode.OK, refreshed.StatusCode);
+        Assert.Contains(refreshed.Headers.GetValues("Set-Cookie"), value => value.Contains("convolab_session=", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Service_account_scope_allows_reads_and_rejects_mutations()
+    {
+        var workspaces = await ReadJsonAsync(await _client.GetAsync("/api/workspaces"));
+        var workspaceId = workspaces.RootElement[0].GetProperty("id").GetGuid();
+        var created = await _client.PostAsJsonAsync($"/api/workspaces/{workspaceId}/service-accounts", new
+        {
+            name = $"Viewer bot {Guid.NewGuid():N}", scopes = new[] { "WorkspaceMember" }, expiresAt = DateTimeOffset.UtcNow.AddHours(1)
+        });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var credential = (await ReadJsonAsync(created)).RootElement.GetProperty("credential").GetString();
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/prompts");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential);
+        Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(request)).StatusCode);
+        using var mutation = new HttpRequestMessage(HttpMethod.Post, "/api/simulations") { Content = JsonContent.Create(new { title = "Forbidden", workflow = "Claims intake", promptVersion = "1.0.0", knowledgeCollection = "Claims" }) };
+        mutation.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential);
+        Assert.Equal(HttpStatusCode.Forbidden, (await _client.SendAsync(mutation)).StatusCode);
+    }
+
+    [Fact]
     public async Task Validation_Failure_Uses_Problem_Details()
     {
         var response = await _client.PostAsJsonAsync("/api/prompts", new
@@ -434,7 +471,10 @@ public sealed class ConvoLabApiFactory : WebApplicationFactory<Program>
             {
                 ["ConnectionStrings:DefaultConnection"] = "Data Source=convolab-api-tests.db",
                 ["Database:ApplyMigrationsOnStartup"] = "true",
-                ["Knowledge:StoragePath"] = Path.Combine(Path.GetTempPath(), "convolab-api-tests")
+                ["Knowledge:StoragePath"] = Path.Combine(Path.GetTempPath(), "convolab-api-tests"),
+                ["Bootstrap:Administrator:Email"] = "admin@convolab.test",
+                ["Bootstrap:Administrator:DisplayName"] = "Test Administrator",
+                ["Bootstrap:Administrator:Password"] = "Ephemeral-Alpha12!"
             });
         });
     }

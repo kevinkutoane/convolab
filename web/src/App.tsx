@@ -5,6 +5,7 @@ import { RouteBoundary } from "./components/AsyncStates";
 import { designTimePlatformStatus, studioPages } from "./data/platform";
 import { useTheme } from "./hooks/useTheme";
 import type { PlatformStatus } from "./types/platform";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 const CapabilityPage = lazy(() => import("./pages/CapabilityPage").then(module => ({ default: module.CapabilityPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then(module => ({ default: module.DashboardPage })));
@@ -21,6 +22,8 @@ const PluginCenterPage = lazy(() => import("./pages/PluginCenterPage").then(modu
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then(module => ({ default: module.NotFoundPage })));
 const DocumentationPage = lazy(() => import("./pages/DocumentationPage").then(module => ({ default: module.DocumentationPage })));
 const QueryRouteOutlet = lazy(() => import("./components/QueryRouteOutlet").then(module => ({ default: module.QueryRouteOutlet })));
+const LoginPage = lazy(() => import("./pages/LoginPage").then(module => ({ default: module.LoginPage })));
+const WorkspacePage = lazy(() => import("./pages/WorkspacePage").then(module => ({ default: module.WorkspacePage })));
 
 function StudioRoutes() {
   const { theme, toggleTheme } = useTheme();
@@ -38,7 +41,10 @@ function StudioRoutes() {
 
   return (
     <Routes>
-      <Route
+      <Route element={<RouteBoundary />}>
+      <Route path="login" element={<LoginPage />} />
+      <Route element={<ProtectedRoute />}>
+       <Route
         element={
           <StudioShell
             theme={theme}
@@ -62,6 +68,8 @@ function StudioRoutes() {
           <Route path="replay" element={<ReplayStudioPage />} />
           <Route path="policies" element={<PolicyCenterPage />} />
           <Route path="plugins" element={<PluginCenterPage />} />
+          <Route path="workspace" element={<WorkspacePage />} />
+          <Route path="workspace/select" element={<WorkspacePage selectionOnly />} />
           <Route path="documentation/:topic?" element={<DocumentationPage />} />
           {Object.entries(studioPages).filter(([key]) => !["conversations", "knowledge", "prompts", "workflows", "intelligence", "evaluations", "traces", "replay", "policies", "plugins"].includes(key)).map(([key, definition]) => (
             <Route key={key} path={key} element={<CapabilityPage definition={definition} topic={key} />} />
@@ -69,6 +77,8 @@ function StudioRoutes() {
           <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
+      </Route>
+      </Route>
       </Route>
     </Routes>
   );

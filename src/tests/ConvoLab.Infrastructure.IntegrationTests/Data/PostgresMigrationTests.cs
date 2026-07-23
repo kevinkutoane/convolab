@@ -20,7 +20,9 @@ public sealed class PostgresMigrationTests
         await using (var first = new ApplicationDbContext(options))
         {
             await first.Database.MigrateAsync();
-            Assert.Equal(10, (await first.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(11, (await first.Database.GetAppliedMigrationsAsync()).Count());
+            Assert.Equal(1, await first.Organisations.CountAsync());
+            Assert.Equal(1, await first.Workspaces.CountAsync());
             var store = new EfConversationSimulationStore(first);
             simulationId = (await store.AddAsync(new CreateSimulationCommand("PostgreSQL restart evidence", "Workflow", "Prompt", "Knowledge"))).Id;
         }
@@ -63,6 +65,10 @@ public sealed class PostgresMigrationTests
             );
             CREATE UNIQUE INDEX "IX_EvaluationScorecards_Name" ON "EvaluationScorecards" ("Name");
             CREATE INDEX "IX_EvaluationScorecards_UpdatedAt" ON "EvaluationScorecards" ("UpdatedAt");
+            CREATE TABLE "KnowledgeCollections" ("Id" uuid NOT NULL CONSTRAINT "PK_KnowledgeCollections" PRIMARY KEY);
+            CREATE TABLE "Prompts" ("Id" uuid NOT NULL CONSTRAINT "PK_Prompts" PRIMARY KEY);
+            CREATE TABLE "Workflows" ("Id" uuid NOT NULL CONSTRAINT "PK_Workflows" PRIMARY KEY);
+            CREATE TABLE "ConversationSimulations" ("Id" uuid NOT NULL CONSTRAINT "PK_ConversationSimulations" PRIMARY KEY);
             """);
         foreach (var migrationId in new[]
         {

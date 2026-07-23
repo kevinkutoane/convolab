@@ -69,7 +69,7 @@ public sealed class EfWorkflowStudioRepository(ApplicationDbContext db) : IWorkf
     public async Task<WorkflowDefinition?> GetByVersionIdAsync(Guid versionId, CancellationToken ct = default)
     {
         var workflowId = await db.WorkflowVersions.AsNoTracking()
-            .Where(item => item.Id == versionId)
+            .Where(item => item.Id == versionId && db.Workflows.Any(workflow => workflow.Id == item.WorkflowId))
             .Select(item => (Guid?)item.WorkflowId)
             .SingleOrDefaultAsync(ct);
         return workflowId.HasValue ? await GetAsync(workflowId.Value, ct) : null;

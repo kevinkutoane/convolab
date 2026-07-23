@@ -8,11 +8,14 @@ import {
   Search,
   ShieldAlert,
   Sun,
+  LogOut,
+  Building2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { navigationItems } from "../data/platform";
 import type { PlatformStatus } from "../types/platform";
+import { useAuth } from "../contexts/useAuth";
 
 interface TopbarProps {
   theme: "dark" | "light";
@@ -32,6 +35,9 @@ export function Topbar({
   const current = navigationItems.find(item => item.path === location.pathname);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
+  const [userOpen, setUserOpen] = useState(false);
+  const auth = useAuth();
+  const activeWorkspace = auth.session?.workspaces.find(item => item.id === auth.session?.activeWorkspaceId);
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -67,6 +73,7 @@ export function Topbar({
       </button>
 
       <div className="topbar-actions">
+        <select className="workspace-switcher" aria-label="Switch workspace" value={activeWorkspace?.id ?? ""} onChange={event => auth.switchWorkspace(event.target.value)}>{auth.session?.workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
         <span className="environment-chip">
           <span className="environment-dot" /> Development
         </span>
@@ -88,9 +95,7 @@ export function Topbar({
         >
           {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <div className="avatar" title="Kevin Kutoane">
-          KK
-        </div>
+        <div className="user-control"><button className="avatar" aria-label="Open user menu" aria-expanded={userOpen} onClick={() => setUserOpen(value => !value)}>{auth.session?.displayName.split(" ").map(value => value[0]).slice(0, 2).join("").toUpperCase() ?? "CL"}</button>{userOpen && <section className="user-popover panel" role="dialog" aria-label="User menu"><div><strong>{auth.session?.displayName}</strong><small>{auth.session?.email}</small></div><Link to="/workspace" onClick={() => setUserOpen(false)}><Building2 size={15}/>Workspace settings</Link><button onClick={() => auth.logout()}><LogOut size={15}/>Sign out</button></section>}</div>
       </div>
     </header>
   );

@@ -6,7 +6,8 @@
 
 ## Current milestone
 
-- **Platform Core / Studio:** `v1.0.0-alpha.11`
+- **Platform Core / Studio:** `v1.0.0-alpha.12`
+- **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
 - **Functional Replay Studio:** `v1`
@@ -31,6 +32,7 @@
 | Trace Explorer | Persisted traces, spans, events, correlations, redaction, and artifacts | Stable |
 | Replay Studio | Immutable baselines, governed candidates, comparisons, findings, and lifecycle | Stable |
 | Plugin Center | Persistent registry, immutable versions, compatibility, lifecycle, health, capabilities, and permissions | Stable |
+| Workspace, Identity and Access | Local authentication, organisations, workspaces, RBAC, service identities, isolation, and audit | Active |
 | ConvoLab Studio | Visual engineering workspace consuming Platform Core | Active |
 
 ## Architecture
@@ -96,6 +98,8 @@ The API listens using the local launch profile and exposes:
 - `GET /health/live`
 - `GET /health/ready`
 - `GET /api/platform/status`
+- `/api/auth/*` (login, refresh, logout, session revocation, workspace switching, invitations, and antiforgery)
+- `/api/organisations/*` and `/api/workspaces/*` (lifecycle, members, service accounts, and audit)
 - `/api/evaluation/*` (compatibility Evaluation API)
 - `/api/evaluations/*` (versioned scorecards, runs, reviews, tests, batches, and comparisons)
 - `/api/traces/*` (trace overview, search, detail, waterfall data, and redacted artifacts)
@@ -103,6 +107,8 @@ The API listens using the local launch profile and exposes:
 - `/api/policies/*` (versions, lifecycle, decisions, evaluation, and runtime constraints)
 - `/api/plugins/*` (registry, immutable versions, compatibility, lifecycle, and health evidence)
 - Swagger in Development
+
+Configure `Bootstrap:Administrator:Email` and `Bootstrap:Administrator:Password` through user-secrets or environment variables before first login. ConvoLab never ships or logs a default password. Without a configured password, readiness reports `setupRequired` and the bootstrap identity has no active local credential.
 
 ### Studio
 

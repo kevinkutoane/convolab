@@ -23,6 +23,7 @@ using ConvoLab.Application.PolicyStudio;
 using ConvoLab.Infrastructure.PolicyStudio;
 using ConvoLab.Application.PluginStudio;
 using ConvoLab.Infrastructure.PluginStudio;
+using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,6 +35,7 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddScoped<WorkspaceRequestContext>();
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         var configuredProvider = configuration["Database:Provider"]?.Trim().ToLowerInvariant();
         var useSqlite = configuredProvider switch

@@ -15,6 +15,7 @@ public sealed class EvaluationMetricDefinitionRecord
 public sealed class EvaluationRunRecord
 {
     public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
     public Guid SimulationId { get; set; }
     public string SimulationTitle { get; set; } = string.Empty;
     public Guid SourceRunId { get; set; }
@@ -48,6 +49,7 @@ public sealed class EvaluationMetricResultRecord
 public sealed class EvaluationTestCaseRecord
 {
     public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public Guid SimulationId { get; set; }
@@ -64,6 +66,7 @@ public sealed class EvaluationTestCaseRecord
 public sealed class EvaluationBatchRecord
 {
     public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
     public string Name { get; set; } = string.Empty;
     public Guid ScorecardId { get; set; }
     public string ScorecardName { get; set; } = string.Empty;

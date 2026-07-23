@@ -1,16 +1,18 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
+import { authenticateAcceptanceClient, authenticatedFetch } from "./acceptance-auth.mjs";
 
-const baseUrl = process.env.CONVOLAB_API_BASE_URL ?? "http://127.0.0.1:5000";
 async function call(path, options = {}) {
-  const response = await fetch(`${baseUrl}${path}`, options);
+  const response = await authenticatedFetch(path, options);
   const body = response.status === 204 ? undefined : await response.json().catch(() => undefined);
   if (!response.ok) throw new Error(`${options.method ?? "GET"} ${path} failed (${response.status}): ${JSON.stringify(body)}`);
   return body;
 }
 const json = (method, body) => ({ method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 const lifecycle = async (path, revision) => call(path, json("POST", { actor: "Stabilization smoke", reason: "Cross-capability acceptance", expectedRevision: revision }));
+
+await authenticateAcceptanceClient();
 
 const suffix = Date.now().toString(36);
 

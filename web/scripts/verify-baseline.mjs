@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const repository = path.resolve(process.cwd(), "..");
-const expectedVersion = "1.0.0-alpha.11";
+const expectedVersion = "1.0.0-alpha.12";
 const failures = [];
 const packageJson = JSON.parse(fs.readFileSync(path.join(repository, "web", "package.json"), "utf8"));
 if (packageJson.version !== expectedVersion) failures.push(`web/package.json reports ${packageJson.version}`);
@@ -18,7 +18,7 @@ for (const relative of [
   "docs/MASTER_CHECKLIST_STATUS.md",
   "docs/PlatformManifest.md",
   "docs/Roadmap.md",
-  "docs/releases/PlatformCore-v1.0.0-alpha.11.md",
+  "docs/releases/PlatformCore-v1.0.0-alpha.12.md",
 ]) {
   const content = fs.readFileSync(path.join(repository, relative), "utf8");
   if (!content.includes(expectedVersion)) failures.push(`${relative} does not report ${expectedVersion}`);

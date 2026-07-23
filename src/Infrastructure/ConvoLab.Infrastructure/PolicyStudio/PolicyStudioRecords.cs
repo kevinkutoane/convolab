@@ -3,6 +3,7 @@ namespace ConvoLab.Infrastructure.PolicyStudio;
 public sealed class PolicyDefinitionRecord
 {
     public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
     public Guid PolicyKey { get; set; }
     public int Version { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -34,6 +35,7 @@ public sealed class PolicyRuleRecord
 public sealed class PolicyDecisionRecord
 {
     public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
     public Guid? PolicyId { get; set; }
     public Guid? PolicyKey { get; set; }
     public int? PolicyVersion { get; set; }

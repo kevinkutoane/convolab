@@ -7,12 +7,32 @@ using ConvoLab.Infrastructure.TraceStudio;
 using ConvoLab.Infrastructure.ReplayStudio;
 using ConvoLab.Infrastructure.PolicyStudio;
 using ConvoLab.Infrastructure.PluginStudio;
+using ConvoLab.Infrastructure.WorkspaceIdentity;
+using ConvoLab.Domain.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConvoLab.Infrastructure.Data;
 
-public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : DbContext(options)
+public sealed class ApplicationDbContext : DbContext
 {
+    private readonly WorkspaceRequestContext _workspaceContext;
+
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+        : this(options, new WorkspaceRequestContext()) { }
+
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, WorkspaceRequestContext workspaceContext)
+        : base(options) => _workspaceContext = workspaceContext;
+
+    private Guid? CurrentWorkspaceId => _workspaceContext.WorkspaceId;
+
+    public DbSet<OrganisationRecord> Organisations => Set<OrganisationRecord>();
+    public DbSet<WorkspaceRecord> Workspaces => Set<WorkspaceRecord>();
+    public DbSet<IdentityUserRecord> IdentityUsers => Set<IdentityUserRecord>();
+    public DbSet<WorkspaceMembershipRecord> WorkspaceMemberships => Set<WorkspaceMembershipRecord>();
+    public DbSet<LocalCredentialRecord> LocalCredentials => Set<LocalCredentialRecord>();
+    public DbSet<AuthenticationSessionRecord> AuthenticationSessions => Set<AuthenticationSessionRecord>();
+    public DbSet<ServiceAccountRecord> ServiceAccounts => Set<ServiceAccountRecord>();
+    public DbSet<AuditEventRecord> WorkspaceAuditEvents => Set<AuditEventRecord>();
     public DbSet<SimulationRecord> Simulations => Set<SimulationRecord>();
     public DbSet<KnowledgeCollectionRecord> KnowledgeCollections => Set<KnowledgeCollectionRecord>();
     public DbSet<KnowledgeDocumentRecord> KnowledgeDocuments => Set<KnowledgeDocumentRecord>();
@@ -49,6 +69,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
     {
         base.OnModelCreating(modelBuilder);
 
+        ConfigureWorkspaceIdentity(modelBuilder);
+
         modelBuilder.Entity<KnowledgeCollectionRecord>(entity =>
         {
             entity.ToTable("KnowledgeCollections");
@@ -58,6 +80,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.Revision).IsConcurrencyToken();
             entity.HasIndex(item => item.Name);
             entity.HasIndex(item => new { item.Status, item.UpdatedAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.Name });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<KnowledgeDocumentRecord>(entity =>
@@ -113,6 +137,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.Revision).IsConcurrencyToken();
             entity.HasIndex(item => item.Name);
             entity.HasIndex(item => new { item.Status, item.UpdatedAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.Name });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<PromptVersionRecord>(entity =>
@@ -154,6 +180,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.Revision).IsConcurrencyToken();
             entity.HasIndex(item => item.Name);
             entity.HasIndex(item => new { item.IsActive, item.UpdatedAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.Name });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<WorkflowVersionRecord>(entity =>
@@ -222,8 +250,9 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.Version).HasMaxLength(50).IsRequired();
             entity.Property(item => item.FailureAction).HasMaxLength(80).IsRequired();
             entity.Property(item => item.Revision).IsConcurrencyToken();
-            entity.HasIndex(item => new { item.Name, item.Version }).IsUnique();
+            entity.HasIndex(item => new { item.WorkspaceId, item.Name, item.Version }).IsUnique();
             entity.HasIndex(item => new { item.Status, item.IsDefault });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<EvaluationMetricDefinitionRecord>(entity =>
@@ -252,6 +281,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasIndex(item => new { item.SourceRunId, item.ScorecardId }).IsUnique();
             entity.HasIndex(item => new { item.Verdict, item.CreatedAt });
             entity.HasIndex(item => item.SimulationId);
+            entity.HasIndex(item => new { item.WorkspaceId, item.CreatedAt });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<EvaluationMetricResultRecord>(entity =>
@@ -277,6 +308,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.Revision).IsConcurrencyToken();
             entity.HasIndex(item => new { item.Status, item.UpdatedAt });
             entity.HasIndex(item => item.SourceRunId);
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<EvaluationBatchRecord>(entity =>
@@ -288,6 +320,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.Status).HasMaxLength(50).IsRequired();
             entity.HasOne<EvaluationScorecardRecord>().WithMany().HasForeignKey(item => item.ScorecardId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(item => item.StartedAt);
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<EvaluationBatchItemRecord>(entity =>
@@ -323,6 +356,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasIndex(item => new { item.Status, item.StartedAt });
             entity.HasIndex(item => item.SimulationId);
             entity.HasIndex(item => item.Provider);
+            entity.HasIndex(item => new { item.WorkspaceId, item.StartedAt });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<TraceSpanRecord>(entity =>
@@ -374,6 +409,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.Status).HasMaxLength(50).IsRequired();
             entity.HasIndex(item => new { item.SimulationId, item.SourceRunId });
             entity.HasIndex(item => new { item.Status, item.UpdatedAt });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<ReplayCandidateRecord>(entity =>
@@ -408,6 +444,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasIndex(item => new { item.PolicyKey, item.Version }).IsUnique();
             entity.HasIndex(item => new { item.Domain, item.Status, item.Environment });
             entity.HasIndex(item => item.TenantId);
+            entity.HasIndex(item => new { item.WorkspaceId, item.Domain, item.Status });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<PolicyRuleRecord>(entity =>
@@ -440,6 +478,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasIndex(item => item.CorrelationId);
             entity.HasIndex(item => item.SimulationId);
             entity.HasIndex(item => item.RunId);
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<PluginRecord>(entity =>
@@ -462,6 +501,7 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.Property(item => item.PermissionsJson).IsRequired();
             entity.Property(item => item.ConfigurationSchema).IsRequired();
             entity.Property(item => item.MetadataJson).IsRequired();
+            entity.Property(item => item.OwnershipScope).HasMaxLength(50).IsRequired();
             entity.Property(item => item.Revision).IsConcurrencyToken();
             entity.HasIndex(item => new { item.PluginKey, item.Version }).IsUnique();
             entity.HasIndex(item => item.PluginKey)
@@ -469,6 +509,8 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
                 .HasFilter("\"Status\" = 'Active'");
             entity.HasIndex(item => new { item.Key, item.Status });
             entity.HasIndex(item => new { item.Category, item.HealthStatus });
+            entity.HasIndex(item => new { item.WorkspaceId, item.Key });
+            entity.HasQueryFilter(item => item.OwnershipScope == "Platform" || CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
         });
 
         modelBuilder.Entity<PluginHealthCheckRecord>(entity =>
@@ -489,6 +531,136 @@ public sealed class ApplicationDbContext(DbContextOptions<ApplicationDbContext> 
             entity.HasKey(item => item.Id);
             entity.Property(item => item.Payload).IsRequired();
             entity.HasIndex(item => item.UpdatedAt);
+            entity.HasIndex(item => new { item.WorkspaceId, item.UpdatedAt });
+            entity.HasQueryFilter(item => CurrentWorkspaceId == null || item.WorkspaceId == CurrentWorkspaceId);
+        });
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        ApplyWorkspaceOwnership();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        ApplyWorkspaceOwnership();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void ApplyWorkspaceOwnership()
+    {
+        if (ChangeTracker.Entries<AuditEventRecord>().Any(item => item.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Audit events are append-only and cannot be changed or removed.");
+        var workspaceId = CurrentWorkspaceId ?? WorkspaceIdentityDefaults.WorkspaceId;
+        foreach (var entry in ChangeTracker.Entries().Where(item => item.State == EntityState.Added))
+        {
+            switch (entry.Entity)
+            {
+                case KnowledgeCollectionRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case PromptRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case WorkflowRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case SimulationRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case EvaluationScorecardRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case EvaluationRunRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case EvaluationTestCaseRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case EvaluationBatchRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case TraceRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case ReplayExperimentRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case PolicyDefinitionRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case PolicyDecisionRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
+                case PluginRecord item when item.OwnershipScope == "Workspace" && !item.WorkspaceId.HasValue: item.WorkspaceId = workspaceId; break;
+            }
+        }
+    }
+
+    private static void ConfigureWorkspaceIdentity(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OrganisationRecord>(entity =>
+        {
+            entity.ToTable("Organisations"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Name).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Slug).HasMaxLength(100).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasIndex(item => item.Slug).IsUnique();
+        });
+        modelBuilder.Entity<WorkspaceRecord>(entity =>
+        {
+            entity.ToTable("Workspaces"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Name).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Slug).HasMaxLength(100).IsRequired();
+            entity.Property(item => item.Description).HasMaxLength(2000).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasOne<OrganisationRecord>().WithMany().HasForeignKey(item => item.OrganisationId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(item => new { item.OrganisationId, item.Slug }).IsUnique();
+        });
+        modelBuilder.Entity<IdentityUserRecord>(entity =>
+        {
+            entity.ToTable("IdentityUsers"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Email).HasMaxLength(320).IsRequired();
+            entity.Property(item => item.NormalizedEmail).HasMaxLength(320).IsRequired();
+            entity.Property(item => item.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasIndex(item => item.NormalizedEmail).IsUnique();
+        });
+        modelBuilder.Entity<WorkspaceMembershipRecord>(entity =>
+        {
+            entity.ToTable("WorkspaceMemberships"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Role).HasMaxLength(50).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.InvitationTokenHash).HasMaxLength(128);
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasOne<WorkspaceRecord>().WithMany().HasForeignKey(item => item.WorkspaceId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<IdentityUserRecord>().WithMany().HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(item => new { item.WorkspaceId, item.UserId }).IsUnique();
+            entity.HasIndex(item => item.InvitationTokenHash).IsUnique();
+        });
+        modelBuilder.Entity<LocalCredentialRecord>(entity =>
+        {
+            entity.ToTable("LocalCredentials"); entity.HasKey(item => item.UserId);
+            entity.Property(item => item.PasswordHash).HasMaxLength(1000).IsRequired();
+            entity.HasOne<IdentityUserRecord>().WithOne().HasForeignKey<LocalCredentialRecord>(item => item.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<AuthenticationSessionRecord>(entity =>
+        {
+            entity.ToTable("AuthenticationSessions"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.TokenHash).HasMaxLength(128).IsRequired();
+            entity.Property(item => item.ReplacedByTokenHash).HasMaxLength(128);
+            entity.Property(item => item.IpAddress).HasMaxLength(64);
+            entity.Property(item => item.UserAgent).HasMaxLength(500);
+            entity.HasOne<IdentityUserRecord>().WithMany().HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<WorkspaceRecord>().WithMany().HasForeignKey(item => item.ActiveWorkspaceId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(item => item.TokenHash).IsUnique();
+            entity.HasIndex(item => new { item.UserId, item.ExpiresAt });
+        });
+        modelBuilder.Entity<ServiceAccountRecord>(entity =>
+        {
+            entity.ToTable("ServiceAccounts"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Name).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.SecretHash).HasMaxLength(128).IsRequired();
+            entity.Property(item => item.ScopesJson).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasOne<WorkspaceRecord>().WithMany().HasForeignKey(item => item.WorkspaceId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(item => new { item.WorkspaceId, item.Name }).IsUnique();
+        });
+        modelBuilder.Entity<AuditEventRecord>(entity =>
+        {
+            entity.ToTable("WorkspaceAuditEvents"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Scope).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.ActorType).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.ActorDisplay).HasMaxLength(320).IsRequired();
+            entity.Property(item => item.Action).HasMaxLength(120).IsRequired();
+            entity.Property(item => item.ResourceType).HasMaxLength(100).IsRequired();
+            entity.Property(item => item.ResourceId).HasMaxLength(100);
+            entity.Property(item => item.Outcome).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.DetailJson).IsRequired();
+            entity.Property(item => item.CorrelationId).HasMaxLength(100).IsRequired();
+            entity.HasIndex(item => new { item.WorkspaceId, item.OccurredAt });
+            entity.HasIndex(item => new { item.Scope, item.OccurredAt });
         });
     }
 }

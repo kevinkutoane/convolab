@@ -123,6 +123,11 @@ jobs:
     name: Docker acceptance
     runs-on: ubuntu-latest
     needs: [platform, studio]
+    env:
+      CONVOLAB_BOOTSTRAP_ADMIN_EMAIL: acceptance-admin@convolab.test
+      CONVOLAB_BOOTSTRAP_ADMIN_PASSWORD: Acceptance-Only-Alpha12!
+      CONVOLAB_ACCEPTANCE_ADMIN_EMAIL: acceptance-admin@convolab.test
+      CONVOLAB_ACCEPTANCE_ADMIN_PASSWORD: Acceptance-Only-Alpha12!
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

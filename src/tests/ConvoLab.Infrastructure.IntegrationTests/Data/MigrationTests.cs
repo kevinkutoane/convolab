@@ -38,7 +38,15 @@ public sealed class MigrationTests
         "PolicyRules",
         "PolicyDecisions",
         "Plugins",
-        "PluginHealthChecks"
+        "PluginHealthChecks",
+        "Organisations",
+        "Workspaces",
+        "IdentityUsers",
+        "WorkspaceMemberships",
+        "LocalCredentials",
+        "AuthenticationSessions",
+        "ServiceAccounts",
+        "WorkspaceAuditEvents"
     ];
 
     [Fact]
@@ -63,7 +71,8 @@ public sealed class MigrationTests
             "202607220002_TraceStudioV1",
             "202607220003_ReplayStudioV1",
             "202607220004_PolicyStudioV1",
-            "202607220005_PluginStudioV1"
+            "202607220005_PluginStudioV1",
+            "202607220006_WorkspaceIdentityAccessV1"
         ], migrations);
 
         await db.Database.MigrateAsync();
@@ -90,53 +99,18 @@ public sealed class MigrationTests
 
         await using var db = new ApplicationDbContext(options);
         await db.Database.OpenConnectionAsync();
-        await db.Database.ExecuteSqlRawAsync("""
-            CREATE TABLE "__EFMigrationsHistory" (
-                "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
-                "ProductVersion" TEXT NOT NULL
-            );
-            """);
-        foreach (var migrationId in new[]
-        {
-            "202607170001_KnowledgeStudioV1",
-            "202607170002_PromptStudioV1",
-            "202607180001_PlatformHardeningSprint1",
-            "202607180002_WorkflowStudioV1",
-            "202607190001_EvaluationScorecardsV1"
-        })
-        {
-            await db.Database.ExecuteSqlInterpolatedAsync(
-                $"INSERT INTO __EFMigrationsHistory (MigrationId, ProductVersion) VALUES ({migrationId}, {"8.0.13"})");
-        }
-        await db.Database.ExecuteSqlRawAsync("""
-            CREATE TABLE EvaluationScorecards (
-                Id TEXT NOT NULL CONSTRAINT PK_EvaluationScorecards PRIMARY KEY,
-                Name TEXT NOT NULL,
-                Description TEXT NOT NULL,
-                MinimumGroundedness REAL NOT NULL,
-                MinimumRelevance REAL NOT NULL,
-                MinimumSafety REAL NOT NULL,
-                MinimumOverallScore REAL NOT NULL,
-                FailureAction TEXT NOT NULL,
-                CreatedAt TEXT NOT NULL,
-                UpdatedAt TEXT NOT NULL
-            );
-            CREATE UNIQUE INDEX IX_EvaluationScorecards_Name ON EvaluationScorecards (Name);
-            CREATE INDEX IX_EvaluationScorecards_UpdatedAt ON EvaluationScorecards (UpdatedAt);
-            """);
+        await db.Database.MigrateAsync();
 
         var scorecardId = Guid.NewGuid();
         var now = DateTimeOffset.UtcNow;
-        await db.Database.ExecuteSqlInterpolatedAsync($"""
-            INSERT INTO EvaluationScorecards
-                (Id, Name, Description, MinimumGroundedness, MinimumRelevance, MinimumSafety,
-                 MinimumOverallScore, FailureAction, CreatedAt, UpdatedAt)
-            VALUES
-                ({scorecardId}, {"Existing claims scorecard"}, {"Must survive expansion"},
-                 {0.81}, {0.82}, {0.99}, {0.86}, {"Review"}, {now}, {now})
-            """);
-
-        await db.Database.MigrateAsync();
+        db.EvaluationScorecards.Add(new EvaluationScorecardRecord
+        {
+            Id = scorecardId, Name = "Existing claims scorecard", Description = "Must survive expansion",
+            Status = "Published", Version = "1.0", QualityGateThreshold = 0.86, Revision = 1,
+            MinimumGroundedness = 0.81, MinimumRelevance = 0.82, MinimumSafety = 0.99,
+            MinimumOverallScore = 0.86, FailureAction = "Review", CreatedAt = now, UpdatedAt = now
+        });
+        await db.SaveChangesAsync();
         var repository = new EfEvaluationStudioRepository(db);
         await repository.BackfillLegacyScorecardsAsync();
         await repository.BackfillLegacyScorecardsAsync();

@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ConvoLab.Api.Controllers;
 
 [ApiController]
+[AllowAnonymous]
 [Route("api/platform")]
 public sealed class PlatformController : ControllerBase
 {
@@ -13,7 +15,7 @@ public sealed class PlatformController : ControllerBase
         var response = new PlatformStatusResponse(
             PlatformName: "ConvoLab Platform",
             ProductName: "ConvoLab Studio",
-            Version: "1.0.0-alpha.11",
+            Version: "1.0.0-alpha.12",
             Environment: HttpContext.RequestServices
                 .GetRequiredService<IHostEnvironment>()
                 .EnvironmentName,
@@ -31,7 +33,8 @@ public sealed class PlatformController : ControllerBase
                 new("tracing", "Tracing", "Persisted traces, spans, events, correlations, and redacted artifacts.", "stable", "1.0", 7),
                 new("replay", "Replay Studio", "Controlled re-execution, immutable baselines, candidate comparisons, and findings.", "stable", "1.0", 3),
                 new("plugins", "Plugin Engine", "Persistent extension registry, immutable versions, compatibility, lifecycle, health, and capability contracts.", "stable", "1.0", 4),
-                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, evaluation, trace inspection, replay, and plugin governance.", "active", "0.11", 0),
+                new("workspace-identity", "Workspace, Identity and Access", "Secure local authentication, workspace isolation, RBAC, service identities, and attributable audit.", "active", "1.0", 8),
+                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", "active", "0.12", 0),
             ],
             GeneratedAt: DateTimeOffset.UtcNow,
             Source: "api");

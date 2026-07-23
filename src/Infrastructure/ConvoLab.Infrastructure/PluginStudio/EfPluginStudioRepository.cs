@@ -56,6 +56,8 @@ public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginS
 
     public async Task AddPluginAsync(PluginState plugin, CancellationToken cancellationToken = default)
     {
+        if (await db.Plugins.AnyAsync(item => item.PluginKey == plugin.PluginKey && item.OwnershipScope == "Platform", cancellationToken))
+            throw new ResourceConflictException("plugin.platform_immutable", "Platform-owned plugins cannot be changed by workspace users.");
         db.Plugins.Add(MapRecord(plugin));
         try
         {
@@ -91,6 +93,8 @@ public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginS
                 throw new ResourceNotFoundException("plugin.not_found", $"Plugin '{update.Plugin.Id}' was not found.");
             if (record.Revision != update.ExpectedRevision)
                 throw new ConcurrencyConflictException("plugin", update.Plugin.Id);
+            if (record.OwnershipScope == "Platform")
+                throw new ResourceConflictException("plugin.platform_immutable", "Platform-owned plugins cannot be changed by workspace users.");
         }
 
         try
@@ -128,7 +132,7 @@ public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginS
         Guid? pluginId = null,
         CancellationToken cancellationToken = default)
     {
-        var query = db.PluginHealthChecks.AsNoTracking().AsQueryable();
+        var query = db.PluginHealthChecks.AsNoTracking().Where(item => db.Plugins.Any(plugin => plugin.Id == item.PluginId));
         if (pluginId.HasValue) query = query.Where(item => item.PluginId == pluginId.Value);
         var boundedLimit = Math.Clamp(limit, 1, 500);
         var records = db.Database.IsSqlite()
@@ -220,6 +224,7 @@ public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginS
     private static PluginRecord MapRecord(PluginState state) => new()
     {
         Id = state.Id,
+        OwnershipScope = state.Metadata.TryGetValue("distribution", out var distribution) && distribution == "built-in" ? "Platform" : "Workspace",
         PluginKey = state.PluginKey,
         Key = state.Key,
         Name = state.Name,

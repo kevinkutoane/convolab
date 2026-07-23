@@ -3,6 +3,7 @@ namespace ConvoLab.Infrastructure.ReplayStudio;
 public sealed class ReplayExperimentRecord
 {
     public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
     public string Name { get; set; } = string.Empty;
     public Guid SimulationId { get; set; }
     public Guid SourceRunId { get; set; }

@@ -3,6 +3,7 @@ namespace ConvoLab.Infrastructure.TraceStudio;
 public sealed class TraceRecord
 {
     public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
     public Guid CorrelationId { get; set; }
     public string OperationName { get; set; } = string.Empty;
     public string Source { get; set; } = string.Empty;

@@ -61,6 +61,13 @@ const topics = {
     workflow: ["Choose Register plugin and declare its registry key, semantic version, manifest, Platform API version, capabilities, and permissions.", "Run a health check and inspect the persisted evidence.", "Activate a compatible healthy version, or create an immutable successor version and activate it atomically.", "Deactivate before editing metadata, and deprecate versions that must no longer be used."],
     endpoints: ["GET /api/plugins/overview", "GET|POST /api/plugins", "GET|PUT /api/plugins/{id}", "POST /api/plugins/{id}/versions", "POST /api/plugins/{id}/health", "POST /api/plugins/{id}/{activate|deactivate|deprecate}"],
   },
+  workspace: {
+    title: "Workspace, Identity and Access",
+    summary: "Secure Studio access with revocable local sessions, isolated workspaces, fixed RBAC, scoped service identities, and attributable audit activity.",
+    capabilities: ["Authenticate interactive users with an HttpOnly opaque session and antiforgery protection.", "Keep capability resources isolated to the trusted active workspace.", "Manage Administrator, Engineer, Reviewer, Operator, and Viewer memberships.", "Issue one-time scoped service credentials and inspect append-only audit events."],
+    workflow: ["Configure the bootstrap administrator email and password outside source control.", "Sign in and select an active workspace.", "Open Workspace & Access to invite members or create service accounts.", "Switch workspaces from the top bar; capability queries are cancelled and cleared before the server context changes."],
+    endpoints: ["POST /api/auth/login", "GET /api/auth/session", "POST /api/auth/refresh", "POST /api/auth/logout", "GET /api/auth/antiforgery", "POST /api/auth/workspace", "GET|POST /api/workspaces", "GET|POST /api/workspaces/{id}/members", "GET|POST /api/workspaces/{id}/service-accounts", "GET /api/workspaces/{id}/audit"],
+  },
   analytics: {
     title: "Platform Analytics",
     summary: "Analytics will consume normalized execution, cost, latency, and quality telemetry.",
@@ -83,6 +90,7 @@ const workspacePaths: Record<keyof typeof topics, string> = {
   traces: "/traces",
   replay: "/replay",
   plugins: "/plugins",
+  workspace: "/workspace",
   analytics: "/analytics",
   settings: "/settings",
 };

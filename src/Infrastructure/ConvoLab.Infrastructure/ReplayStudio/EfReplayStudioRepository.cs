@@ -44,13 +44,13 @@ public sealed class EfReplayStudioRepository(ApplicationDbContext db) : IReplayS
     }
 
     public async Task<IReadOnlyList<ReplayCandidateState>> ListCandidatesAsync(Guid experimentId, CancellationToken cancellationToken = default)
-        => (await db.ReplayCandidates.AsNoTracking().Where(item => item.ExperimentId == experimentId)
+        => (await db.ReplayCandidates.AsNoTracking().Where(item => item.ExperimentId == experimentId && db.ReplayExperiments.Any(experiment => experiment.Id == item.ExperimentId))
                 .ToListAsync(cancellationToken))
             .OrderByDescending(item => item.CreatedAt).Select(Map).ToList();
 
     public async Task<ReplayCandidateState?> GetCandidateByRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
-        var record = await db.ReplayCandidates.AsNoTracking().SingleOrDefaultAsync(item => item.RunId == runId, cancellationToken);
+        var record = await db.ReplayCandidates.AsNoTracking().SingleOrDefaultAsync(item => item.RunId == runId && db.ReplayExperiments.Any(experiment => experiment.Id == item.ExperimentId), cancellationToken);
         return record is null ? null : Map(record);
     }
 

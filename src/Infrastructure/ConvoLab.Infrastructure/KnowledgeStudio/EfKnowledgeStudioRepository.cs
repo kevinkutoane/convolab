@@ -58,14 +58,14 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
 
     public async Task<IReadOnlyList<KnowledgeDocumentState>> ListDocumentsAsync(Guid collectionId, CancellationToken ct = default)
         => (await db.KnowledgeDocuments.AsNoTracking()
-                .Where(item => item.CollectionId == collectionId)
+                .Where(item => item.CollectionId == collectionId && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId))
                 .ToListAsync(ct))
             .OrderByDescending(item => item.UpdatedAt)
             .Select(item => MapDocument(item)!)
             .ToList();
 
     public async Task<KnowledgeDocumentState?> GetDocumentAsync(Guid id, CancellationToken ct = default)
-        => MapDocument(await db.KnowledgeDocuments.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id, ct));
+        => MapDocument(await db.KnowledgeDocuments.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId), ct));
 
     public Task AddDocumentAsync(KnowledgeDocumentState document, CancellationToken ct = default)
     {
@@ -98,7 +98,7 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
         long expectedRevision,
         CancellationToken ct = default)
     {
-        var record = await db.KnowledgeDocuments.FirstOrDefaultAsync(item => item.Id == document.Id, ct)
+        var record = await db.KnowledgeDocuments.FirstOrDefaultAsync(item => item.Id == document.Id && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId), ct)
             ?? throw new ResourceNotFoundException(
                 "knowledge.document.not_found",
                 $"Knowledge document '{document.Id}' was not found.");
@@ -124,13 +124,13 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
 
     public async Task DeleteDocumentAsync(Guid id, CancellationToken ct = default)
     {
-        var record = await db.KnowledgeDocuments.FirstOrDefaultAsync(item => item.Id == id, ct);
+        var record = await db.KnowledgeDocuments.FirstOrDefaultAsync(item => item.Id == id && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId), ct);
         if (record is not null) db.KnowledgeDocuments.Remove(record);
     }
 
     public async Task<IReadOnlyList<KnowledgeChunkState>> ListChunksAsync(Guid documentId, CancellationToken ct = default)
         => (await db.KnowledgeChunks.AsNoTracking()
-                .Where(item => item.DocumentId == documentId)
+                .Where(item => item.DocumentId == documentId && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId))
                 .OrderBy(item => item.Sequence)
                 .ToListAsync(ct))
             .Select(MapChunk)
@@ -141,7 +141,7 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
         bool publishedOnly,
         CancellationToken ct = default)
     {
-        var query = db.KnowledgeChunks.AsNoTracking().Where(item => item.CollectionId == collectionId);
+        var query = db.KnowledgeChunks.AsNoTracking().Where(item => item.CollectionId == collectionId && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId));
         if (publishedOnly) query = query.Where(item => item.Published);
         return (await query.OrderBy(item => item.Sequence).ToListAsync(ct)).Select(MapChunk).ToList();
     }
@@ -151,6 +151,8 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
         IReadOnlyList<KnowledgeChunkState> chunks,
         CancellationToken ct = default)
     {
+        if (!await db.KnowledgeDocuments.AnyAsync(item => item.Id == documentId && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId), ct))
+            throw new ResourceNotFoundException("knowledge.document.not_found", $"Knowledge document '{documentId}' was not found.");
         await db.KnowledgeChunks.Where(item => item.DocumentId == documentId).ExecuteDeleteAsync(ct);
         db.KnowledgeChunks.AddRange(chunks.Select(chunk => new KnowledgeChunkRecord
         {
@@ -170,11 +172,11 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
 
     public Task SetChunksPublishedAsync(Guid documentId, bool published, CancellationToken ct = default)
         => db.KnowledgeChunks
-            .Where(item => item.DocumentId == documentId)
+            .Where(item => item.DocumentId == documentId && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId))
             .ExecuteUpdateAsync(setters => setters.SetProperty(item => item.Published, published), ct);
 
     public Task DeleteChunksAsync(Guid documentId, CancellationToken ct = default)
-        => db.KnowledgeChunks.Where(item => item.DocumentId == documentId).ExecuteDeleteAsync(ct);
+        => db.KnowledgeChunks.Where(item => item.DocumentId == documentId && db.KnowledgeCollections.Any(collection => collection.Id == item.CollectionId)).ExecuteDeleteAsync(ct);
 
     public Task AddLifecycleEntryAsync(KnowledgeLifecycleState entry, CancellationToken ct = default)
     {
@@ -193,7 +195,7 @@ public sealed class EfKnowledgeStudioRepository(ApplicationDbContext db) : IKnow
     }
 
     public Task DeleteLifecycleAsync(Guid documentId, CancellationToken ct = default)
-        => db.KnowledgeLifecycle.Where(item => item.DocumentId == documentId).ExecuteDeleteAsync(ct);
+        => db.KnowledgeLifecycle.Where(item => item.DocumentId == documentId && db.KnowledgeDocuments.Any(document => document.Id == item.DocumentId && db.KnowledgeCollections.Any(collection => collection.Id == document.CollectionId))).ExecuteDeleteAsync(ct);
 
     private static KnowledgeCollectionState? MapCollection(KnowledgeCollectionRecord? record)
         => record is null

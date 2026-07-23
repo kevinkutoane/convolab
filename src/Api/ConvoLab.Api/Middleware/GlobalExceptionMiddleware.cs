@@ -1,5 +1,6 @@
 using ConvoLab.Application.Common.Errors;
 using FluentValidation;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConvoLab.Api.Middleware;
@@ -36,6 +37,12 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
     {
         (int status, string title, string detail, string code, IReadOnlyDictionary<string, string[]> errors) mapped = exception switch
         {
+            AntiforgeryValidationException => (
+                StatusCodes.Status400BadRequest,
+                "Antiforgery validation failed",
+                "The request verification token is missing, invalid, or expired. Refresh and retry.",
+                "auth.antiforgery.invalid",
+                EmptyErrors()),
             RequestValidationException validation => (
                 StatusCodes.Status400BadRequest,
                 "Validation failed",

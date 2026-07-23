@@ -29,22 +29,22 @@ public sealed class EfPromptStudioRepository(ApplicationDbContext db) : IPromptS
 
     public async Task<IReadOnlyList<PromptVersionState>> ListVersionsAsync(Guid promptId, CancellationToken ct = default)
         => (await db.PromptVersions.AsNoTracking()
-                .Where(item => item.PromptId == promptId)
+                .Where(item => item.PromptId == promptId && db.Prompts.Any(prompt => prompt.Id == item.PromptId))
                 .ToListAsync(ct))
             .OrderByDescending(item => item.CreatedAt)
             .Select(item => MapVersion(item)!)
             .ToList();
 
     public async Task<PromptVersionState?> GetVersionAsync(Guid id, CancellationToken ct = default)
-        => MapVersion(await db.PromptVersions.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id, ct));
+        => MapVersion(await db.PromptVersions.AsNoTracking().FirstOrDefaultAsync(item => item.Id == id && db.Prompts.Any(prompt => prompt.Id == item.PromptId), ct));
 
     public Task<bool> VersionExistsAsync(Guid promptId, string semanticVersion, CancellationToken ct = default)
         => db.PromptVersions.AsNoTracking()
-            .AnyAsync(item => item.PromptId == promptId && item.Version == semanticVersion, ct);
+            .AnyAsync(item => item.PromptId == promptId && item.Version == semanticVersion && db.Prompts.Any(prompt => prompt.Id == item.PromptId), ct);
 
     public async Task<IReadOnlyList<PromptVersionState>> ListPublishedVersionsAsync(CancellationToken ct = default)
         => (await db.PromptVersions.AsNoTracking()
-                .Where(item => item.Status == PromptStatus.Active.ToString())
+                .Where(item => item.Status == PromptStatus.Active.ToString() && db.Prompts.Any(prompt => prompt.Id == item.PromptId))
                 .OrderBy(item => item.PromptId)
                 .ThenBy(item => item.Version)
                 .ToListAsync(ct))
@@ -113,7 +113,7 @@ public sealed class EfPromptStudioRepository(ApplicationDbContext db) : IPromptS
         long expectedRevision,
         CancellationToken ct = default)
     {
-        var record = await db.PromptVersions.FirstOrDefaultAsync(item => item.Id == version.Id, ct)
+        var record = await db.PromptVersions.FirstOrDefaultAsync(item => item.Id == version.Id && db.Prompts.Any(prompt => prompt.Id == item.PromptId), ct)
             ?? throw new ResourceNotFoundException(
                 "prompt.version.not_found",
                 $"Prompt version '{version.Id}' was not found.");

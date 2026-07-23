@@ -3,6 +3,7 @@ namespace ConvoLab.Infrastructure.WorkflowStudio;
 public sealed class WorkflowRecord
 {
     public Guid Id { get; set; }
+    public Guid WorkspaceId { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Owner { get; set; } = string.Empty;

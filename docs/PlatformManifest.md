@@ -43,11 +43,15 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 - Policy
 - Tracing
 - Plugins
-- Identity
+- Workspace, Identity and Access Control v1 (active acceptance)
 
 ### Active product
 
-- ConvoLab Studio with functional Conversation Simulator, Knowledge Studio, and Prompt Studio
+- ConvoLab Studio with protected functional capability workspaces and workspace administration
+
+## Current release
+
+Platform Core and Studio are at `v1.0.0-alpha.12`. Existing functional v1 capabilities remain stable. Workspace/IAM is active until the complete isolation and security acceptance suite passes; managed environments, secret governance, and production SSO remain beta blockers.
 
 ## Planned products
 

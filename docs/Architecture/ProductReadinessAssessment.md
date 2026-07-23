@@ -1,4 +1,4 @@
-# Product Readiness Assessment — v1.0.0-alpha.11
+# Product Readiness Assessment — v1.0.0-alpha.12
 
 ## Decision
 
@@ -18,13 +18,13 @@ The functional Studio baseline is stabilized and suitable for controlled interna
 
 ## Experimental
 
-- Identity and tenant boundaries
+- Workspace/IAM browser and PostgreSQL acceptance
 - Secure plugin invocation and sandboxing
 - Managed environments, promotion, and secret governance
 
 ## Not implemented
 
-- Workspace authentication, authorization, and tenant isolation
+- Production SSO, custom roles, and environment promotion
 - Enterprise knowledge connectors
 - Secret management
 - Streaming transport
@@ -49,5 +49,5 @@ The functional Studio baseline is stabilized and suitable for controlled interna
 1. Capability foundations may drift unless architecture tests expand with new adapters.
 2. Static capability metadata must eventually be generated or owned by a formal platform registry.
 3. Cross-capability event delivery semantics remain undefined.
-4. Security, privacy, retention, and tenant isolation require dedicated implementation before production data.
+4. Local security and tenant isolation require full adversarial, restart, and PostgreSQL acceptance before production data.
 5. Replay requires immutable snapshots and redaction guarantees across all participating capabilities.
