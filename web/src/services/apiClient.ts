@@ -1,5 +1,6 @@
 import axios from "axios";
 import { normalizeProblemDetails, type PlatformProblem } from "../lib/problemDetails.js";
+import { prepareAntiforgery } from "./authApi";
 
 export class PlatformApiError extends Error {
   readonly problem: PlatformProblem;
@@ -17,9 +18,17 @@ export const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? "",
   timeout: 30_000,
   withCredentials: true,
-  withXSRFToken: true,
-  xsrfCookieName: "XSRF-TOKEN",
-  xsrfHeaderName: "X-XSRF-TOKEN",
+  xsrfCookieName: "",  // Disable axios auto-XSRF; our interceptor sends the correct request token
+});
+
+api.interceptors.request.use((config) => {
+  const method = (config.method ?? "get").toUpperCase();
+  const unsafeMethod = !["GET", "HEAD", "OPTIONS", "TRACE"].includes(method);
+  if (!unsafeMethod) return config;
+  return prepareAntiforgery(true).then((token) => {
+    if (token) config.headers.set("X-XSRF-TOKEN", token);
+    return config;
+  });
 });
 
 api.interceptors.response.use(

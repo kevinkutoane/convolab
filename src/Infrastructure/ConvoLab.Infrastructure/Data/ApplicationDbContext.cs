@@ -8,6 +8,7 @@ using ConvoLab.Infrastructure.ReplayStudio;
 using ConvoLab.Infrastructure.PolicyStudio;
 using ConvoLab.Infrastructure.PluginStudio;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
+using ConvoLab.Infrastructure.Settings;
 using ConvoLab.Domain.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,11 +66,19 @@ public sealed class ApplicationDbContext : DbContext
     public DbSet<PluginRecord> Plugins => Set<PluginRecord>();
     public DbSet<PluginHealthCheckRecord> PluginHealthChecks => Set<PluginHealthCheckRecord>();
 
+    // Settings
+    public DbSet<RuntimeEnvironmentRecord> RuntimeEnvironments => Set<RuntimeEnvironmentRecord>();
+    public DbSet<SettingDefinitionRecord> SettingDefinitions => Set<SettingDefinitionRecord>();
+    public DbSet<SettingValueRecord> SettingValues => Set<SettingValueRecord>();
+    public DbSet<SecretReferenceRecord> SecretReferences => Set<SecretReferenceRecord>();
+    public DbSet<ConfigurationChangeRecord> ConfigurationChanges => Set<ConfigurationChangeRecord>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
         ConfigureWorkspaceIdentity(modelBuilder);
+        ConfigureSettings(modelBuilder);
 
         modelBuilder.Entity<KnowledgeCollectionRecord>(entity =>
         {
@@ -661,6 +670,80 @@ public sealed class ApplicationDbContext : DbContext
             entity.Property(item => item.CorrelationId).HasMaxLength(100).IsRequired();
             entity.HasIndex(item => new { item.WorkspaceId, item.OccurredAt });
             entity.HasIndex(item => new { item.Scope, item.OccurredAt });
+        });
+    }
+
+    private static void ConfigureSettings(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<RuntimeEnvironmentRecord>(entity =>
+        {
+            entity.ToTable("RuntimeEnvironments"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Name).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Slug).HasMaxLength(100).IsRequired();
+            entity.Property(item => item.EnvironmentType).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.Description).HasMaxLength(2000).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasOne<WorkspaceRecord>().WithMany().HasForeignKey(item => item.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(item => new { item.WorkspaceId, item.Slug }).IsUnique();
+            entity.HasIndex(item => new { item.WorkspaceId, item.IsDefault });
+            entity.HasIndex(item => item.OrganisationId);
+        });
+
+        modelBuilder.Entity<SettingDefinitionRecord>(entity =>
+        {
+            entity.ToTable("SettingDefinitions"); entity.HasKey(item => item.Key);
+            entity.Property(item => item.Key).HasMaxLength(120).IsRequired();
+            entity.Property(item => item.Category).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Description).HasMaxLength(1000).IsRequired();
+            entity.Property(item => item.ValueType).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.DefaultValue).HasMaxLength(2000);
+            entity.Property(item => item.ValidationRules).HasMaxLength(1000);
+            entity.Property(item => item.AllowedValues).HasMaxLength(2000);
+            entity.HasIndex(item => item.Category);
+        });
+
+        modelBuilder.Entity<SettingValueRecord>(entity =>
+        {
+            entity.ToTable("SettingValues"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.DefinitionKey).HasMaxLength(120).IsRequired();
+            entity.Property(item => item.Scope).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.ValueJson).IsRequired();
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasOne<SettingDefinitionRecord>().WithMany().HasForeignKey(item => item.DefinitionKey).OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(item => new { item.DefinitionKey, item.Scope, item.OrganisationId, item.WorkspaceId, item.EnvironmentId }).IsUnique();
+            entity.HasIndex(item => new { item.WorkspaceId, item.Scope });
+            entity.HasIndex(item => new { item.EnvironmentId, item.Scope });
+        });
+
+        modelBuilder.Entity<SecretReferenceRecord>(entity =>
+        {
+            entity.ToTable("SecretReferences"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.DisplayName).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Reference).HasMaxLength(500).IsRequired();
+            entity.Property(item => item.Provider).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.LastValidationOutcome).HasMaxLength(500);
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasOne<WorkspaceRecord>().WithMany().HasForeignKey(item => item.WorkspaceId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(item => item.WorkspaceId);
+            entity.HasIndex(item => new { item.WorkspaceId, item.Reference });
+        });
+
+        modelBuilder.Entity<ConfigurationChangeRecord>(entity =>
+        {
+            entity.ToTable("ConfigurationChanges"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.SettingKey).HasMaxLength(120).IsRequired();
+            entity.Property(item => item.PreviousValueSummary).HasMaxLength(500);
+            entity.Property(item => item.NewValueSummary).HasMaxLength(500).IsRequired();
+            entity.Property(item => item.ChangedByDisplay).HasMaxLength(320).IsRequired();
+            entity.Property(item => item.Reason).HasMaxLength(1000);
+            entity.Property(item => item.CorrelationId).HasMaxLength(100).IsRequired();
+            entity.Property(item => item.Outcome).HasMaxLength(30).IsRequired();
+            entity.HasIndex(item => new { item.WorkspaceId, item.ChangedAt });
+            entity.HasIndex(item => new { item.EnvironmentId, item.ChangedAt });
+            entity.HasIndex(item => new { item.OrganisationId, item.ChangedAt });
         });
     }
 }

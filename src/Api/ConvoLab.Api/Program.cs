@@ -37,6 +37,7 @@ try
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })));
     builder.Services.AddScoped<WorkspaceIdentityBootstrapper>();
+    builder.Services.AddScoped<ConvoLab.Infrastructure.Settings.SettingsBootstrapper>();
 
     var enableConsoleTelemetry = builder.Configuration.GetValue<bool>("Telemetry:ConsoleExporter:Enabled");
     builder.Services.AddOpenTelemetry()
@@ -81,6 +82,7 @@ try
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         await db.Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<WorkspaceIdentityBootstrapper>().ApplyAsync();
+        await scope.ServiceProvider.GetRequiredService<ConvoLab.Infrastructure.Settings.SettingsBootstrapper>().ApplyAsync();
     }
 
     app.UseMiddleware<CorrelationIdMiddleware>();

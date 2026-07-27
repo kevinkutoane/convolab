@@ -24,6 +24,8 @@ using ConvoLab.Infrastructure.PolicyStudio;
 using ConvoLab.Application.PluginStudio;
 using ConvoLab.Infrastructure.PluginStudio;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
+using ConvoLab.Application.Settings;
+using ConvoLab.Infrastructure.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -93,6 +95,14 @@ public static class DependencyInjection
         services.AddSingleton<IIntelligenceExecutor, RoutingIntelligenceExecutor>();
         services.AddSingleton<IIntelligenceStudioConfiguration, EnvironmentIntelligenceStudioConfiguration>();
         services.AddSingleton<IEvaluationStudioConfiguration, EnvironmentEvaluationStudioConfiguration>();
+
+        // Settings
+        services.AddScoped<IEnvironmentService, EnvironmentService>();
+        services.AddScoped<ISettingsService, SettingsService>();
+        services.AddScoped<ISecretReferenceService, SecretReferenceService>();
+        services.AddScoped<IEffectiveConfigurationResolver, EffectiveConfigurationResolver>();
+        services.AddSingleton<ISecretStore, EnvironmentSecretStore>();
+        services.AddScoped<SettingsBootstrapper>();
 
         return services;
     }

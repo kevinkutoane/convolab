@@ -12,6 +12,7 @@ services:
       Knowledge__StoragePath: /app/data/knowledge-documents
       Database__ApplyMigrationsOnStartup: "true"
       Bootstrap__Administrator__Email: ${CONVOLAB_BOOTSTRAP_ADMIN_EMAIL:-}
+      Bootstrap__Administrator__DisplayName: ${CONVOLAB_BOOTSTRAP_ADMIN_NAME:-ConvoLab Administrator}
       Bootstrap__Administrator__Password: ${CONVOLAB_BOOTSTRAP_ADMIN_PASSWORD:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
