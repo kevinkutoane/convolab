@@ -34,7 +34,7 @@ public sealed class PlatformController : ControllerBase
                 new("replay", "Replay Studio", "Controlled re-execution, immutable baselines, candidate comparisons, and findings.", "stable", "1.0", 3),
                 new("plugins", "Plugin Engine", "Persistent extension registry, immutable versions, compatibility, lifecycle, health, and capability contracts.", "stable", "1.0", 4),
                 new("workspace-identity", "Workspace, Identity and Access", "Secure local authentication, workspace isolation, RBAC, service identities, and attributable audit.", "active", "1.0", 8),
-                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", "active", "0.12", 0),
+                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", "active", "0.13", 0),
             ],
             GeneratedAt: DateTimeOffset.UtcNow,
             Source: "api");

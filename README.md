@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-- **Platform Core / Studio:** `v1.0.0-alpha.12`
+- **Platform Core / Studio:** `v1.0.0-alpha.13`
 - **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`

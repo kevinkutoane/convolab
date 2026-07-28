@@ -72,8 +72,11 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
             if (membership is null || workspace is null) return AuthenticateResult.Fail("The active workspace is unavailable.");
         }
 
-        session.LastSeenAt = now;
-        await _db.SaveChangesAsync(Context.RequestAborted);
+        if (now - session.LastSeenAt >= TimeSpan.FromMinutes(5))
+        {
+            session.LastSeenAt = now;
+            await _db.SaveChangesAsync(Context.RequestAborted);
+        }
         return BuildUserPrincipal(user, session, workspace, membership);
     }
 

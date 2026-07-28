@@ -28,7 +28,7 @@ import type {
 export const designTimePlatformStatus: PlatformStatus = {
   platformName: "ConvoLab Platform",
   productName: "ConvoLab Studio",
-  version: "1.0.0-alpha.12",
+  version: "1.0.0-alpha.13",
   environment: "Development",
   architectureHealth: "Healthy",
   apiHealth: "Unknown",
@@ -128,7 +128,7 @@ export const designTimePlatformStatus: PlatformStatus = {
       name: "ConvoLab Studio",
       description: "Functional conversation simulation, governance, evaluation, tracing, replay, and plugin workspace.",
       status: "active",
-      version: "0.12",
+      version: "0.13",
       domainEvents: 0,
     },
   ],

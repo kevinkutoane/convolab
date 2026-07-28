@@ -167,7 +167,7 @@ public sealed class SettingsBootstrapper
         {
             if (!decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var d) || d < 0m)
                 return null;
-            return $"\"{d.ToString(CultureInfo.InvariantCulture)}\"";
+            return d.ToString(CultureInfo.InvariantCulture);
         }
 
         // Enum: EvalFailureAction

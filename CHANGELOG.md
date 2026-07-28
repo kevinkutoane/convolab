@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-alpha.13 — 2026-07-28
+
+- Added governed Environment & Settings Management with scoped inheritance, typed validation, protected changes, secret references, audit history, and configuration import/export.
+- Added the Studio settings console and workspace environment switcher.
+- Bound workspace and organisation route identifiers to the authenticated tenant context, enforced environment ownership throughout Settings, and added adversarial guessed-ID isolation coverage.
+- Replaced timestamp-based configuration snapshot identifiers with deterministic SHA-256 content revisions and normalized typed environment fallbacks.
+- Added Docker readiness gating and browser recovery for transient session startup and stale deployment chunks.
+- Updated the frontend to React Router 8.3.0 and retained the enforced bundle budget.
+
 ## 1.0.0-alpha.12 — 2026-07-22
 
 - Added revocable opaque-cookie authentication, local password hashing, session rotation/revocation, antiforgery validation, login throttling, and hardened response headers.

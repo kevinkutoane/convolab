@@ -14,7 +14,7 @@ const routes = [
   ["/policies", "Policy Center"],
   ["/plugins", "Plugin Center"],
   ["/analytics", "Platform Analytics"],
-  ["/settings", "Studio Settings"],
+  ["/settings", "Settings"],
   ["/documentation", "ConvoLab documentation"],
   ["/workspace", "Default Workspace"],
 ] as const;

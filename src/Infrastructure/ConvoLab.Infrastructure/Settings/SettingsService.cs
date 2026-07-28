@@ -21,6 +21,7 @@ public sealed class SettingsService : ISettingsService
 
     public async Task<IReadOnlyList<SettingValueDto>> ListWorkspaceSettingsAsync(Guid workspaceId, CancellationToken ct = default)
     {
+        _ = await RequireWorkspaceAsync(workspaceId, ct);
         var defs = await _db.SettingDefinitions.AsNoTracking().ToDictionaryAsync(d => d.Key, ct);
         var rows = await _db.SettingValues.AsNoTracking()
             .Where(sv => sv.WorkspaceId == workspaceId && sv.Scope == "Workspace")
@@ -30,23 +31,22 @@ public sealed class SettingsService : ISettingsService
 
     public async Task<IReadOnlyList<EffectiveSettingDto>> GetEffectiveWorkspaceSettingsAsync(Guid workspaceId, Guid? environmentId, CancellationToken ct = default)
     {
-        var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
-            ?? throw NotFound("workspace", workspaceId);
+        var ws = await RequireWorkspaceAsync(workspaceId, ct);
+        if (environmentId.HasValue)
+            _ = await RequireEnvironmentAsync(workspaceId, environmentId.Value, ct);
         var results = await _resolver.ResolveAsync(ws.OrganisationId, workspaceId, environmentId, ct);
         return results.Select(ToEffectiveDto).ToList();
     }
 
     public async Task<SettingValueDto> UpsertWorkspaceSettingAsync(Guid workspaceId, string settingKey, UpsertSettingRequest request, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
     {
-        var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
-            ?? throw NotFound("workspace", workspaceId);
+        var ws = await RequireWorkspaceAsync(workspaceId, ct);
         return await UpsertAsync("Workspace", ws.OrganisationId, workspaceId, null, settingKey, request, actorId, actorDisplay, correlationId, ct);
     }
 
     public async Task DeleteWorkspaceSettingAsync(Guid workspaceId, string settingKey, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
     {
-        var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
-            ?? throw NotFound("workspace", workspaceId);
+        var ws = await RequireWorkspaceAsync(workspaceId, ct);
         await DeleteAsync("Workspace", ws.OrganisationId, workspaceId, null, settingKey, actorId, actorDisplay, correlationId, ct);
     }
 
@@ -54,6 +54,7 @@ public sealed class SettingsService : ISettingsService
 
     public async Task<IReadOnlyList<SettingValueDto>> ListEnvironmentSettingsAsync(Guid workspaceId, Guid environmentId, CancellationToken ct = default)
     {
+        _ = await RequireEnvironmentAsync(workspaceId, environmentId, ct);
         var defs = await _db.SettingDefinitions.AsNoTracking().ToDictionaryAsync(d => d.Key, ct);
         var rows = await _db.SettingValues.AsNoTracking()
             .Where(sv => sv.EnvironmentId == environmentId && sv.Scope == "Environment")
@@ -63,26 +64,24 @@ public sealed class SettingsService : ISettingsService
 
     public async Task<IReadOnlyList<EffectiveSettingDto>> GetEffectiveEnvironmentSettingsAsync(Guid workspaceId, Guid environmentId, CancellationToken ct = default)
     {
-        var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
-            ?? throw NotFound("workspace", workspaceId);
+        var ws = await RequireWorkspaceAsync(workspaceId, ct);
+        _ = await RequireEnvironmentAsync(workspaceId, environmentId, ct);
         return (await _resolver.ResolveAsync(ws.OrganisationId, workspaceId, environmentId, ct))
             .Select(ToEffectiveDto).ToList();
     }
 
     public async Task<SettingValueDto> UpsertEnvironmentSettingAsync(Guid workspaceId, Guid environmentId, string settingKey, UpsertSettingRequest request, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
     {
-        var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
-            ?? throw NotFound("workspace", workspaceId);
-        var env = await _db.RuntimeEnvironments.AsNoTracking().SingleOrDefaultAsync(e => e.Id == environmentId && e.WorkspaceId == workspaceId, ct)
-            ?? throw NotFound("environment", environmentId);
+        var ws = await RequireWorkspaceAsync(workspaceId, ct);
+        var env = await RequireEnvironmentAsync(workspaceId, environmentId, ct);
         if (env.Status == "Archived") throw new ResourceConflictException("environment.archived", "Archived environments are immutable.");
         return await UpsertAsync("Environment", ws.OrganisationId, workspaceId, environmentId, settingKey, request, actorId, actorDisplay, correlationId, ct);
     }
 
     public async Task DeleteEnvironmentSettingAsync(Guid workspaceId, Guid environmentId, string settingKey, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
     {
-        var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
-            ?? throw NotFound("workspace", workspaceId);
+        var ws = await RequireWorkspaceAsync(workspaceId, ct);
+        _ = await RequireEnvironmentAsync(workspaceId, environmentId, ct);
         await DeleteAsync("Environment", ws.OrganisationId, workspaceId, environmentId, settingKey, actorId, actorDisplay, correlationId, ct);
     }
 
@@ -90,6 +89,7 @@ public sealed class SettingsService : ISettingsService
 
     public async Task<IReadOnlyList<SettingValueDto>> ListOrganisationSettingsAsync(Guid organisationId, CancellationToken ct = default)
     {
+        _ = await RequireOrganisationAsync(organisationId, ct);
         var defs = await _db.SettingDefinitions.AsNoTracking().ToDictionaryAsync(d => d.Key, ct);
         var rows = await _db.SettingValues.AsNoTracking()
             .Where(sv => sv.OrganisationId == organisationId && sv.Scope == "Organisation")
@@ -98,22 +98,32 @@ public sealed class SettingsService : ISettingsService
     }
 
     public async Task<SettingValueDto> UpsertOrganisationSettingAsync(Guid organisationId, string settingKey, UpsertSettingRequest request, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
-        => await UpsertAsync("Organisation", organisationId, null, null, settingKey, request, actorId, actorDisplay, correlationId, ct);
+    {
+        _ = await RequireOrganisationAsync(organisationId, ct);
+        return await UpsertAsync("Organisation", organisationId, null, null, settingKey, request, actorId, actorDisplay, correlationId, ct);
+    }
 
     public async Task DeleteOrganisationSettingAsync(Guid organisationId, string settingKey, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
-        => await DeleteAsync("Organisation", organisationId, null, null, settingKey, actorId, actorDisplay, correlationId, ct);
+    {
+        _ = await RequireOrganisationAsync(organisationId, ct);
+        await DeleteAsync("Organisation", organisationId, null, null, settingKey, actorId, actorDisplay, correlationId, ct);
+    }
 
     // ─── Change history ───────────────────────────────────────────────────────
 
     public async Task<IReadOnlyList<ConfigurationChangeDto>> GetChangeHistoryAsync(Guid workspaceId, Guid? environmentId, int take = 100, CancellationToken ct = default)
     {
+        _ = await RequireWorkspaceAsync(workspaceId, ct);
+        if (environmentId.HasValue)
+            _ = await RequireEnvironmentAsync(workspaceId, environmentId.Value, ct);
         take = Math.Clamp(take, 1, 500);
         var query = _db.ConfigurationChanges.AsNoTracking().Where(c => c.WorkspaceId == workspaceId);
         if (environmentId.HasValue) query = query.Where(c => c.EnvironmentId == environmentId);
-        // SQLite cannot ORDER BY DateTimeOffset columns; fetch the workspace-scoped
-        // subset (append-only, bounded per workspace) and order client-side.
-        var fetched = await query.ToListAsync(ct);
-        var rows = fetched.OrderByDescending(c => c.ChangedAt).Take(take).ToList();
+        var rows = _db.Database.IsSqlite()
+            // SQLite cannot translate DateTimeOffset ordering; it is retained
+            // only for local tests and compatibility.
+            ? (await query.ToListAsync(ct)).OrderByDescending(c => c.ChangedAt).Take(take).ToList()
+            : await query.OrderByDescending(c => c.ChangedAt).Take(take).ToListAsync(ct);
         var envNames = await _db.RuntimeEnvironments.AsNoTracking()
             .Where(e => rows.Select(r => r.EnvironmentId).Contains(e.Id))
             .ToDictionaryAsync(e => e.Id, e => e.Name, ct);
@@ -430,6 +440,19 @@ public sealed class SettingsService : ISettingsService
             r.SourceScope.ToString(), r.SourceId?.ToString(),
             r.IsInherited, r.IsSecret, r.ValidationStatus,
             r.RequiresRestart, r.DisplayName, r.Category, r.InheritedFromDisplay);
+
+    private async Task<WorkspaceIdentity.WorkspaceRecord> RequireWorkspaceAsync(Guid workspaceId, CancellationToken ct) =>
+        await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
+        ?? throw NotFound("workspace", workspaceId);
+
+    private async Task<RuntimeEnvironmentRecord> RequireEnvironmentAsync(Guid workspaceId, Guid environmentId, CancellationToken ct) =>
+        await _db.RuntimeEnvironments.AsNoTracking()
+            .SingleOrDefaultAsync(e => e.Id == environmentId && e.WorkspaceId == workspaceId, ct)
+        ?? throw NotFound("environment", environmentId);
+
+    private async Task<WorkspaceIdentity.OrganisationRecord> RequireOrganisationAsync(Guid organisationId, CancellationToken ct) =>
+        await _db.Organisations.AsNoTracking().SingleOrDefaultAsync(o => o.Id == organisationId, ct)
+        ?? throw NotFound("organisation", organisationId);
 
     private static ResourceNotFoundException NotFound(string resource, Guid id) =>
         new($"{resource}.not_found", $"{resource} '{id}' was not found.");

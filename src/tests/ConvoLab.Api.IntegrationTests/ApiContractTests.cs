@@ -1,17 +1,27 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ConvoLab.Domain.WorkspaceIdentity;
+using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.Settings;
+using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ConvoLab.Api.IntegrationTests;
 
 public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
 {
     private readonly HttpClient _client;
+    private readonly ConvoLabApiFactory _factory;
 
-    public ApiContractTests(ConvoLabApiFactory factory) => _client = factory.CreateClient();
+    public ApiContractTests(ConvoLabApiFactory factory)
+    {
+        _factory = factory;
+        _client = factory.CreateClient();
+    }
 
     [Fact]
     public async Task Liveness_Reports_Healthy()
@@ -57,6 +67,84 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         using var mutation = new HttpRequestMessage(HttpMethod.Post, "/api/simulations") { Content = JsonContent.Create(new { title = "Forbidden", workflow = "Claims intake", promptVersion = "1.0.0", knowledgeCollection = "Claims" }) };
         mutation.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential);
         Assert.Equal(HttpStatusCode.Forbidden, (await _client.SendAsync(mutation)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Tenant_routes_reject_real_workspace_environment_and_organisation_ids_from_another_context()
+    {
+        var foreignOrganisationId = Guid.NewGuid();
+        var foreignWorkspaceId = Guid.NewGuid();
+        var foreignEnvironmentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.Organisations.Add(new OrganisationRecord
+            {
+                Id = foreignOrganisationId,
+                Name = "Foreign Organisation",
+                Slug = $"foreign-{foreignOrganisationId:N}",
+                Status = "Active",
+                Revision = 1,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            db.Workspaces.Add(new WorkspaceRecord
+            {
+                Id = foreignWorkspaceId,
+                OrganisationId = foreignOrganisationId,
+                Name = "Foreign Workspace",
+                Slug = $"foreign-{foreignWorkspaceId:N}",
+                Description = "Isolation-test workspace",
+                Status = "Active",
+                Revision = 1,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            db.RuntimeEnvironments.Add(new RuntimeEnvironmentRecord
+            {
+                Id = foreignEnvironmentId,
+                OrganisationId = foreignOrganisationId,
+                WorkspaceId = foreignWorkspaceId,
+                Name = "Foreign Environment",
+                Slug = $"foreign-{foreignEnvironmentId:N}",
+                EnvironmentType = "Development",
+                Description = "Isolation-test environment",
+                Status = "Active",
+                IsDefault = true,
+                CreatedAt = now,
+                CreatedBy = WorkspaceIdentityDefaults.BootstrapUserId,
+                UpdatedAt = now,
+                Revision = 1
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var foreignWorkspaceResponse = await _client.GetAsync($"/api/workspaces/{foreignWorkspaceId}/settings");
+        Assert.Equal(HttpStatusCode.NotFound, foreignWorkspaceResponse.StatusCode);
+
+        var foreignEnvironmentResponse = await _client.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/environments/{foreignEnvironmentId}/settings");
+        Assert.Equal(HttpStatusCode.NotFound, foreignEnvironmentResponse.StatusCode);
+
+        var serviceAccount = await _client.PostAsJsonAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/service-accounts",
+            new
+            {
+                name = $"Isolation reader {Guid.NewGuid():N}",
+                scopes = new[] { WorkspacePermissions.ViewSettings },
+                expiresAt = now.AddHours(1)
+            });
+        Assert.Equal(HttpStatusCode.Created, serviceAccount.StatusCode);
+        var credential = (await ReadJsonAsync(serviceAccount)).RootElement.GetProperty("credential").GetString();
+
+        using var foreignOrganisationRequest = new HttpRequestMessage(
+            HttpMethod.Get, $"/api/organisations/{foreignOrganisationId}/settings");
+        foreignOrganisationRequest.Headers.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential);
+        var foreignOrganisationResponse = await _client.SendAsync(foreignOrganisationRequest);
+        Assert.Equal(HttpStatusCode.NotFound, foreignOrganisationResponse.StatusCode);
     }
 
     [Fact]

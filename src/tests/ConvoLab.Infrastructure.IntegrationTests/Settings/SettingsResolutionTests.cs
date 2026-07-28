@@ -1,5 +1,6 @@
 using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Settings;
+using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.Settings;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
@@ -20,6 +21,7 @@ public sealed class SettingsResolutionTests : IAsyncLifetime
     private ApplicationDbContext _db = null!;
     private SettingsService _settings = null!;
     private EnvironmentService _environments = null!;
+    private EffectiveConfigurationResolver _resolver = null!;
 
     private static readonly Guid OrganisationId = Guid.Parse("10000000-0000-0000-0000-0000000000AA");
     private static readonly Guid WorkspaceId = Guid.Parse("20000000-0000-0000-0000-0000000000BB");
@@ -60,9 +62,9 @@ public sealed class SettingsResolutionTests : IAsyncLifetime
         await _db.SaveChangesAsync();
 
         var configuration = new ConfigurationBuilder().Build();
-        var resolver = new EffectiveConfigurationResolver(
+        _resolver = new EffectiveConfigurationResolver(
             _db, configuration, NullLogger<EffectiveConfigurationResolver>.Instance);
-        _settings = new SettingsService(_db, resolver);
+        _settings = new SettingsService(_db, _resolver);
         _environments = new EnvironmentService(_db);
     }
 
@@ -295,5 +297,99 @@ public sealed class SettingsResolutionTests : IAsyncLifetime
         temperature = effective.Single(s => s.Key == "ai.temperature");
         Assert.False(temperature.IsInherited);
         Assert.Contains("0.65", temperature.EffectiveValue);
+    }
+
+    [Fact]
+    public async Task Environment_operations_reject_an_environment_owned_by_another_workspace()
+    {
+        var foreignOrganisationId = Guid.NewGuid();
+        var foreignWorkspaceId = Guid.NewGuid();
+        var foreignEnvironmentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        _db.Organisations.Add(new OrganisationRecord
+        {
+            Id = foreignOrganisationId,
+            Name = "Foreign Organisation",
+            Slug = $"foreign-{foreignOrganisationId:N}",
+            Status = "Active",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        _db.Workspaces.Add(new WorkspaceRecord
+        {
+            Id = foreignWorkspaceId,
+            OrganisationId = foreignOrganisationId,
+            Name = "Foreign Workspace",
+            Slug = $"foreign-{foreignWorkspaceId:N}",
+            Description = "Isolation test",
+            Status = "Active",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        _db.RuntimeEnvironments.Add(new RuntimeEnvironmentRecord
+        {
+            Id = foreignEnvironmentId,
+            OrganisationId = foreignOrganisationId,
+            WorkspaceId = foreignWorkspaceId,
+            Name = "Foreign Environment",
+            Slug = $"foreign-{foreignEnvironmentId:N}",
+            EnvironmentType = "Development",
+            Description = "Isolation test",
+            Status = "Active",
+            IsDefault = true,
+            CreatedAt = now,
+            CreatedBy = ActorId,
+            UpdatedAt = now,
+            Revision = 1
+        });
+        await _db.SaveChangesAsync();
+
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => _settings.ListEnvironmentSettingsAsync(WorkspaceId, foreignEnvironmentId));
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => _settings.GetEffectiveEnvironmentSettingsAsync(WorkspaceId, foreignEnvironmentId));
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => _settings.DeleteEnvironmentSettingAsync(
+                WorkspaceId, foreignEnvironmentId, SettingKeys.AiTemperature,
+                ActorId, Actor, Correlation));
+        await Assert.ThrowsAsync<ResourceNotFoundException>(
+            () => _resolver.CreateSnapshotAsync(OrganisationId, WorkspaceId, foreignEnvironmentId));
+    }
+
+    [Fact]
+    public async Task Configuration_snapshot_revision_is_stable_and_content_addressed()
+    {
+        var environment = await CreateEnvironmentAsync("Revision Env");
+
+        var first = await _resolver.CreateSnapshotAsync(OrganisationId, WorkspaceId, environment.Id);
+        var second = await _resolver.CreateSnapshotAsync(OrganisationId, WorkspaceId, environment.Id);
+
+        Assert.StartsWith("sha256:", first.ConfigurationRevision);
+        Assert.Equal(first.ConfigurationRevision, second.ConfigurationRevision);
+
+        await _settings.UpsertEnvironmentSettingAsync(
+            WorkspaceId, environment.Id, SettingKeys.AiTemperature,
+            new UpsertSettingRequest("0.61", "revision test", null),
+            ActorId, Actor, Correlation);
+
+        var changed = await _resolver.CreateSnapshotAsync(OrganisationId, WorkspaceId, environment.Id);
+        Assert.NotEqual(first.ConfigurationRevision, changed.ConfigurationRevision);
+    }
+
+    [Fact]
+    public async Task Effective_numeric_values_use_json_number_representation()
+    {
+        var environment = await CreateEnvironmentAsync("Typed Values Env");
+        await _settings.UpsertEnvironmentSettingAsync(
+            WorkspaceId, environment.Id, SettingKeys.AiTemperature,
+            new UpsertSettingRequest("\"0.55\"", "typed value test", null),
+            ActorId, Actor, Correlation);
+
+        var effective = await _settings.GetEffectiveEnvironmentSettingsAsync(WorkspaceId, environment.Id);
+        Assert.Equal("0.55", effective.Single(value => value.Key == SettingKeys.AiTemperature).EffectiveValue);
+        var budget = effective.Single(value => value.Key == SettingKeys.MonthlyBudgetZar).EffectiveValue;
+        Assert.NotNull(budget);
+        Assert.DoesNotContain('"', budget);
     }
 }

@@ -18,11 +18,16 @@ Alpha.13 introduces Environment & Settings Management v1 — the governed config
 
 ## Repository hardening in this release
 
+- Bound every workspace-routed Settings request to the authenticated workspace and every non-platform organisation request to the authenticated organisation.
+- Added composite workspace/environment ownership checks to settings reads, writes, history, validation, import/export, provider validation, and configuration resolution.
+- Added hostile cross-workspace, cross-environment, and cross-organisation guessed-ID API coverage.
+- Replaced timestamp-based configuration snapshot identifiers with stable SHA-256 content revisions and normalized typed environment-variable fallbacks.
+- Added Docker database/API readiness gating, transient authentication bootstrap retries, stale-chunk recovery, and deployment-safe cache headers.
 - Fixed 19 compile errors in the settings migration and corrected SQLite GUID text casing in the environment backfill.
 - Fixed environment-scope resolution in setting upsert/delete that could create duplicate override rows.
-- Replaced an unsupported SQLite `DateTimeOffset` ordering in change history.
+- Uses database-side change-history ordering on PostgreSQL while retaining a SQLite-only compatibility fallback.
 - Migrated the frontend to react-router 8.3.0, clearing all npm audit findings while keeping the initial bundle inside its 300 KB budget.
 
 ## Release state
 
-Environment & Settings Management is active during acceptance. Backend suites pass in full (272 tests across Domain, Application, Architecture, Infrastructure, and API projects, including 62 new settings tests), and frontend lint, type-check, build, and bundle budgets are green. Vault-backed secret providers, environment promotion, drift detection, scheduled changes, and per-setting approvals remain deferred.
+Environment & Settings Management is active during acceptance. Backend suites pass in full (276 tests across Domain, Application, Architecture, Infrastructure, and API projects), and frontend lint, type-check, build, bundle budgets, contract tests, interaction audit, and browser bootstrap recovery are green. Vault-backed secret providers, environment promotion, drift detection, scheduled changes, and per-setting approvals remain deferred.

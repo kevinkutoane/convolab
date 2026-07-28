@@ -1,5 +1,8 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
+using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Settings;
 using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
@@ -29,6 +32,7 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
     public async Task<IReadOnlyList<EffectiveSettingResult>> ResolveAsync(
         Guid organisationId, Guid workspaceId, Guid? environmentId, CancellationToken ct = default)
     {
+        await RequireScopeAsync(organisationId, workspaceId, environmentId, ct);
         var definitions = await _db.SettingDefinitions.AsNoTracking().ToListAsync(ct);
         var scopedValues = await LoadScopedValuesAsync(organisationId, workspaceId, environmentId, ct);
 
@@ -40,6 +44,7 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
     public async Task<EffectiveSettingResult?> ResolveOneAsync(
         Guid organisationId, Guid workspaceId, Guid? environmentId, string key, CancellationToken ct = default)
     {
+        await RequireScopeAsync(organisationId, workspaceId, environmentId, ct);
         var def = await _db.SettingDefinitions.AsNoTracking().SingleOrDefaultAsync(d => d.Key == key, ct);
         if (def is null) return null;
 
@@ -52,7 +57,8 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
     {
         var results = await ResolveAsync(organisationId, workspaceId, environmentId, ct);
         var env = await _db.RuntimeEnvironments.AsNoTracking()
-            .SingleOrDefaultAsync(e => e.Id == environmentId, ct);
+            .SingleOrDefaultAsync(e => e.Id == environmentId && e.WorkspaceId == workspaceId, ct)
+            ?? throw NotFound("environment", environmentId);
 
         string? Get(string key) => results.FirstOrDefault(r => r.Key == key)?.EffectiveValue?.Trim('"');
         bool GetBool(string key, bool fallback = true) =>
@@ -68,7 +74,16 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
         };
         var flags = featureKeys.ToDictionary(k => k, k => Get(k));
 
-        var revision = $"{workspaceId:N}-{environmentId:N}-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+        var revisionPayload = string.Join('\n', results
+            .Where(result => !result.IsSecret)
+            .OrderBy(result => result.Key, StringComparer.Ordinal)
+            .Select(result => string.Join('\u001f',
+                result.Key,
+                result.EffectiveValue ?? "null",
+                result.SourceScope.ToString(),
+                result.SourceId?.ToString("N") ?? "platform")));
+        var revision = $"sha256:{Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(revisionPayload))).ToLowerInvariant()}";
 
         return new ConfigurationSnapshot(
             revision, environmentId,
@@ -132,9 +147,10 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
         string? effectiveValue = winner?.ValueJson;
         if (effectiveValue is null)
         {
-            effectiveValue = GetEnvVarFallback(def.Key) ?? def.DefaultValue;
+            effectiveValue = GetEnvVarFallback(def) ?? def.DefaultValue;
             isInherited = true;
         }
+        effectiveValue = CanonicalizeValue(def, effectiveValue);
 
         var inheritedDisplay = scope switch
         {
@@ -152,20 +168,106 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
             def.DisplayName, def.Category, inheritedDisplay);
     }
 
-    private static string? GetEnvVarFallback(string key) => key switch
+    private async Task RequireScopeAsync(
+        Guid organisationId, Guid workspaceId, Guid? environmentId, CancellationToken ct)
     {
-        SettingKeys.AiModel => WrapString(Environment.GetEnvironmentVariable("GEMINI_MODEL")),
-        SettingKeys.MonthlyBudgetZar => WrapString(Environment.GetEnvironmentVariable("CONVOLAB_MONTHLY_AI_BUDGET_ZAR")),
-        SettingKeys.AiInputPriceZarPer1K => WrapString(Environment.GetEnvironmentVariable("GEMINI_INPUT_PRICE_ZAR_PER_1K")),
-        SettingKeys.AiOutputPriceZarPer1K => WrapString(Environment.GetEnvironmentVariable("GEMINI_OUTPUT_PRICE_ZAR_PER_1K")),
-        SettingKeys.EvalMinGroundedness => WrapString(Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_GROUNDEDNESS")),
-        SettingKeys.EvalMinRelevance => WrapString(Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_RELEVANCE")),
-        SettingKeys.EvalMinSafety => WrapString(Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_SAFETY")),
-        SettingKeys.EvalMinOverall => WrapString(Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_OVERALL")),
-        SettingKeys.EvalFailureAction => WrapString(Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_FAILURE_ACTION")),
-        _ => null
-    };
+        if (!await _db.Workspaces.AsNoTracking()
+                .AnyAsync(workspace => workspace.Id == workspaceId && workspace.OrganisationId == organisationId, ct))
+            throw NotFound("workspace", workspaceId);
 
-    private static string? WrapString(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : $"\"{value.Trim()}\"";
+        if (environmentId.HasValue
+            && !await _db.RuntimeEnvironments.AsNoTracking()
+                .AnyAsync(environment => environment.Id == environmentId
+                    && environment.WorkspaceId == workspaceId
+                    && environment.OrganisationId == organisationId, ct))
+            throw NotFound("environment", environmentId.Value);
+    }
+
+    private static string? GetEnvVarFallback(SettingDefinitionRecord definition)
+    {
+        var raw = definition.Key switch
+        {
+            SettingKeys.AiModel => Environment.GetEnvironmentVariable("GEMINI_MODEL"),
+            SettingKeys.MonthlyBudgetZar => Environment.GetEnvironmentVariable("CONVOLAB_MONTHLY_AI_BUDGET_ZAR"),
+            SettingKeys.AiInputPriceZarPer1K => Environment.GetEnvironmentVariable("GEMINI_INPUT_PRICE_ZAR_PER_1K"),
+            SettingKeys.AiOutputPriceZarPer1K => Environment.GetEnvironmentVariable("GEMINI_OUTPUT_PRICE_ZAR_PER_1K"),
+            SettingKeys.EvalMinGroundedness => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_GROUNDEDNESS"),
+            SettingKeys.EvalMinRelevance => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_RELEVANCE"),
+            SettingKeys.EvalMinSafety => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_SAFETY"),
+            SettingKeys.EvalMinOverall => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_OVERALL"),
+            SettingKeys.EvalFailureAction => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_FAILURE_ACTION"),
+            _ => null
+        };
+
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        raw = raw.Trim();
+
+        return Enum.Parse<SettingValueType>(definition.ValueType) switch
+        {
+            SettingValueType.Integer or SettingValueType.Duration
+                when long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer)
+                => integer.ToString(CultureInfo.InvariantCulture),
+            SettingValueType.Decimal or SettingValueType.Percentage or SettingValueType.Currency
+                when decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
+                => number.ToString(CultureInfo.InvariantCulture),
+            SettingValueType.Boolean when bool.TryParse(raw, out var boolean)
+                => boolean ? "true" : "false",
+            SettingValueType.Json when IsJson(raw) => raw,
+            SettingValueType.String or SettingValueType.Enum or SettingValueType.SecretReference
+                => JsonSerializer.Serialize(raw),
+            _ => null
+        };
+    }
+
+    private static bool IsJson(string value)
+    {
+        try
+        {
+            using var _ = JsonDocument.Parse(value);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string? CanonicalizeValue(SettingDefinitionRecord definition, string? value)
+    {
+        if (value is null) return null;
+        var scalar = ReadScalar(value);
+
+        return Enum.Parse<SettingValueType>(definition.ValueType) switch
+        {
+            SettingValueType.Integer or SettingValueType.Duration
+                when long.TryParse(scalar, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer)
+                => integer.ToString(CultureInfo.InvariantCulture),
+            SettingValueType.Decimal or SettingValueType.Percentage or SettingValueType.Currency
+                when decimal.TryParse(scalar, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
+                => number.ToString(CultureInfo.InvariantCulture),
+            SettingValueType.Boolean when bool.TryParse(scalar, out var boolean)
+                => boolean ? "true" : "false",
+            SettingValueType.String or SettingValueType.Enum or SettingValueType.SecretReference
+                => JsonSerializer.Serialize(scalar),
+            _ => value
+        };
+    }
+
+    private static string ReadScalar(string value)
+    {
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            return document.RootElement.ValueKind == JsonValueKind.String
+                ? document.RootElement.GetString() ?? string.Empty
+                : document.RootElement.GetRawText();
+        }
+        catch (JsonException)
+        {
+            return value.Trim();
+        }
+    }
+
+    private static ResourceNotFoundException NotFound(string resource, Guid id) =>
+        new($"{resource}.not_found", $"{resource} '{id}' was not found.");
 }

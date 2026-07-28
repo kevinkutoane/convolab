@@ -1,4 +1,4 @@
-# Master Checklist Status — v1.0.0-alpha.12
+# Master Checklist Status — v1.0.0-alpha.13
 
 The 22 July 2026 PDF remains the product backlog source, with these stabilization corrections:
 
