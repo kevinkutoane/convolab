@@ -83,7 +83,8 @@ export function Topbar({
               className="environment-switcher"
               aria-label="Switch environment"
               value={environment.activeEnvironmentId ?? ""}
-              onChange={event => environment.setActiveEnvironmentId(event.target.value)}
+              onChange={event => void environment.setActiveEnvironmentId(event.target.value)}
+              disabled={environment.isLoading || environment.isSwitching}
             >
               {environment.environments.map(item => (
                 <option key={item.id} value={item.id}>{item.name}{item.isDefault ? " (default)" : ""}</option>

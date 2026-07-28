@@ -26,17 +26,23 @@ public sealed class WorkspaceIdentityTests
         Assert.Contains(WorkspacePermissions.RunSimulation, permissions);
         Assert.Contains(WorkspacePermissions.InspectSensitiveTrace, permissions);
         Assert.DoesNotContain(WorkspacePermissions.ManageMembers, permissions);
+        Assert.Contains(WorkspacePermissions.ViewWorkspaceAnalytics, permissions);
+        Assert.Contains(WorkspacePermissions.ViewCostAnalytics, permissions);
+        Assert.DoesNotContain(WorkspacePermissions.ViewActorAnalytics, permissions);
     }
 
     [Fact]
     public void Viewer_is_non_sensitive_read_only()
     {
-        // Viewers may read (never modify) configuration: membership plus settings visibility only.
+        // Viewers may read configuration and aggregated analytics, never sensitive detail.
         var permissions = WorkspacePermissions.For(WorkspaceRole.Viewer);
 
-        Assert.Equal(2, permissions.Count);
+        Assert.Equal(3, permissions.Count);
         Assert.Contains(WorkspacePermissions.WorkspaceMember, permissions);
         Assert.Contains(WorkspacePermissions.ViewSettings, permissions);
+        Assert.Contains(WorkspacePermissions.ViewWorkspaceAnalytics, permissions);
+        Assert.DoesNotContain(WorkspacePermissions.ViewCostAnalytics, permissions);
+        Assert.DoesNotContain(WorkspacePermissions.ExportAnalytics, permissions);
         Assert.DoesNotContain(WorkspacePermissions.ManageWorkspaceSettings, permissions);
         Assert.DoesNotContain(WorkspacePermissions.ManageEnvironmentSettings, permissions);
         Assert.DoesNotContain(WorkspacePermissions.ManageSecretReferences, permissions);

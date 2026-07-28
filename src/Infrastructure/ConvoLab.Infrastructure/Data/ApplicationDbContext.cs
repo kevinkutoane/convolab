@@ -9,6 +9,7 @@ using ConvoLab.Infrastructure.PolicyStudio;
 using ConvoLab.Infrastructure.PluginStudio;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 using ConvoLab.Infrastructure.Settings;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Domain.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 
@@ -72,6 +73,14 @@ public sealed class ApplicationDbContext : DbContext
     public DbSet<SettingValueRecord> SettingValues => Set<SettingValueRecord>();
     public DbSet<SecretReferenceRecord> SecretReferences => Set<SecretReferenceRecord>();
     public DbSet<ConfigurationChangeRecord> ConfigurationChanges => Set<ConfigurationChangeRecord>();
+    public DbSet<ConfigurationSnapshotRecord> ConfigurationSnapshots => Set<ConfigurationSnapshotRecord>();
+    public DbSet<ExecutionAttributionRecord> ExecutionAttributions => Set<ExecutionAttributionRecord>();
+    public DbSet<AnalyticsOutboxRecord> AnalyticsOutbox => Set<AnalyticsOutboxRecord>();
+    public DbSet<AnalyticsEventRecord> AnalyticsEvents => Set<AnalyticsEventRecord>();
+    public DbSet<AnalyticsHourlyAggregateRecord> AnalyticsHourlyAggregates => Set<AnalyticsHourlyAggregateRecord>();
+    public DbSet<AnalyticsDailyAggregateRecord> AnalyticsDailyAggregates => Set<AnalyticsDailyAggregateRecord>();
+    public DbSet<AnalyticsAggregationCheckpointRecord> AnalyticsAggregationCheckpoints => Set<AnalyticsAggregationCheckpointRecord>();
+    public DbSet<AnalyticsExportRecord> AnalyticsExports => Set<AnalyticsExportRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -79,6 +88,7 @@ public sealed class ApplicationDbContext : DbContext
 
         ConfigureWorkspaceIdentity(modelBuilder);
         ConfigureSettings(modelBuilder);
+        ConfigureAnalytics(modelBuilder);
 
         modelBuilder.Entity<KnowledgeCollectionRecord>(entity =>
         {
@@ -561,6 +571,8 @@ public sealed class ApplicationDbContext : DbContext
     {
         if (ChangeTracker.Entries<AuditEventRecord>().Any(item => item.State is EntityState.Modified or EntityState.Deleted))
             throw new InvalidOperationException("Audit events are append-only and cannot be changed or removed.");
+        if (ChangeTracker.Entries<AnalyticsEventRecord>().Any(item => item.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Analytics events are append-only and cannot be changed or removed.");
         var workspaceId = CurrentWorkspaceId ?? WorkspaceIdentityDefaults.WorkspaceId;
         foreach (var entry in ChangeTracker.Entries().Where(item => item.State == EntityState.Added))
         {
@@ -744,6 +756,103 @@ public sealed class ApplicationDbContext : DbContext
             entity.HasIndex(item => new { item.WorkspaceId, item.ChangedAt });
             entity.HasIndex(item => new { item.EnvironmentId, item.ChangedAt });
             entity.HasIndex(item => new { item.OrganisationId, item.ChangedAt });
+        });
+    }
+
+    private static void ConfigureAnalytics(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ConfigurationSnapshotRecord>(entity =>
+        {
+            entity.ToTable("ConfigurationSnapshots"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Revision).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.ValuesJson).IsRequired();
+            entity.Property(item => item.ProvenanceJson).IsRequired();
+            entity.HasIndex(item => new { item.OrganisationId, item.WorkspaceId, item.EnvironmentId, item.Revision }).IsUnique();
+        });
+        modelBuilder.Entity<ExecutionAttributionRecord>(entity =>
+        {
+            entity.ToTable("ExecutionAttributions"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.ActorType).HasMaxLength(40).IsRequired();
+            entity.Property(item => item.ActorRole).HasMaxLength(50);
+            entity.Property(item => item.SourceResourceType).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.ConfigurationRevision).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.CorrelationId).HasMaxLength(100).IsRequired();
+            entity.Property(item => item.AttributionStatus).HasMaxLength(50).IsRequired();
+            entity.Property(item => item.BackfillVersion).HasMaxLength(50);
+            entity.HasIndex(item => new { item.SourceResourceType, item.SourceResourceId }).IsUnique();
+            entity.HasIndex(item => new { item.WorkspaceId, item.EnvironmentId, item.CreatedAt });
+        });
+        modelBuilder.Entity<AnalyticsOutboxRecord>(entity =>
+        {
+            entity.ToTable("AnalyticsOutbox"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.EventKey).HasMaxLength(64).IsRequired();
+            entity.Property(item => item.PayloadJson).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.LastError).HasMaxLength(2000);
+            entity.HasIndex(item => item.EventKey).IsUnique();
+            entity.HasIndex(item => new { item.Status, item.AvailableAt });
+        });
+        modelBuilder.Entity<AnalyticsEventRecord>(entity =>
+        {
+            entity.ToTable("AnalyticsEvents"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.EventKey).HasMaxLength(64).IsRequired();
+            entity.Property(item => item.ActorType).HasMaxLength(40).IsRequired();
+            entity.Property(item => item.ActorRole).HasMaxLength(50);
+            entity.Property(item => item.Capability).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.EventType).HasMaxLength(100).IsRequired();
+            entity.Property(item => item.Outcome).HasMaxLength(40).IsRequired();
+            entity.Property(item => item.Provider).HasMaxLength(100);
+            entity.Property(item => item.Model).HasMaxLength(160);
+            entity.Property(item => item.CostZar).HasPrecision(18, 6);
+            entity.Property(item => item.CostType).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.PricingRevision).HasMaxLength(80);
+            entity.Property(item => item.SourceType).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.PromptName).HasMaxLength(240);
+            entity.Property(item => item.WorkflowName).HasMaxLength(240);
+            entity.Property(item => item.ConfigurationRevision).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.CorrelationId).HasMaxLength(100).IsRequired();
+            entity.HasIndex(item => item.EventKey).IsUnique();
+            entity.HasIndex(item => new { item.WorkspaceId, item.EnvironmentId, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.CorrelationId, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.Capability, item.OccurredAt });
+        });
+        ConfigureAggregate<AnalyticsHourlyAggregateRecord>(modelBuilder, "AnalyticsHourlyAggregates");
+        ConfigureAggregate<AnalyticsDailyAggregateRecord>(modelBuilder, "AnalyticsDailyAggregates");
+        modelBuilder.Entity<AnalyticsAggregationCheckpointRecord>(entity =>
+        {
+            entity.ToTable("AnalyticsAggregationCheckpoints"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Granularity).HasMaxLength(20).IsRequired();
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasIndex(item => new { item.WorkspaceId, item.Granularity }).IsUnique();
+        });
+        modelBuilder.Entity<AnalyticsExportRecord>(entity =>
+        {
+            entity.ToTable("AnalyticsExports"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.FileName).HasMaxLength(240).IsRequired();
+            entity.Property(item => item.FiltersJson).IsRequired();
+            entity.Property(item => item.Checksum).HasMaxLength(80);
+            entity.Property(item => item.FailureReason).HasMaxLength(2000);
+            entity.HasIndex(item => new { item.WorkspaceId, item.CreatedAt });
+            entity.HasIndex(item => new { item.Status, item.CreatedAt });
+        });
+    }
+
+    private static void ConfigureAggregate<T>(ModelBuilder modelBuilder, string table)
+        where T : AnalyticsAggregateRecord
+    {
+        modelBuilder.Entity<T>(entity =>
+        {
+            entity.ToTable(table); entity.HasKey(item => item.Id);
+            entity.Property(item => item.AggregateKey).HasMaxLength(64).IsRequired();
+            entity.Property(item => item.Provider).HasMaxLength(100);
+            entity.Property(item => item.Model).HasMaxLength(160);
+            entity.Property(item => item.Capability).HasMaxLength(80);
+            entity.Property(item => item.Outcome).HasMaxLength(40);
+            entity.Property(item => item.ActualCostZar).HasPrecision(18, 6);
+            entity.Property(item => item.EstimatedCostZar).HasPrecision(18, 6);
+            entity.HasIndex(item => item.AggregateKey).IsUnique();
+            entity.HasIndex(item => new { item.WorkspaceId, item.EnvironmentId, item.BucketStart });
         });
     }
 }

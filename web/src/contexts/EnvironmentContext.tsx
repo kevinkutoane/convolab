@@ -1,13 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { RuntimeEnvironment } from "../types/settings";
 import { useAuth } from "./useAuth";
+import { setRuntimeEnvironmentId } from "../services/runtimeEnvironment";
+import { prepareAntiforgery } from "../services/authApi";
 
 interface EnvironmentContextValue {
   environments: RuntimeEnvironment[];
   activeEnvironment?: RuntimeEnvironment;
   activeEnvironmentId?: string;
-  setActiveEnvironmentId: (id: string) => void;
+  setActiveEnvironmentId: (id: string) => Promise<void>;
   isLoading: boolean;
+  isSwitching: boolean;
   refetch: () => void;
 }
 
@@ -33,6 +36,7 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
   });
   // Track selections per workspace so switching workspaces restores the stored choice.
   const [selections, setSelections] = useState<Record<string, string | undefined>>({});
+  const [isSwitching, setIsSwitching] = useState(false);
   const epochRef = useRef(0);
 
   const load = useCallback(() => {
@@ -87,13 +91,34 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
     );
   }, [environments, selectedId]);
 
+  useEffect(() => {
+    setRuntimeEnvironmentId(activeEnvironment?.id);
+    return () => setRuntimeEnvironmentId(undefined);
+  }, [activeEnvironment?.id]);
+
   const setActiveEnvironmentId = useCallback(
-    (id: string) => {
-      if (!workspaceId) return;
-      setSelections(current => ({ ...current, [workspaceId]: id }));
-      localStorage.setItem(storageKey(workspaceId), id);
+    async (id: string) => {
+      if (!workspaceId || id === activeEnvironment?.id) return;
+      setIsSwitching(true);
+      try {
+        const token = await prepareAntiforgery(true);
+        const response = await fetch(`/api/workspaces/${workspaceId}/environments/${id}/select`, {
+          method: "POST",
+          credentials: "include",
+          headers: token ? { "X-XSRF-TOKEN": token } : undefined,
+        });
+        if (!response.ok) throw new Error(`Environment selection failed (${response.status}).`);
+        const detail: { tasks: Promise<unknown>[] } = { tasks: [] };
+        window.dispatchEvent(new CustomEvent("convolab:environment-changing", { detail }));
+        await Promise.all(detail.tasks);
+        setSelections(current => ({ ...current, [workspaceId]: id }));
+        localStorage.setItem(storageKey(workspaceId), id);
+        setRuntimeEnvironmentId(id);
+      } finally {
+        setIsSwitching(false);
+      }
     },
-    [workspaceId],
+    [workspaceId, activeEnvironment?.id],
   );
 
   const value = useMemo<EnvironmentContextValue>(
@@ -103,9 +128,10 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
       activeEnvironmentId: activeEnvironment?.id,
       setActiveEnvironmentId,
       isLoading: state.isLoading,
+      isSwitching,
       refetch: load,
     }),
-    [environments, activeEnvironment, setActiveEnvironmentId, state.isLoading, load],
+    [environments, activeEnvironment, setActiveEnvironmentId, state.isLoading, isSwitching, load],
   );
 
   return <EnvironmentContext.Provider value={value}>{children}</EnvironmentContext.Provider>;

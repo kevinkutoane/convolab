@@ -1,6 +1,6 @@
 # ConvoLab Architecture Handbook v1
 
-This handbook is the architecture baseline for Platform Core and ConvoLab Studio `v1.0.0-alpha.13`.
+This handbook is the architecture baseline for Platform Core and ConvoLab Studio `v1.0.0-alpha.14`.
 
 ## Contents
 
@@ -11,6 +11,7 @@ This handbook is the architecture baseline for Platform Core and ConvoLab Studio
 - [Product readiness assessment](ProductReadinessAssessment.md)
 - [Versioning and compatibility](Versioning.md)
 - [Platform manifest](../PlatformManifest.md)
+- [Platform Analytics v1](../PlatformAnalytics.md)
 - [Capability map](../CapabilityMap.md)
 - [Context map](../ContextMap.md)
 - [Event catalog](../EventCatalog.md)

@@ -37,6 +37,7 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 - Knowledge Engine
 - Intelligence Engine
 - Execution
+- Platform Analytics v1
 
 ### Capability foundations
 
@@ -51,7 +52,7 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 
 ## Current release
 
-Platform Core and Studio are at `v1.0.0-alpha.13`. Existing functional v1 capabilities remain stable. Workspace/IAM is active until the complete isolation and security acceptance suite passes; managed environments, secret governance, and production SSO remain beta blockers.
+Platform Core and Studio are at `v1.0.0-alpha.14`. Existing functional v1 capabilities remain stable. Platform Analytics adds trusted environment attribution, safe operational evidence, cost classification, restart-safe processing, and permission-filtered workspace views. Managed secret providers and production SSO remain beta blockers.
 
 ## Planned products
 
@@ -65,7 +66,7 @@ Platform Core and Studio are at `v1.0.0-alpha.13`. Existing functional v1 capabi
 - Trace Explorer
 - Replay Studio
 - AI Playground
-- Analytics and Operations Console
+- Analytics and Operations Console (workspace/environment v1 active; platform-wide rollups reserved)
 
 ## Target users
 

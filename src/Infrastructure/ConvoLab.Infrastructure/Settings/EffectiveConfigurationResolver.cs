@@ -6,6 +6,7 @@ using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Settings;
 using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.Analytics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -79,13 +80,11 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
             .OrderBy(result => result.Key, StringComparer.Ordinal)
             .Select(result => string.Join('\u001f',
                 result.Key,
-                result.EffectiveValue ?? "null",
-                result.SourceScope.ToString(),
-                result.SourceId?.ToString("N") ?? "platform")));
+                result.EffectiveValue ?? "null")));
         var revision = $"sha256:{Convert.ToHexString(
             SHA256.HashData(Encoding.UTF8.GetBytes(revisionPayload))).ToLowerInvariant()}";
 
-        return new ConfigurationSnapshot(
+        var snapshot = new ConfigurationSnapshot(
             revision, environmentId,
             env?.Name ?? environmentId.ToString(),
             Get(SettingKeys.AiProvider), Get(SettingKeys.AiModel),
@@ -96,6 +95,31 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
             GetBool(SettingKeys.PolicyEnforcementEnabled),
             GetBool(SettingKeys.FeatureProviderExecution),
             flags, DateTimeOffset.UtcNow);
+        if (!await _db.ConfigurationSnapshots.AnyAsync(item =>
+            item.OrganisationId == organisationId && item.WorkspaceId == workspaceId
+            && item.EnvironmentId == environmentId && item.Revision == revision, ct))
+        {
+            _db.ConfigurationSnapshots.Add(new ConfigurationSnapshotRecord
+            {
+                Id = Guid.NewGuid(), OrganisationId = organisationId, WorkspaceId = workspaceId,
+                EnvironmentId = environmentId, Revision = revision,
+                ValuesJson = JsonSerializer.Serialize(results
+                    .Where(item => !item.IsSecret)
+                    .OrderBy(item => item.Key)
+                    .ToDictionary(item => item.Key, item => item.EffectiveValue)),
+                ProvenanceJson = JsonSerializer.Serialize(results
+                    .Where(item => !item.IsSecret)
+                    .OrderBy(item => item.Key)
+                    .ToDictionary(item => item.Key, item => new
+                    {
+                        scope = item.SourceScope.ToString(),
+                        sourceId = item.SourceId
+                    })),
+                CreatedAt = snapshot.CreatedAt
+            });
+            await _db.SaveChangesAsync(ct);
+        }
+        return snapshot;
     }
 
     // ──────────────────────────────────────────────────────────────────────────

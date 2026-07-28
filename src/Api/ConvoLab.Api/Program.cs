@@ -134,6 +134,7 @@ try
     });
     app.UseMiddleware<CapabilityPermissionMiddleware>();
     app.UseMiddleware<RouteScopeAuthorizationMiddleware>();
+    app.UseMiddleware<RuntimeEnvironmentMiddleware>();
     app.UseMiddleware<GovernedActivityAuditMiddleware>();
     app.MapControllers();
 

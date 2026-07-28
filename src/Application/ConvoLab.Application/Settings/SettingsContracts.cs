@@ -159,6 +159,7 @@ public interface IEnvironmentService
     Task SuspendAsync(Guid workspaceId, Guid environmentId, long expectedRevision, bool isAdmin, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default);
     Task ArchiveAsync(Guid workspaceId, Guid environmentId, long expectedRevision, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default);
     Task MakeDefaultAsync(Guid workspaceId, Guid environmentId, long expectedRevision, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default);
+    Task<EnvironmentDto> SelectAsync(Guid workspaceId, Guid environmentId, Guid actorId, string actorType, string? actorRole, string correlationId, CancellationToken ct = default);
 }
 
 public interface ISettingsService

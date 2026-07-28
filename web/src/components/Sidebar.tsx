@@ -83,9 +83,9 @@ export function Sidebar({
         <div className="sidebar-footer">
           {!collapsed && (
             <div className="workspace-card">
-              <span className="workspace-kicker">Platform Core</span>
-              <strong>v1.0.0-alpha.13</strong>
-              <span>Environment &amp; settings management in acceptance.</span>
+              <span className="workspace-kicker">Engineering workspace</span>
+              <strong>v1.0.0-alpha.14</strong>
+              <span>Platform Analytics v1 with trusted runtime attribution.</span>
             </div>
           )}
           <button

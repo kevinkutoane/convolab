@@ -6,7 +6,7 @@
 
 ## Current milestone
 
-- **Platform Core / Studio:** `v1.0.0-alpha.13`
+- **Platform Core / Studio:** `v1.0.0-alpha.14`
 - **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
@@ -32,6 +32,7 @@
 | Trace Explorer | Persisted traces, spans, events, correlations, redaction, and artifacts | Stable |
 | Replay Studio | Immutable baselines, governed candidates, comparisons, findings, and lifecycle | Stable |
 | Plugin Center | Persistent registry, immutable versions, compatibility, lifecycle, health, capabilities, and permissions | Stable |
+| Platform Analytics | Trusted environment attribution, safe append-only evidence, cost classification, aggregation, exports, and operational views | Active |
 | Workspace, Identity and Access | Local authentication, organisations, workspaces, RBAC, service identities, isolation, and audit | Active |
 | ConvoLab Studio | Visual engineering workspace consuming Platform Core | Active |
 

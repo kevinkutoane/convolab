@@ -148,6 +148,75 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
     }
 
     [Fact]
+    public async Task Correlation_is_server_generated_and_client_value_is_only_parent_metadata()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/health/live");
+        request.Headers.Add("X-Correlation-ID", "client-controlled-value");
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var correlation = Assert.Single(response.Headers.GetValues("X-Correlation-ID"));
+        Assert.NotEqual("client-controlled-value", correlation);
+        Assert.True(Guid.TryParseExact(correlation, "N", out _));
+        Assert.Equal("client-controlled-value", Assert.Single(response.Headers.GetValues("X-Parent-Correlation-ID")));
+    }
+
+    [Fact]
+    public async Task Execution_environment_is_validated_and_defaulted_without_refresh()
+    {
+        using var malformed = new HttpRequestMessage(HttpMethod.Post, "/api/simulations")
+        {
+            Content = JsonContent.Create(new
+            {
+                title = "Malformed environment",
+                workflow = "Workflow",
+                promptVersion = "Prompt",
+                knowledgeCollection = "Knowledge"
+            })
+        };
+        malformed.Headers.Add("X-ConvoLab-Environment-Id", "not-a-guid");
+        var malformedResponse = await _client.SendAsync(malformed);
+        Assert.Equal(HttpStatusCode.BadRequest, malformedResponse.StatusCode);
+        Assert.Contains("runtime_environment.invalid", await malformedResponse.Content.ReadAsStringAsync());
+
+        using var foreign = new HttpRequestMessage(HttpMethod.Post, "/api/simulations")
+        {
+            Content = JsonContent.Create(new
+            {
+                title = "Foreign environment",
+                workflow = "Workflow",
+                promptVersion = "Prompt",
+                knowledgeCollection = "Knowledge"
+            })
+        };
+        foreign.Headers.Add("X-ConvoLab-Environment-Id", Guid.NewGuid().ToString());
+        var foreignResponse = await _client.SendAsync(foreign);
+        Assert.Equal(HttpStatusCode.NotFound, foreignResponse.StatusCode);
+        Assert.Contains("environment.not_found", await foreignResponse.Content.ReadAsStringAsync());
+
+        var defaulted = await _client.PostAsJsonAsync("/api/simulations", new
+        {
+            title = "Default runtime environment",
+            workflow = "Workflow",
+            promptVersion = "Prompt",
+            knowledgeCollection = "Knowledge"
+        });
+        Assert.Equal(HttpStatusCode.Created, defaulted.StatusCode);
+        var resolved = Assert.Single(defaulted.Headers.GetValues("X-ConvoLab-Resolved-Environment-Id"));
+        Assert.True(Guid.TryParse(resolved, out var resolvedId));
+
+        var selected = await _client.PostAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/environments/{resolvedId}/select",
+            null);
+        Assert.Equal(HttpStatusCode.OK, selected.StatusCode);
+
+        var analytics = await _client.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/overview?environmentId={resolvedId}");
+        Assert.Equal(HttpStatusCode.OK, analytics.StatusCode);
+        Assert.Contains("\"category\":\"overview\"", await analytics.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
     public async Task Validation_Failure_Uses_Problem_Details()
     {
         var response = await _client.PostAsJsonAsync("/api/prompts", new

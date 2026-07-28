@@ -1,4 +1,4 @@
-# Master Checklist Status — v1.0.0-alpha.13
+# Master Checklist Status — v1.0.0-alpha.14
 
 The 22 July 2026 PDF remains the product backlog source, with these stabilization corrections:
 
@@ -8,3 +8,4 @@ The 22 July 2026 PDF remains the product backlog source, with these stabilizatio
 - Workspace, Identity and Access Control v1 is implemented and remains active until its complete security, PostgreSQL, restart, Docker, and browser acceptance suite passes.
 - Opaque sessions, local credentials, organisations, workspaces, memberships, fixed RBAC, service identities, ownership backfill, sensitive-trace audit, and protected Studio routes are implemented.
 - Environment and Secret Management follows Workspace/IAM and remains required for beta.
+- Platform Analytics v1 includes trusted runtime attribution, immutable configuration snapshots, transactional outbox delivery, restart-safe aggregation and exports, permission-filtered APIs, and the lazy-loaded Studio workspace.

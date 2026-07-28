@@ -25,6 +25,7 @@ const QueryRouteOutlet = lazy(() => import("./components/QueryRouteOutlet").then
 const LoginPage = lazy(() => import("./pages/LoginPage").then(module => ({ default: module.LoginPage })));
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage").then(module => ({ default: module.WorkspacePage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(module => ({ default: module.SettingsPage })));
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage").then(module => ({ default: module.AnalyticsPage })));
 
 function StudioRoutes() {
   const { theme, toggleTheme } = useTheme();
@@ -70,10 +71,11 @@ function StudioRoutes() {
           <Route path="policies" element={<PolicyCenterPage />} />
           <Route path="plugins" element={<PluginCenterPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="workspace" element={<WorkspacePage />} />
           <Route path="workspace/select" element={<WorkspacePage selectionOnly />} />
           <Route path="documentation/:topic?" element={<DocumentationPage />} />
-          {Object.entries(studioPages).filter(([key]) => !["conversations", "knowledge", "prompts", "workflows", "intelligence", "evaluations", "traces", "replay", "policies", "plugins", "settings"].includes(key)).map(([key, definition]) => (
+          {Object.entries(studioPages).filter(([key]) => !["conversations", "knowledge", "prompts", "workflows", "intelligence", "evaluations", "traces", "replay", "policies", "plugins", "settings", "analytics"].includes(key)).map(([key, definition]) => (
             <Route key={key} path={key} element={<CapabilityPage definition={definition} topic={key} />} />
           ))}
           <Route path="*" element={<NotFoundPage />} />

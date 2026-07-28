@@ -1,16 +1,11 @@
 import {
-  Activity,
   ArrowRight,
   Boxes,
   CheckCircle2,
   CircleDot,
   Clock3,
   Code2,
-  Database,
-  GitPullRequestArrow,
-  Layers3,
   ShieldCheck,
-  Sparkles,
   TestTube2,
 } from "lucide-react";
 import { useNavigate } from "react-router";
@@ -23,57 +18,32 @@ interface DashboardPageProps {
   status: PlatformStatus;
 }
 
-const recentActivity = [
-  {
-    title: "Studio consolidation milestone started",
-    detail: "Single React Studio selected; ASP.NET Core remains the platform backend.",
-    time: "Current workspace",
-    icon: Layers3,
-  },
-  {
-    title: "Intelligence Engine completed",
-    detail: "Provider-neutral planning, budget, retry, fallback, streaming, and tools modelled.",
-    time: "Platform Core",
-    icon: Sparkles,
-  },
-  {
-    title: "Knowledge Engine completed",
-    detail: "Governed KnowledgePackage is now the only retrieval artifact consumed by prompts.",
-    time: "Platform Core",
-    icon: Database,
-  },
-  {
-    title: "Architecture review v1 initiated",
-    detail: "Public contracts, dependency rules, versioning, and product readiness are being formalized.",
-    time: "Governance",
-    icon: GitPullRequestArrow,
-  },
-];
-
 export function DashboardPage({ status }: DashboardPageProps) {
   const navigate = useNavigate();
   const stableCount = status.capabilities.filter(item => item.status === "stable").length;
   const foundationCount = status.capabilities.filter(item => item.status === "foundation").length;
-  const totalEvents = status.capabilities.reduce((sum, item) => sum + item.domainEvents, 0);
+  const availableCapabilities = status.capabilities
+    .filter(item => item.status === "stable" || item.status === "active")
+    .slice(0, 4);
 
   return (
     <div className="page-stack">
       <section className="hero-panel">
         <div className="hero-copy">
           <div className="hero-kicker">
-            <span className="live-indicator" /> Platform Core v1
+            <span className="live-indicator" /> ConvoLab Studio · v{status.version}
           </div>
-          <h2>Engineering conversational intelligence as a platform.</h2>
+          <h2>Design, test, and operate conversational AI.</h2>
           <p>
-            ConvoLab Studio is the visual workspace for designing, inspecting, testing,
-            and operating the provider-neutral capabilities already built into Platform Core.
+            Build governed conversations, workflows, prompts, and knowledge, then evaluate,
+            trace, replay, and monitor every execution from one engineering workspace.
           </p>
           <div className="hero-actions">
             <button className="primary-button" onClick={() => navigate("/conversations")}>
-              Open Conversation Explorer <ArrowRight size={16} />
+              Open Conversation Simulator <ArrowRight size={16} />
             </button>
             <button className="secondary-button" onClick={() => navigate("/intelligence")}>
-              Inspect Platform Core
+              Open Intelligence Center
             </button>
           </div>
         </div>
@@ -100,9 +70,9 @@ export function DashboardPage({ status }: DashboardPageProps) {
 
       <section className="metrics-grid dashboard-metrics">
         <MetricCard
-          label="Architecture health"
+          label="Platform reliability"
           value={status.architectureHealth}
-          detail="Clean Architecture boundaries enforced"
+          detail="Capability boundaries verified"
           icon={ShieldCheck}
           tone="positive"
         />
@@ -114,10 +84,10 @@ export function DashboardPage({ status }: DashboardPageProps) {
           tone="accent"
         />
         <MetricCard
-          label="Domain events"
-          value={`${totalEvents}+`}
-          detail="Business facts across bounded contexts"
-          icon={Activity}
+          label="Runtime environment"
+          value={status.environment}
+          detail="Current API execution context"
+          icon={TestTube2}
         />
         <MetricCard
           label="Studio status"
@@ -133,7 +103,7 @@ export function DashboardPage({ status }: DashboardPageProps) {
           <div className="panel-header">
             <div>
               <span className="panel-eyebrow">Capability map</span>
-              <h3>Platform Core</h3>
+              <h3>Workspace capabilities</h3>
             </div>
             <button className="text-button" onClick={() => navigate("/intelligence")}>
               View architecture <ArrowRight size={14} />
@@ -186,8 +156,8 @@ export function DashboardPage({ status }: DashboardPageProps) {
               <span className="panel-eyebrow">Architecture fitness</span>
               <h3>Core boundaries protected</h3>
               <p>
-                Domain remains framework-free. Studio consumes Platform Core through API
-                contracts and contains no business orchestration.
+                Isolated capabilities, provider independence, and stable API contracts keep
+                changes predictable while preserving governed execution.
               </p>
             </div>
             <div className="architecture-checks">
@@ -202,27 +172,24 @@ export function DashboardPage({ status }: DashboardPageProps) {
       <section className="panel">
         <div className="panel-header">
           <div>
-            <span className="panel-eyebrow">Engineering activity</span>
-            <h3>Platform evolution</h3>
+            <span className="panel-eyebrow">Ready to use</span>
+            <h3>Available now</h3>
           </div>
           <span className="source-chip">
             <Clock3 size={13} /> {status.source}
           </span>
         </div>
         <div className="activity-grid">
-          {recentActivity.map(item => {
-            const Icon = item.icon;
-            return (
-              <article className="activity-item" key={item.title}>
-                <div className="activity-icon"><Icon size={17} /></div>
+          {availableCapabilities.map(capability => (
+              <article className="activity-item" key={capability.id}>
+                <div className="activity-icon"><CheckCircle2 size={17} /></div>
                 <div>
-                  <strong>{item.title}</strong>
-                  <p>{item.detail}</p>
-                  <span>{item.time}</span>
+                  <strong>{capability.name}</strong>
+                  <p>{capability.description}</p>
+                  <span>{capability.status} · v{capability.version}</span>
                 </div>
               </article>
-            );
-          })}
+          ))}
         </div>
       </section>
     </div>
