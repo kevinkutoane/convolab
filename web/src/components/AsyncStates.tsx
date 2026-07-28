@@ -1,6 +1,6 @@
 import { Component, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle, CheckCircle2, Inbox, LoaderCircle, RefreshCw, WifiOff } from "lucide-react";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 
 export function LoadingState({ label = "Loading workspace…", compact = false }: { label?: string; compact?: boolean }) {
   return <div className={`async-state async-loading${compact ? " async-compact" : ""}`} role="status" aria-live="polite"><LoaderCircle className="spin" size={24} /><span>{label}</span></div>;

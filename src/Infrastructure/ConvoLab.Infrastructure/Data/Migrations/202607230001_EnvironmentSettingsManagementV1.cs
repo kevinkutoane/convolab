@@ -131,19 +131,19 @@ public partial class EnvironmentSettingsManagementV1 : Migration
         migrationBuilder.CreateIndex("IX_ConfigurationChanges_OrganisationId_ChangedAt", "ConfigurationChanges", new[] { "OrganisationId", "ChangedAt" });
 
         // ─── Backfill: seed SettingDefinitions ────────────────────────────
-        SeedSettingDefinitions(migrationBuilder);
+        SeedSettingDefinitions(migrationBuilder, ActiveProvider ?? string.Empty);
 
         // ─── Backfill: create Development environment per workspace ───────
-        BackfillEnvironments(migrationBuilder);
+        BackfillEnvironments(migrationBuilder, ActiveProvider ?? string.Empty);
     }
 
-    private static void SeedSettingDefinitions(MigrationBuilder m)
+    private static void SeedSettingDefinitions(MigrationBuilder m, string activeProvider)
     {
         var now = "2026-07-23 00:00:00+00";
-        if (!ActiveProvider.Contains("Npgsql", StringComparison.Ordinal))
+        if (!activeProvider.Contains("Npgsql", StringComparison.Ordinal))
             now = "2026-07-23 00:00:00+00:00";
 
-        var defs = new[]
+        (string Key, string Cat, string Display, string Desc, string VType, string DefVal, bool IsSecret, bool IsReq, bool AllowOrg, bool AllowWs, bool AllowEnv, string Rules, bool Restart, string Allowed)[] defs =
         {
             // General
             ("general.locale","General","Default Locale","Default locale for the workspace.","String","\"en-ZA\"",false,false,true,true,true,null,false,null),
@@ -201,6 +201,7 @@ public partial class EnvironmentSettingsManagementV1 : Migration
 
         foreach (var (key, cat, display, desc, vtype, defVal, isSecret, isReq, allowOrg, allowWs, allowEnv, rules, restart, allowed) in defs)
         {
+            // Values are rendered as SQL literals; null tuple members become SQL NULL below.
             var defValSql = defVal is null ? "NULL" : $"'{EscapeSql(defVal)}'";
             var rulesSql = rules is null ? "NULL" : $"'{EscapeSql(rules)}'";
             var allowedSql = allowed is null ? "NULL" : $"'{EscapeSql(allowed)}'";
@@ -210,11 +211,11 @@ public partial class EnvironmentSettingsManagementV1 : Migration
             var allowWsSql = allowWs ? "true" : "false";
             var allowEnvSql = allowEnv ? "true" : "false";
             var restartSql = restart ? "true" : "false";
-            var nowSql = ActiveProvider.Contains("Npgsql", StringComparison.Ordinal)
+            var nowSql = activeProvider.Contains("Npgsql", StringComparison.Ordinal)
                 ? $"TIMESTAMPTZ '{now}'"
                 : $"'{now}'";
 
-            if (ActiveProvider.Contains("Npgsql", StringComparison.Ordinal))
+            if (activeProvider.Contains("Npgsql", StringComparison.Ordinal))
             {
                 m.Sql($"INSERT INTO \"SettingDefinitions\" (\"Key\",\"Category\",\"DisplayName\",\"Description\",\"ValueType\",\"DefaultValue\",\"IsSecret\",\"IsRequired\",\"AllowsOrganisationOverride\",\"AllowsWorkspaceOverride\",\"AllowsEnvironmentOverride\",\"ValidationRules\",\"RequiresRestart\",\"AllowedValues\",\"UpdatedAt\") " +
                       $"VALUES ('{key}','{cat}','{display}','{EscapeSql(desc)}','{vtype}',{defValSql},{isSecretSql},{isReqSql},{allowOrgSql},{allowWsSql},{allowEnvSql},{rulesSql},{restartSql},{allowedSql},{nowSql}) " +
@@ -228,12 +229,12 @@ public partial class EnvironmentSettingsManagementV1 : Migration
         }
     }
 
-    private static void BackfillEnvironments(MigrationBuilder m)
+    private static void BackfillEnvironments(MigrationBuilder m, string activeProvider)
     {
         var bootstrapActor = Guid.Parse("30000000-0000-0000-0000-000000000001");
         var now = "2026-07-23 00:00:00+00";
 
-        if (ActiveProvider.Contains("Npgsql", StringComparison.Ordinal))
+        if (activeProvider.Contains("Npgsql", StringComparison.Ordinal))
         {
             m.Sql($@"
 INSERT INTO ""RuntimeEnvironments"" (""Id"", ""OrganisationId"", ""WorkspaceId"", ""Name"", ""Slug"", ""EnvironmentType"", ""Description"", ""Status"", ""IsDefault"", ""CreatedAt"", ""CreatedBy"", ""UpdatedAt"", ""Revision"")
@@ -262,7 +263,7 @@ WHERE NOT EXISTS (
             m.Sql($@"
 INSERT INTO ""RuntimeEnvironments"" (""Id"", ""OrganisationId"", ""WorkspaceId"", ""Name"", ""Slug"", ""EnvironmentType"", ""Description"", ""Status"", ""IsDefault"", ""CreatedAt"", ""CreatedBy"", ""UpdatedAt"", ""Revision"")
 SELECT
-    lower(hex(randomblob(4))) || '-' || lower(hex(randomblob(2))) || '-4' || substr(lower(hex(randomblob(2))),2) || '-' || substr('89ab',abs(random()) % 4 + 1, 1) || substr(lower(hex(randomblob(2))),2) || '-' || lower(hex(randomblob(6))),
+    upper(hex(randomblob(4))) || '-' || upper(hex(randomblob(2))) || '-4' || substr(upper(hex(randomblob(2))),2) || '-' || substr('89AB',abs(random()) % 4 + 1, 1) || substr(upper(hex(randomblob(2))),2) || '-' || upper(hex(randomblob(6))),
     w.""OrganisationId"",
     w.""Id"",
     'Development',

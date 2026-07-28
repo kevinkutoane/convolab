@@ -1,5 +1,5 @@
 import { BookOpen, CheckCircle2, Code2, ExternalLink, Layers3 } from "lucide-react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 
 const topics = {
   evaluation: {

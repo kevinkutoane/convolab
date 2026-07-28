@@ -12,6 +12,7 @@
 - **Tracing** — traces, nested spans, events, metrics, artifacts, and cross-capability correlation.
 - **Plugins** — provider, tool, connector, channel, evaluator, and enterprise extension contracts.
 - **Identity** — future users, tenants, teams, roles, service identities, and audit actors.
+- **Environment & Settings Management** — governed settings model, effective configuration resolution, production safeguards, and Studio management UI.
 
 ## Engineering products
 

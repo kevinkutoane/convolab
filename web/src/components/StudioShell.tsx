@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import type { PlatformStatus } from "../types/platform";
+import { EnvironmentProvider } from "../contexts/EnvironmentContext";
 import { CommandPalette } from "./CommandPalette";
 import { Sidebar } from "./Sidebar";
 import { StatusBar } from "./StatusBar";
@@ -35,6 +36,7 @@ export function StudioShell({
   }, []);
 
   return (
+    <EnvironmentProvider>
     <div className={`studio-shell${sidebarCollapsed ? " shell-sidebar-collapsed" : ""}`}>
       <Sidebar
         collapsed={sidebarCollapsed}
@@ -57,5 +59,6 @@ export function StudioShell({
       </div>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
+    </EnvironmentProvider>
   );
 }

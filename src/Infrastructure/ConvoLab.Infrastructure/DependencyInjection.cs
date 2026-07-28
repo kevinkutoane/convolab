@@ -101,6 +101,7 @@ public static class DependencyInjection
         services.AddScoped<ISettingsService, SettingsService>();
         services.AddScoped<ISecretReferenceService, SecretReferenceService>();
         services.AddScoped<IEffectiveConfigurationResolver, EffectiveConfigurationResolver>();
+        services.AddScoped<IProviderValidationService, ProviderValidationService>();
         services.AddSingleton<ISecretStore, EnvironmentSecretStore>();
         services.AddScoped<SettingsBootstrapper>();
 

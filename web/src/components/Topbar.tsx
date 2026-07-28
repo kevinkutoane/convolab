@@ -12,10 +12,11 @@ import {
   Building2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import { navigationItems } from "../data/platform";
 import type { PlatformStatus } from "../types/platform";
 import { useAuth } from "../contexts/useAuth";
+import { useEnvironment } from "../contexts/EnvironmentContext";
 
 interface TopbarProps {
   theme: "dark" | "light";
@@ -37,6 +38,7 @@ export function Topbar({
   const [hasUnread, setHasUnread] = useState(true);
   const [userOpen, setUserOpen] = useState(false);
   const auth = useAuth();
+  const environment = useEnvironment();
   const activeWorkspace = auth.session?.workspaces.find(item => item.id === auth.session?.activeWorkspaceId);
 
   useEffect(() => {
@@ -74,9 +76,25 @@ export function Topbar({
 
       <div className="topbar-actions">
         <select className="workspace-switcher" aria-label="Switch workspace" value={activeWorkspace?.id ?? ""} onChange={event => auth.switchWorkspace(event.target.value)}>{auth.session?.workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        <span className="environment-chip">
-          <span className="environment-dot" /> Development
-        </span>
+        {environment.environments.length > 0 ? (
+          <span className={`environment-chip environment-${environment.activeEnvironment?.environmentType.toLowerCase() ?? "development"}`}>
+            <span className="environment-dot" />
+            <select
+              className="environment-switcher"
+              aria-label="Switch environment"
+              value={environment.activeEnvironmentId ?? ""}
+              onChange={event => environment.setActiveEnvironmentId(event.target.value)}
+            >
+              {environment.environments.map(item => (
+                <option key={item.id} value={item.id}>{item.name}{item.isDefault ? " (default)" : ""}</option>
+              ))}
+            </select>
+          </span>
+        ) : (
+          <span className="environment-chip">
+            <span className="environment-dot" /> No environment
+          </span>
+        )}
         <div className="notification-control">
           <button className="icon-button" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(value => !value)}>
             <Bell size={18} />

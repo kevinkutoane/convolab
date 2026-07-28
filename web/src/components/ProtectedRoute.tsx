@@ -1,4 +1,4 @@
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { ErrorState, LoadingState } from "./AsyncStates";
 import { useAuth } from "../contexts/useAuth";
 

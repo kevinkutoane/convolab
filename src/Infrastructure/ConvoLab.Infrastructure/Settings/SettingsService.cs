@@ -110,7 +110,10 @@ public sealed class SettingsService : ISettingsService
         take = Math.Clamp(take, 1, 500);
         var query = _db.ConfigurationChanges.AsNoTracking().Where(c => c.WorkspaceId == workspaceId);
         if (environmentId.HasValue) query = query.Where(c => c.EnvironmentId == environmentId);
-        var rows = await query.OrderByDescending(c => c.ChangedAt).Take(take).ToListAsync(ct);
+        // SQLite cannot ORDER BY DateTimeOffset columns; fetch the workspace-scoped
+        // subset (append-only, bounded per workspace) and order client-side.
+        var fetched = await query.ToListAsync(ct);
+        var rows = fetched.OrderByDescending(c => c.ChangedAt).Take(take).ToList();
         var envNames = await _db.RuntimeEnvironments.AsNoTracking()
             .Where(e => rows.Select(r => r.EnvironmentId).Contains(e.Id))
             .ToDictionaryAsync(e => e.Id, e => e.Name, ct);
@@ -149,32 +152,141 @@ public sealed class SettingsService : ISettingsService
 
     public async Task<IReadOnlyList<ConfigurationChangeDto>> ImportAsync(Guid workspaceId, Guid environmentId, ImportConfigurationRequest request, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
     {
-        ConfigurationExportDto export;
-        try { export = JsonSerializer.Deserialize<ConfigurationExportDto>(request.SettingsJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!; }
+        ConfigurationExportDto? export;
+        try { export = JsonSerializer.Deserialize<ConfigurationExportDto>(request.SettingsJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }); }
         catch { throw new RequestValidationException("import.invalid_json", "The import payload is not valid JSON."); }
 
-        if (export is null || export.Settings is null)
+        if (export?.Settings is null)
             throw new RequestValidationException("import.invalid_format", "The import payload does not match the expected format.");
-
-        var changes = new List<ConfigurationChangeDto>();
-        if (request.ValidateOnly) return changes;
+        if (export.SchemaVersion != "1.0")
+            throw new RequestValidationException("import.unsupported_schema", $"Unsupported export schema version '{export.SchemaVersion}'. Expected '1.0'.");
 
         var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
             ?? throw NotFound("workspace", workspaceId);
+        var env = await _db.RuntimeEnvironments.AsNoTracking().SingleOrDefaultAsync(e => e.Id == environmentId && e.WorkspaceId == workspaceId, ct)
+            ?? throw NotFound("environment", environmentId);
+        if (env.Status == "Archived")
+            throw new ResourceConflictException("environment.archived", "Archived environments are immutable.");
 
+        var defs = await _db.SettingDefinitions.AsNoTracking().ToDictionaryAsync(d => d.Key, ct);
+        var currentRows = await _db.SettingValues.AsNoTracking()
+            .Where(sv => sv.Scope == "Environment" && sv.EnvironmentId == environmentId)
+            .ToDictionaryAsync(sv => sv.DefinitionKey, ct);
+
+        // ─── Stage 1: validate every entry and build the preview ────────────
+        var now = DateTimeOffset.UtcNow;
+        var preview = new List<(ExportedSettingDto Setting, SettingDefinitionRecord? Def, string Outcome, string? Message)>();
         foreach (var setting in export.Settings)
         {
-            if (string.IsNullOrWhiteSpace(setting.Key) || setting.Value is null) continue;
-            var def = await _db.SettingDefinitions.AsNoTracking().SingleOrDefaultAsync(d => d.Key == setting.Key, ct);
-            if (def is null || def.IsSecret) continue;
+            if (string.IsNullOrWhiteSpace(setting.Key) || setting.Value is null)
+            { preview.Add((setting, null, "Skipped", "Missing key or value.")); continue; }
 
-            var upsertRequest = new UpsertSettingRequest(setting.Value, request.Reason, null);
-            var dto = await UpsertAsync("Environment", ws.OrganisationId, workspaceId, environmentId, setting.Key, upsertRequest, actorId, actorDisplay, correlationId, ct);
-            changes.Add(new ConfigurationChangeDto(Guid.NewGuid(), setting.Key, null, setting.Value ?? "", actorDisplay, DateTimeOffset.UtcNow, request.Reason, correlationId, "Succeeded", null));
+            if (!defs.TryGetValue(setting.Key, out var def))
+            { preview.Add((setting, null, "Skipped", "Unknown setting key.")); continue; }
+
+            if (def.IsSecret)
+            { preview.Add((setting, def, "Skipped", "Secret values are never imported.")); continue; }
+
+            if (!def.AllowsEnvironmentOverride)
+            { preview.Add((setting, def, "Skipped", "This setting cannot be overridden at environment scope.")); continue; }
+
+            var validation = SettingValueValidator.Validate(ToDomainDefinition(def), setting.Value);
+            if (!validation.IsValid)
+            { preview.Add((setting, def, "Invalid", validation.Message)); continue; }
+
+            var isChange = !currentRows.TryGetValue(setting.Key, out var current) || current.ValueJson != setting.Value;
+            preview.Add((setting, def, isChange ? "Apply" : "Unchanged", null));
         }
 
+        if (preview.Any(p => p.Outcome == "Invalid"))
+        {
+            var firstInvalid = preview.First(p => p.Outcome == "Invalid");
+            throw new RequestValidationException("import.invalid_values",
+                $"Import rejected: '{firstInvalid.Setting.Key}' — {firstInvalid.Message} No settings were changed.");
+        }
+
+        ConfigurationChangeDto ToPreviewDto((ExportedSettingDto Setting, SettingDefinitionRecord? Def, string Outcome, string? Message) p) =>
+            new(Guid.NewGuid(), p.Setting.Key,
+                currentRows.TryGetValue(p.Setting.Key, out var cur) ? SummariseSafe(p.Def?.IsSecret ?? false, cur.ValueJson) : "(inherited)",
+                p.Setting.Value is null ? "" : SummariseSafe(p.Def?.IsSecret ?? false, p.Setting.Value),
+                actorDisplay, now, p.Message ?? request.Reason, correlationId,
+                request.ValidateOnly ? $"Preview:{p.Outcome}" : p.Outcome, env.Name);
+
+        if (request.ValidateOnly)
+            return preview.Select(ToPreviewDto).ToList();
+
+        // ─── Stage 2: apply atomically ──────────────────────────────────
+        var changes = new List<ConfigurationChangeDto>();
+        var strategy = _db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var transaction = await _db.Database.BeginTransactionAsync(ct);
+            foreach (var entry in preview.Where(p => p.Outcome == "Apply"))
+            {
+                var upsertRequest = new UpsertSettingRequest(entry.Setting.Value!, request.Reason ?? "Configuration import", null);
+                await UpsertAsync("Environment", ws.OrganisationId, workspaceId, environmentId, entry.Setting.Key, upsertRequest, actorId, actorDisplay, correlationId, ct);
+            }
+            await transaction.CommitAsync(ct);
+        });
+
+        changes.AddRange(preview.Select(ToPreviewDto));
         return changes;
     }
+
+    public async Task<SettingsValidationResultDto> ValidateEnvironmentSettingsAsync(Guid workspaceId, Guid environmentId, CancellationToken ct = default)
+    {
+        var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
+            ?? throw NotFound("workspace", workspaceId);
+        _ = await _db.RuntimeEnvironments.AsNoTracking().SingleOrDefaultAsync(e => e.Id == environmentId && e.WorkspaceId == workspaceId, ct)
+            ?? throw NotFound("environment", environmentId);
+
+        var defs = await _db.SettingDefinitions.AsNoTracking().ToDictionaryAsync(d => d.Key, ct);
+        var effective = await _resolver.ResolveAsync(ws.OrganisationId, workspaceId, environmentId, ct);
+
+        var entries = new List<SettingValidationEntryDto>();
+        foreach (var result in effective)
+        {
+            if (!defs.TryGetValue(result.Key, out var def)) continue;
+            if (result.EffectiveValue is null)
+            {
+                entries.Add(new SettingValidationEntryDto(result.Key, result.DisplayName, result.Category,
+                    def.IsRequired ? "Invalid" : "Valid",
+                    def.IsRequired ? "A required setting has no value at any scope." : null,
+                    result.SourceScope.ToString()));
+                continue;
+            }
+            var validation = SettingValueValidator.Validate(ToDomainDefinition(def), result.EffectiveValue);
+            entries.Add(new SettingValidationEntryDto(result.Key, result.DisplayName, result.Category,
+                validation.Status, validation.Message, result.SourceScope.ToString()));
+        }
+
+        // Cross-field rule: budget warning threshold must sit below the hard stop.
+        var warn = GetDecimalValue(effective, SettingKeys.BudgetWarningThreshold);
+        var hard = GetDecimalValue(effective, SettingKeys.BudgetHardStopThreshold);
+        if (warn.HasValue && hard.HasValue && warn.Value >= hard.Value)
+        {
+            entries.Add(new SettingValidationEntryDto(SettingKeys.BudgetWarningThreshold,
+                "Budget Warning Threshold", "Budget", "Invalid",
+                "The warning threshold must be lower than the hard-stop threshold.", "Environment"));
+        }
+
+        var invalid = entries.Count(e => e.Status == "Invalid");
+        var warnings = entries.Count(e => e.Status == "Warning");
+        return new SettingsValidationResultDto(invalid == 0, entries.Count, invalid, warnings, entries, DateTimeOffset.UtcNow);
+    }
+
+    private static decimal? GetDecimalValue(IReadOnlyList<EffectiveSettingResult> results, string key)
+    {
+        var raw = results.FirstOrDefault(r => r.Key == key)?.EffectiveValue?.Trim('"');
+        return decimal.TryParse(raw, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+    }
+
+    private static SettingDefinition ToDomainDefinition(SettingDefinitionRecord r) =>
+        new(r.Key, r.Category, r.DisplayName, r.Description,
+            Enum.Parse<SettingValueType>(r.ValueType), r.DefaultValue,
+            r.IsSecret, r.IsRequired,
+            r.AllowsOrganisationOverride, r.AllowsWorkspaceOverride, r.AllowsEnvironmentOverride,
+            r.ValidationRules, r.RequiresRestart, r.AllowedValues);
 
     // ─── Internal helpers ─────────────────────────────────────────────────────
 
@@ -184,14 +296,55 @@ public sealed class SettingsService : ISettingsService
         Guid actorId, string actorDisplay, string correlationId, CancellationToken ct)
     {
         var def = await _db.SettingDefinitions.AsNoTracking().SingleOrDefaultAsync(d => d.Key == settingKey, ct)
-            ?? throw NotFound("setting_definition", Guid.Empty);
+            ?? throw new ResourceNotFoundException("setting_definition.not_found", $"Setting '{settingKey}' is not defined.");
 
         if (string.IsNullOrWhiteSpace(request.ValueJson))
             throw new RequestValidationException("setting.value_required", "A value is required.");
 
+        // ─── Scope override rules from the definition ──────────────────────
+        var overrideAllowed = scope switch
+        {
+            "Organisation" => def.AllowsOrganisationOverride,
+            "Workspace" => def.AllowsWorkspaceOverride,
+            "Environment" => def.AllowsEnvironmentOverride,
+            _ => false
+        };
+        if (!overrideAllowed)
+            throw new RequestValidationException("setting.scope_not_allowed",
+                $"Setting '{settingKey}' cannot be overridden at {scope} scope.");
+
+        // ─── Typed validation against the definition ───────────────────────
+        var validation = SettingValueValidator.Validate(ToDomainDefinition(def), request.ValueJson);
+        if (!validation.IsValid)
+            throw new RequestValidationException("setting.invalid_value", validation.Message ?? "The value is invalid for this setting.");
+
+        // ─── Production safeguards ─────────────────────────────────────────
+        if (scope == "Environment" && envId.HasValue)
+        {
+            var env = await _db.RuntimeEnvironments.AsNoTracking().SingleOrDefaultAsync(e => e.Id == envId.Value, ct);
+            if (env?.EnvironmentType == "Production")
+            {
+                if (string.IsNullOrWhiteSpace(request.Reason))
+                    throw new RequestValidationException("setting.reason_required",
+                        "Changes to Production environments require a reason.");
+
+                var disablesEnforcement = ProtectedSettingKeys.IsEnforcementKey(settingKey) &&
+                    request.ValueJson.Trim().Trim('"').Equals("false", StringComparison.OrdinalIgnoreCase);
+                if (disablesEnforcement && !request.ConfirmProtectedChange)
+                    throw new RequestValidationException("setting.confirmation_required",
+                        "Disabling policy enforcement in Production requires explicit confirmation. Set confirmProtectedChange to true.");
+            }
+        }
+
+        // Scope identifiers are stored sparsely: only the id matching the scope is set.
+        // The query below must mirror the insert exactly, or updates create duplicates.
+        Guid? scopedOrg = scope == "Organisation" ? orgId : null;
+        Guid? scopedWs = scope == "Workspace" ? wsId : null;
+        Guid? scopedEnv = scope == "Environment" ? envId : null;
+
         var existing = await _db.SettingValues.SingleOrDefaultAsync(sv =>
             sv.DefinitionKey == settingKey && sv.Scope == scope &&
-            sv.OrganisationId == orgId && sv.WorkspaceId == wsId && sv.EnvironmentId == envId, ct);
+            sv.OrganisationId == scopedOrg && sv.WorkspaceId == scopedWs && sv.EnvironmentId == scopedEnv, ct);
 
         var now = DateTimeOffset.UtcNow;
         string? previous = existing?.ValueJson;
@@ -210,9 +363,9 @@ public sealed class SettingsService : ISettingsService
             existing = new SettingValueRecord
             {
                 Id = Guid.NewGuid(), DefinitionKey = settingKey, Scope = scope,
-                OrganisationId = scope == "Organisation" ? orgId : null,
-                WorkspaceId = scope == "Workspace" ? wsId : null,
-                EnvironmentId = scope == "Environment" ? envId : null,
+                OrganisationId = scopedOrg,
+                WorkspaceId = scopedWs,
+                EnvironmentId = scopedEnv,
                 ValueJson = request.ValueJson, CreatedAt = now, CreatedBy = actorId,
                 UpdatedAt = now, UpdatedBy = actorId, Revision = 1
             };
@@ -236,9 +389,13 @@ public sealed class SettingsService : ISettingsService
 
     private async Task DeleteAsync(string scope, Guid orgId, Guid? wsId, Guid? envId, string settingKey, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct)
     {
+        Guid? scopedOrg = scope == "Organisation" ? orgId : null;
+        Guid? scopedWs = scope == "Workspace" ? wsId : null;
+        Guid? scopedEnv = scope == "Environment" ? envId : null;
+
         var existing = await _db.SettingValues.SingleOrDefaultAsync(sv =>
             sv.DefinitionKey == settingKey && sv.Scope == scope &&
-            sv.OrganisationId == orgId && sv.WorkspaceId == wsId && sv.EnvironmentId == envId, ct);
+            sv.OrganisationId == scopedOrg && sv.WorkspaceId == scopedWs && sv.EnvironmentId == scopedEnv, ct);
         if (existing is null) return;
 
         var def = await _db.SettingDefinitions.AsNoTracking().SingleOrDefaultAsync(d => d.Key == settingKey, ct);

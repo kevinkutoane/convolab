@@ -46,7 +46,12 @@ public sealed class MigrationTests
         "LocalCredentials",
         "AuthenticationSessions",
         "ServiceAccounts",
-        "WorkspaceAuditEvents"
+        "WorkspaceAuditEvents",
+        "RuntimeEnvironments",
+        "SettingDefinitions",
+        "SettingValues",
+        "SecretReferences",
+        "ConfigurationChanges"
     ];
 
     [Fact]
@@ -72,7 +77,8 @@ public sealed class MigrationTests
             "202607220003_ReplayStudioV1",
             "202607220004_PolicyStudioV1",
             "202607220005_PluginStudioV1",
-            "202607220006_WorkspaceIdentityAccessV1"
+            "202607220006_WorkspaceIdentityAccessV1",
+            "202607230001_EnvironmentSettingsManagementV1"
         ], migrations);
 
         await db.Database.MigrateAsync();

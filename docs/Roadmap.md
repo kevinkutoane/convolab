@@ -52,7 +52,7 @@ Current release candidate: `v1.0.0-alpha.12`.
 - Plugin registry, versioning, compatibility and health: Complete
 - Identity, authorization, workspaces, memberships, service identities, and audit: Implemented; acceptance in progress
 - Persistence repositories and migrations
-- Secret management and configuration governance
+- Secret management and configuration governance: Complete
 
 ## Phase 4 — Signature engineering products
 

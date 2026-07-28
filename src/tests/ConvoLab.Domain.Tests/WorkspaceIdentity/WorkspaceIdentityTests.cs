@@ -31,6 +31,14 @@ public sealed class WorkspaceIdentityTests
     [Fact]
     public void Viewer_is_non_sensitive_read_only()
     {
-        Assert.Equal([WorkspacePermissions.WorkspaceMember], WorkspacePermissions.For(WorkspaceRole.Viewer));
+        // Viewers may read (never modify) configuration: membership plus settings visibility only.
+        var permissions = WorkspacePermissions.For(WorkspaceRole.Viewer);
+
+        Assert.Equal(2, permissions.Count);
+        Assert.Contains(WorkspacePermissions.WorkspaceMember, permissions);
+        Assert.Contains(WorkspacePermissions.ViewSettings, permissions);
+        Assert.DoesNotContain(WorkspacePermissions.ManageWorkspaceSettings, permissions);
+        Assert.DoesNotContain(WorkspacePermissions.ManageEnvironmentSettings, permissions);
+        Assert.DoesNotContain(WorkspacePermissions.ManageSecretReferences, permissions);
     }
 }

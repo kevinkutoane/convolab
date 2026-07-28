@@ -6,7 +6,7 @@ import {
   Route,
   Sparkles,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import type { StudioPageDefinition } from "../types/platform";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";

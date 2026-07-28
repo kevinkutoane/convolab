@@ -15,7 +15,7 @@ public sealed class PlatformController : ControllerBase
         var response = new PlatformStatusResponse(
             PlatformName: "ConvoLab Platform",
             ProductName: "ConvoLab Studio",
-            Version: "1.0.0-alpha.12",
+            Version: "1.0.0-alpha.13",
             Environment: HttpContext.RequestServices
                 .GetRequiredService<IHostEnvironment>()
                 .EnvironmentName,

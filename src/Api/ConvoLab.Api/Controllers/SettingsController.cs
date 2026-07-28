@@ -108,7 +108,7 @@ public sealed class WorkspaceSettingsController(ISettingsService service) : Cont
 
 [ApiController]
 [Route("api/workspaces/{workspaceId:guid}/environments/{environmentId:guid}/settings")]
-public sealed class EnvironmentSettingsController(ISettingsService service) : ControllerBase
+public sealed class EnvironmentSettingsController(ISettingsService service, IProviderValidationService providerValidation) : ControllerBase
 {
     [Authorize(Policy = WorkspacePermissions.ViewSettings)]
     [HttpGet]
@@ -148,10 +148,17 @@ public sealed class EnvironmentSettingsController(ISettingsService service) : Co
     public async Task<ActionResult<IReadOnlyList<ConfigurationChangeDto>>> Import(Guid workspaceId, Guid environmentId, ImportConfigurationRequest request, CancellationToken ct)
         => Ok(await service.ImportAsync(workspaceId, environmentId, request, ActorId(), ActorDisplay(), HttpContext.TraceIdentifier, ct));
 
-    [Authorize(Policy = WorkspacePermissions.ValidateProviderConfiguration)]
+    /// <summary>Validates every effective setting for the environment against its definition (types, ranges, enums, cross-field rules).</summary>
+    [Authorize(Policy = WorkspacePermissions.ViewSettings)]
     [HttpPost("validate")]
-    public ActionResult Validate(Guid workspaceId, Guid environmentId)
-        => Ok(new { status = "Validation endpoint available in v2." });
+    public async Task<ActionResult<SettingsValidationResultDto>> Validate(Guid workspaceId, Guid environmentId, CancellationToken ct)
+        => Ok(await service.ValidateEnvironmentSettingsAsync(workspaceId, environmentId, ct));
+
+    /// <summary>Performs a live, cost-free check of the effective AI provider configuration (secret resolution, reachability, credential, model availability).</summary>
+    [Authorize(Policy = WorkspacePermissions.ValidateProviderConfiguration)]
+    [HttpPost("provider/validate")]
+    public async Task<ActionResult<ProviderValidationResultDto>> ValidateProvider(Guid workspaceId, Guid environmentId, CancellationToken ct)
+        => Ok(await providerValidation.ValidateAsync(workspaceId, environmentId, ActorId(), ActorDisplay(), HttpContext.TraceIdentifier, ct));
 
     private Guid ActorId() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
     private string ActorDisplay() => User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email) ?? "Authenticated user";

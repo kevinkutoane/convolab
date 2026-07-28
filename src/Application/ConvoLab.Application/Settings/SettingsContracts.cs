@@ -114,7 +114,8 @@ public sealed record UpdateEnvironmentRequest(
 public sealed record UpsertSettingRequest(
     string ValueJson,
     string? Reason,
-    long? ExpectedRevision);
+    long? ExpectedRevision,
+    bool ConfirmProtectedChange = false);
 
 public sealed record CreateSecretReferenceRequest(
     string DisplayName,
@@ -129,6 +130,22 @@ public sealed record ImportConfigurationRequest(
     string SettingsJson,
     bool ValidateOnly,
     string? Reason);
+
+public sealed record SettingValidationEntryDto(
+    string Key,
+    string DisplayName,
+    string Category,
+    string Status,
+    string? Message,
+    string SourceScope);
+
+public sealed record SettingsValidationResultDto(
+    bool IsValid,
+    int CheckedCount,
+    int InvalidCount,
+    int WarningCount,
+    IReadOnlyList<SettingValidationEntryDto> Entries,
+    DateTimeOffset ValidatedAt);
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -160,6 +177,17 @@ public interface ISettingsService
     Task<IReadOnlyList<ConfigurationChangeDto>> GetChangeHistoryAsync(Guid workspaceId, Guid? environmentId, int take = 100, CancellationToken ct = default);
     Task<ConfigurationExportDto> ExportAsync(Guid workspaceId, Guid environmentId, CancellationToken ct = default);
     Task<IReadOnlyList<ConfigurationChangeDto>> ImportAsync(Guid workspaceId, Guid environmentId, ImportConfigurationRequest request, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default);
+    Task<SettingsValidationResultDto> ValidateEnvironmentSettingsAsync(Guid workspaceId, Guid environmentId, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Validates the effective AI provider configuration for an environment by
+/// performing a real (but cost-free) call against the configured provider.
+/// Secret values are resolved internally and never surfaced to callers.
+/// </summary>
+public interface IProviderValidationService
+{
+    Task<ProviderValidationResultDto> ValidateAsync(Guid workspaceId, Guid environmentId, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default);
 }
 
 public interface ISecretReferenceService

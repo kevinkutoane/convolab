@@ -1,6 +1,6 @@
 import { Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { navigationItems, quickActions } from "../data/platform";
 
 interface CommandPaletteProps {

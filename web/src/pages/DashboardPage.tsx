@@ -13,7 +13,7 @@ import {
   Sparkles,
   TestTube2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { quickActions } from "../data/platform";
 import type { PlatformStatus } from "../types/platform";
 import { MetricCard } from "../components/MetricCard";

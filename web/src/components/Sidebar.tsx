@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Hexagon, X } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { navigationItems } from "../data/platform";
 import { StatusPill } from "./StatusPill";
 
@@ -84,8 +84,8 @@ export function Sidebar({
           {!collapsed && (
             <div className="workspace-card">
               <span className="workspace-kicker">Platform Core</span>
-              <strong>v1.0.0-alpha.12</strong>
-              <span>Secure identity and workspace isolation in acceptance.</span>
+              <strong>v1.0.0-alpha.13</strong>
+              <span>Environment &amp; settings management in acceptance.</span>
             </div>
           )}
           <button

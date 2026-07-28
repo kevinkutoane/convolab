@@ -1,0 +1,209 @@
+/* ─── Environment & Settings Management v1 — premium settings experience ─── */
+
+/* Page layout */
+.settings-page { display: flex; flex-direction: column; gap: 1.1rem; }
+
+/* Tab rail */
+.settings-tabs {
+  display: flex; gap: .3rem; flex-wrap: wrap;
+  padding: .35rem; border-radius: 12px;
+  background: var(--panel); border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+.settings-tab {
+  appearance: none; border: 1px solid transparent; background: transparent;
+  color: var(--text-muted); font: inherit; font-size: .82rem; font-weight: 550;
+  padding: .45rem .85rem; border-radius: 9px; cursor: pointer;
+  transition: color .15s ease, background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.settings-tab:hover { color: var(--text); background: var(--panel-hover); }
+.settings-tab:active { transform: scale(.97); }
+.settings-tab.active {
+  color: var(--accent-strong); background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+/* Environment switcher chip in the topbar */
+.environment-chip { position: relative; overflow: visible; }
+.environment-chip .environment-switcher {
+  appearance: none; border: none; background: transparent; color: inherit;
+  font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer;
+  padding-right: .15rem; max-width: 170px;
+}
+.environment-chip .environment-switcher:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.environment-chip.environment-production { border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.environment-chip.environment-production .environment-dot { background: var(--danger); box-shadow: 0 0 8px color-mix(in srgb, var(--danger) 70%, transparent); }
+.environment-chip.environment-staging .environment-dot { background: var(--amber); box-shadow: 0 0 8px color-mix(in srgb, var(--amber) 70%, transparent); }
+.environment-chip.environment-test .environment-dot { background: #59b7ff; box-shadow: 0 0 8px rgba(89, 183, 255, .6); }
+
+/* Environment cards */
+.environment-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: .9rem; margin-top: 1rem;
+}
+.environment-card {
+  display: flex; flex-direction: column; gap: .45rem;
+  padding: 1rem 1.1rem; border-radius: 13px;
+  background: var(--surface-subtle); border: 1px solid var(--border);
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.environment-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .22);
+}
+.environment-card strong { font-size: .98rem; }
+.environment-card small { color: var(--text-muted); line-height: 1.4; }
+.environment-card-head { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+.environment-card-actions { display: flex; gap: .65rem; margin-top: .35rem; flex-wrap: wrap; }
+
+.environment-type-badge {
+  font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  padding: .18rem .5rem; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent-strong);
+}
+.environment-type-badge.type-production { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.environment-type-badge.type-staging { background: var(--amber-soft); color: var(--amber); }
+.environment-type-badge.type-test { background: rgba(89, 183, 255, .13); color: #59b7ff; }
+.environment-type-badge.type-development { background: var(--green-soft); color: var(--green); }
+
+.default-badge {
+  display: inline-flex; align-items: center; gap: .25rem;
+  font-size: .68rem; font-weight: 650; color: var(--amber);
+  padding: .18rem .5rem; border-radius: 999px; background: var(--amber-soft);
+}
+
+/* Status chips shared across settings surfaces */
+.status-chip {
+  display: inline-flex; align-items: center; gap: .3rem;
+  font-size: .7rem; font-weight: 650; padding: .2rem .55rem; border-radius: 999px;
+  background: var(--surface-hover); color: var(--text-muted);
+  white-space: nowrap;
+}
+.status-chip.status-active, .status-chip.status-valid, .status-chip.status-applied { background: var(--green-soft); color: var(--green); }
+.status-chip.status-suspended, .status-chip.status-notvalidated { background: var(--amber-soft); color: var(--amber); }
+.status-chip.status-archived, .status-chip.status-invalid, .status-chip.status-missing, .status-chip.status-rejected { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
+.status-chip .ok { color: var(--green); }
+.status-chip .fail { color: var(--danger); }
+
+/* Settings grid + rows */
+.settings-grid { display: flex; flex-direction: column; gap: .65rem; margin-top: 1rem; }
+.setting-row {
+  display: grid; grid-template-columns: minmax(260px, 1.15fr) 1fr;
+  gap: 1rem; align-items: start;
+  padding: .95rem 1.1rem; border-radius: 12px;
+  background: var(--surface-subtle); border: 1px solid var(--border);
+  transition: border-color .16s ease, background .16s ease;
+}
+.setting-row:hover { border-color: color-mix(in srgb, var(--accent) 30%, var(--border)); }
+.setting-row.editing { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, var(--surface-subtle)); }
+.setting-meta { display: flex; flex-direction: column; gap: .3rem; }
+.setting-meta strong { font-size: .9rem; }
+.setting-key { font-family: ui-monospace, "JetBrains Mono", monospace; font-size: .7rem; color: var(--text-muted); }
+.setting-chips { display: flex; gap: .35rem; flex-wrap: wrap; }
+
+.scope-chip, .inherited-chip, .restart-chip, .validation-chip {
+  font-size: .64rem; font-weight: 650; letter-spacing: .04em;
+  padding: .14rem .45rem; border-radius: 999px;
+}
+.scope-chip.scope-platform { background: var(--surface-hover); color: var(--text-muted); }
+.scope-chip.scope-organisation { background: rgba(89, 183, 255, .13); color: #59b7ff; }
+.scope-chip.scope-workspace { background: var(--accent-soft); color: var(--accent-strong); }
+.scope-chip.scope-environment { background: var(--green-soft); color: var(--green); }
+.inherited-chip { background: var(--surface-hover); color: var(--text-muted); font-style: italic; }
+.restart-chip { background: var(--amber-soft); color: var(--amber); }
+.validation-chip { background: color-mix(in srgb, var(--danger) 13%, transparent); color: var(--danger); }
+
+.setting-value-display {
+  display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+  min-height: 100%;
+}
+.setting-value-display code {
+  font-size: .8rem; padding: .3rem .6rem; border-radius: 8px;
+  background: var(--panel-solid); border: 1px solid var(--border);
+  max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.setting-row-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+
+.setting-edit-form { display: flex; flex-direction: column; gap: .55rem; }
+.setting-edit-form input, .setting-edit-form select, .transfer-import input, .transfer-import textarea {
+  font: inherit; font-size: .84rem; color: var(--text);
+  background: var(--panel-solid); border: 1px solid var(--border); border-radius: 9px;
+  padding: .5rem .7rem; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.setting-edit-form input:focus-visible, .setting-edit-form select:focus-visible,
+.transfer-import input:focus-visible, .transfer-import textarea:focus-visible {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.confirm-protected {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: .78rem; color: var(--danger); font-weight: 550;
+}
+
+/* Notes, warnings, errors */
+.settings-note {
+  display: flex; align-items: center; gap: .45rem;
+  font-size: .82rem; color: var(--text-muted); line-height: 1.5;
+  margin: .35rem 0 .85rem;
+}
+.production-warning {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: .8rem; font-weight: 550; color: var(--amber);
+  background: var(--amber-soft); border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
+  border-radius: 10px; padding: .55rem .8rem; margin: .3rem 0 .6rem;
+}
+.settings-error {
+  display: flex; align-items: center; gap: .4rem;
+  color: var(--danger); font-size: .8rem; margin: .4rem 0;
+}
+
+/* Provider validation */
+.provider-validation { display: flex; flex-direction: column; gap: .5rem; align-items: flex-end; max-width: 460px; }
+.provider-validation-buttons { display: flex; gap: .6rem; flex-wrap: wrap; }
+.validation-outcome {
+  display: flex; align-items: flex-start; gap: .4rem;
+  font-size: .78rem; line-height: 1.45; padding: .5rem .7rem; border-radius: 9px;
+}
+.validation-outcome.ok { background: var(--green-soft); color: var(--green); }
+.validation-outcome.fail { background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); }
+
+/* Change history */
+.change-history { display: flex; flex-direction: column; gap: .55rem; margin-top: .8rem; }
+.change-entry {
+  display: flex; align-items: center; gap: .8rem;
+  padding: .7rem .95rem; border-radius: 11px;
+  background: var(--surface-subtle); border: 1px solid var(--border);
+}
+.change-entry > svg { color: var(--accent); flex-shrink: 0; }
+.change-entry > div { display: flex; flex-direction: column; gap: .12rem; flex: 1; min-width: 0; }
+.change-entry strong { font-size: .84rem; font-family: ui-monospace, "JetBrains Mono", monospace; }
+.change-entry small { color: var(--text-muted); font-size: .74rem; line-height: 1.4; overflow-wrap: anywhere; }
+.change-entry .change-meta { font-size: .68rem; opacity: .8; }
+
+/* Import / export */
+.transfer-import { display: flex; flex-direction: column; gap: .65rem; margin-top: .5rem; }
+.transfer-import textarea { resize: vertical; font-family: ui-monospace, "JetBrains Mono", monospace; font-size: .76rem; line-height: 1.5; }
+.import-preview { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+.import-preview > strong { font-size: .84rem; }
+
+/* Secondary button (align with existing button system) */
+.secondary-button {
+  display: inline-flex; align-items: center; gap: .4rem;
+  font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer;
+  color: var(--text); background: var(--surface-hover);
+  border: 1px solid var(--border); border-radius: 9px; padding: .5rem .9rem;
+  transition: border-color .15s ease, background .15s ease, transform .1s ease;
+}
+.secondary-button:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); background: var(--panel-hover); }
+.secondary-button:active { transform: scale(.98); }
+.secondary-button:disabled { opacity: .55; cursor: not-allowed; }
+.text-button.danger { color: var(--danger); }
+.text-button.danger:hover { color: color-mix(in srgb, var(--danger) 80%, white); }
+
+/* Responsive behaviour */
+@media (max-width: 860px) {
+  .setting-row { grid-template-columns: 1fr; }
+  .setting-value-display { justify-content: flex-start; }
+  .provider-validation { align-items: stretch; max-width: none; }
+}
