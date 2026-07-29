@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import {
@@ -214,6 +215,7 @@ export function ReplayStudioPage() {
         </section>
       )}
 
+      <AdaptiveWorkspace storageKey="replay" leftLabel="Replay history" hasRight={false}>
       <section className="replay-workspace">
         <aside className="panel replay-experiment-list">
           <div className="panel-header"><div><span className="panel-eyebrow">Persisted experiments</span><h3>Replay history</h3></div><span className="result-count">{overview?.recentExperiments.length ?? 0}</span></div>
@@ -250,6 +252,7 @@ export function ReplayStudioPage() {
           ) : null}
         </main>
       </section>
+      </AdaptiveWorkspace>
     </div>
   );
 }
@@ -345,14 +348,15 @@ function ReplayExperimentInspector({
 
 function ReplayConfigurationForm({ form, onChange, overview, compact = false }: { form: ReplayForm; onChange: (value: ReplayForm) => void; overview: Awaited<ReturnType<typeof getReplayOverview>>; compact?: boolean }) {
   const provider = overview.options.providers.find(item => item.key === form.provider);
+  const availableProviders = overview.options.providers.filter(item => item.isConfigured);
   const field = <K extends keyof ReplayForm>(key: K, value: ReplayForm[K]) => onChange({ ...form, [key]: value });
   return <div className={`replay-configuration-form ${compact ? "compact" : ""}`}>
     <label>Candidate label<input value={form.label} onChange={event => field("label", event.target.value)} /></label>
     <label>Workflow<select value={form.workflow} onChange={event => field("workflow", event.target.value)}>{unique([form.workflow, ...overview.options.workflows]).map(item => <option key={item}>{item}</option>)}</select></label>
     <label>Prompt version<select value={form.promptVersion} onChange={event => field("promptVersion", event.target.value)}>{unique([form.promptVersion, ...overview.options.promptVersions]).map(item => <option key={item}>{item}</option>)}</select></label>
     <label>Knowledge collection<select value={form.knowledgeCollection} onChange={event => field("knowledgeCollection", event.target.value)}>{unique([form.knowledgeCollection, ...overview.options.knowledgeCollections]).map(item => <option key={item}>{item}</option>)}</select></label>
-    <label>Provider<select value={form.provider} onChange={event => { const next = overview.options.providers.find(item => item.key === event.target.value); onChange({ ...form, provider: event.target.value, model: next?.defaultModel ?? form.model }); }}>{overview.options.providers.map(item => <option key={item.key} value={item.key} disabled={!item.isConfigured}>{item.displayName} · {item.status}</option>)}</select></label>
-    <label>Model<input value={form.model} onChange={event => field("model", event.target.value)} placeholder={provider?.defaultModel ?? "Model"} /></label>
+    {availableProviders.length > 1 ? <label>Provider<select value={form.provider} onChange={event => { const next = availableProviders.find(item => item.key === event.target.value); onChange({ ...form, provider: event.target.value, model: next?.defaultModel ?? form.model }); }}>{availableProviders.map(item => <option key={item.key} value={item.key}>{item.displayName} · {item.status}</option>)}</select></label> : <div className="singleton-context"><span>Provider</span><strong>{availableProviders[0]?.displayName ?? provider?.displayName ?? "Unavailable"}</strong></div>}
+    <div className="singleton-context"><span>Model</span><strong>{provider?.defaultModel ?? form.model}</strong></div>
     <label>Recovery mode<select value={form.mode} onChange={event => field("mode", event.target.value as SimulationMode)}>{overview.options.modes.map(item => <option key={item}>{item}</option>)}</select></label>
     <label>Temperature<div className="replay-range-field"><input type="range" min="0" max="2" step="0.1" value={form.temperature} onChange={event => field("temperature", Number(event.target.value))} /><strong>{form.temperature.toFixed(1)}</strong></div></label>
     <label>Maximum output tokens<input type="number" min="32" max="8192" value={form.maxOutputTokens} onChange={event => field("maxOutputTokens", Number(event.target.value))} /></label>

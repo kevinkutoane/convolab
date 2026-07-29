@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -201,6 +202,7 @@ export function EvaluationStudioPage() {
         </article>
       </section>
 
+      <AdaptiveWorkspace storageKey="evaluation" leftLabel="Evaluation runs" hasRight={false}>
       <section className="evaluation-workspace-grid">
         <article className="panel evaluation-runs-panel">
           <div className="panel-header"><div><span className="panel-eyebrow">Persisted execution quality</span><h3>Evaluation runs</h3></div><span>{runs.length} recent</span></div>
@@ -242,6 +244,7 @@ export function EvaluationStudioPage() {
           {selectedRun ? <RunInspector run={selectedRun} onReview={status => reviewMutation.mutate({ id: selectedRun.id, status })} reviewing={reviewMutation.isPending} /> : <div className="inspector-placeholder"><ClipboardCheck size={24} /><p>Select an evaluation run to inspect metric thresholds and review status.</p></div>}
         </aside>
       </section>
+      </AdaptiveWorkspace>
 
       <section className="evaluation-bottom-grid">
         <article className="panel test-suite-panel">

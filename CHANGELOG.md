@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.0-alpha.14 — 2026-07-28
+
+- Added trusted runtime-environment attribution, server-generated correlation, immutable configuration snapshots, and explicit Alpha 13 backfill status.
+- Added metadata-only Platform Analytics events with a transactional outbox, restart-safe aggregation/checkpoints, governed retention, and asynchronous sanitized CSV exports.
+- Added workspace/environment analytics APIs with fixed RBAC, tenant isolation, actor redaction, and Production-cost restrictions.
+- Added the lazy, accessible Studio Analytics workspace and eliminated stale environment state that previously required a refresh.
+- Replaced the PostgreSQL migration-count assertion with known/applied/pending checks and added a real Alpha 13 upgrade/restart gate.
+- Pinned Node 22.22.0 across Docker and CI and removed the unused pnpm lockfile.
+
 ## 1.0.0-alpha.13 — 2026-07-28
 
 - Added governed Environment & Settings Management with scoped inheritance, typed validation, protected changes, secret references, audit history, and configuration import/export.

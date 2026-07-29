@@ -108,7 +108,7 @@ public sealed class AuditEventRecord
     public DateTimeOffset OccurredAt { get; set; }
 }
 
-public sealed class WorkspaceRequestContext
+public sealed class WorkspaceRequestContext : ConvoLab.Application.Common.Interfaces.IRuntimeRequestContext
 {
     public Guid? UserId { get; set; }
     public Guid? OrganisationId { get; set; }
@@ -118,4 +118,14 @@ public sealed class WorkspaceRequestContext
     public string ActorType { get; set; } = "Anonymous";
     public string? Role { get; set; }
     public bool IsPlatformAdministrator { get; set; }
+    public Guid? EnvironmentId { get; set; }
+    public string? EnvironmentName { get; set; }
+    public string? EnvironmentType { get; set; }
+    public string CorrelationId { get; set; } = string.Empty;
+    public string? ParentCorrelationId { get; set; }
+    public ConvoLab.Application.Common.Interfaces.RuntimeEnvironmentResolution EnvironmentResolution { get; set; }
+        = ConvoLab.Application.Common.Interfaces.RuntimeEnvironmentResolution.Unresolved;
+
+    public Guid? ActorId => UserId;
+    public string ActorRole => Role ?? string.Empty;
 }

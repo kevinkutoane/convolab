@@ -51,7 +51,15 @@ public sealed class MigrationTests
         "SettingDefinitions",
         "SettingValues",
         "SecretReferences",
-        "ConfigurationChanges"
+        "ConfigurationChanges",
+        "ConfigurationSnapshots",
+        "ExecutionAttributions",
+        "AnalyticsOutbox",
+        "AnalyticsEvents",
+        "AnalyticsHourlyAggregates",
+        "AnalyticsDailyAggregates",
+        "AnalyticsAggregationCheckpoints",
+        "AnalyticsExports"
     ];
 
     [Fact]
@@ -78,7 +86,8 @@ public sealed class MigrationTests
             "202607220004_PolicyStudioV1",
             "202607220005_PluginStudioV1",
             "202607220006_WorkspaceIdentityAccessV1",
-            "202607230001_EnvironmentSettingsManagementV1"
+            "202607230001_EnvironmentSettingsManagementV1",
+            "202607240001_PlatformAnalyticsV1"
         ], migrations);
 
         await db.Database.MigrateAsync();

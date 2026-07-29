@@ -1,9 +1,15 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, Navigate, useNavigate, useParams } from "react-router";
 import {
   AlertTriangle,
+  ArrowLeft,
+  ArrowLeftRight,
   Archive,
+  Bot,
   CheckCircle2,
+  ClipboardCheck,
+  DatabaseBackup,
   Download,
   History,
   KeyRound,
@@ -11,12 +17,17 @@ import {
   Play,
   Plus,
   RotateCcw,
+  Settings2,
   ShieldCheck,
   Star,
+  ToggleRight,
   Upload,
+  WalletCards,
   XCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "../components/AsyncStates";
+import { StudioPageHeader } from "../components/StudioPrimitives";
 import { useAuth } from "../contexts/useAuth";
 import { useEnvironment } from "../contexts/EnvironmentContext";
 import { getApiErrorMessage } from "../services/apiClient";
@@ -46,74 +57,114 @@ import type {
   RuntimeEnvironment,
   SecretReference,
 } from "../types/settings";
+import "../settings-studio.css";
 
 // ─── Tab model ────────────────────────────────────────────────────────────────
 
-interface SettingsTabDefinition {
+interface SettingsSectionDefinition {
   id: string;
   label: string;
-  /** Effective-setting categories rendered by this tab; absent for bespoke tabs. */
+  description: string;
+  group: "Runtime" | "Guardrails" | "Operations";
+  icon: LucideIcon;
   categories?: readonly string[];
 }
 
-const settingsTabs: readonly SettingsTabDefinition[] = [
-  { id: "environments", label: "Environments" },
-  { id: "general", label: "General", categories: ["General"] },
-  { id: "provider", label: "AI Provider", categories: ["AI Provider"] },
-  { id: "budget", label: "Budgets", categories: ["Budget"] },
-  { id: "evaluation", label: "Evaluation", categories: ["Evaluation"] },
-  { id: "retention", label: "Trace & Retention", categories: ["Trace & Retention", "Retention"] },
-  { id: "features", label: "Feature Flags", categories: ["Feature Flags", "Features"] },
-  { id: "governance", label: "Policies & Plugins", categories: ["Policy", "Policies", "Plugins", "Plugin"] },
-  { id: "secrets", label: "Secrets" },
-  { id: "history", label: "Change History" },
-  { id: "transfer", label: "Import / Export" },
+const settingsSections: readonly SettingsSectionDefinition[] = [
+  { id: "environments", label: "Environments", description: "Create isolated runtime contexts and control the active default.", group: "Runtime", icon: Layers },
+  { id: "general", label: "General", description: "Workspace identity and default runtime behavior.", group: "Runtime", icon: Settings2, categories: ["General"] },
+  { id: "provider", label: "AI Provider", description: "Choose and validate the provider and model used for execution.", group: "Runtime", icon: Bot, categories: ["AI Provider"] },
+  { id: "budgets", label: "Budgets", description: "Set ZAR spend limits and operational budget thresholds.", group: "Guardrails", icon: WalletCards, categories: ["Budget"] },
+  { id: "evaluation", label: "Evaluation", description: "Configure quality thresholds and failure behavior.", group: "Guardrails", icon: ClipboardCheck, categories: ["Evaluation"] },
+  { id: "retention", label: "Trace & Retention", description: "Control evidence, trace, aggregate, and export retention.", group: "Guardrails", icon: DatabaseBackup, categories: ["Trace & Retention", "Retention"] },
+  { id: "features", label: "Feature Flags", description: "Manage environment-scoped capability availability.", group: "Guardrails", icon: ToggleRight, categories: ["Feature Flags", "Features"] },
+  { id: "governance", label: "Policies & Plugins", description: "Control runtime enforcement and extension behavior.", group: "Guardrails", icon: ShieldCheck, categories: ["Policy", "Policies", "Plugins", "Plugin"] },
+  { id: "secrets", label: "Secrets", description: "Register protected references without storing secret values.", group: "Operations", icon: KeyRound },
+  { id: "history", label: "Change History", description: "Review audited configuration changes and correlations.", group: "Operations", icon: History },
+  { id: "import-export", label: "Import / Export", description: "Move reviewed configuration safely between environments.", group: "Operations", icon: ArrowLeftRight },
 ];
-
-type SettingsTabId = string;
 
 export function SettingsPage() {
   const auth = useAuth();
   const environment = useEnvironment();
+  const navigate = useNavigate();
+  const { section } = useParams<{ section?: string }>();
   const workspaceId = auth.session?.activeWorkspaceId;
-  const [tab, setTab] = useState<SettingsTabId>("environments");
+  const activeSection = section ? settingsSections.find(item => item.id === section) : undefined;
 
   if (!workspaceId) {
     return <EmptyState title="No workspace selected" description="Select a workspace to manage its configuration." />;
   }
+  if (section && !activeSection) return <Navigate to="/settings" replace />;
+
+  if (!activeSection) {
+    const activeCount = environment.environments.filter(item => item.status === "Active").length;
+    return (
+      <div className="settings-page">
+        <StudioPageHeader
+          eyebrow="Workspace configuration"
+          title="Settings"
+          description="Understand the effective runtime configuration, then change only the layer you intend."
+          icon={Settings2}
+        />
+        <div className="settings-summary-grid">
+          <article><span>Active environment</span><strong>{environment.activeEnvironment?.name ?? "Not available"}</strong><small>{environment.activeEnvironment?.environmentType ?? "Create an environment to begin"}</small></article>
+          <article><span>Runtime contexts</span><strong>{activeCount}</strong><small>{environment.environments.length} total environments</small></article>
+          <article><span>Configuration model</span><strong>Inherited</strong><small>Platform → organisation → workspace → environment</small></article>
+        </div>
+        {(["Runtime", "Guardrails", "Operations"] as const).map(group => (
+          <section className="settings-overview-group" key={group}>
+            <div className="settings-group-heading"><span>{group}</span><h2>{group === "Runtime" ? "How work executes" : group === "Guardrails" ? "How work stays governed" : "How configuration is operated"}</h2></div>
+            <div className="settings-overview-grid">
+              {settingsSections.filter(item => item.group === group).map(item => {
+                const Icon = item.icon;
+                return (
+                  <Link className="settings-overview-card" to={`/settings/${item.id}`} key={item.id}>
+                    <span className="settings-card-icon"><Icon size={20} /></span>
+                    <span><strong>{item.label}</strong><small>{item.description}</small></span>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="settings-page">
-      <nav className="settings-tabs" role="tablist" aria-label="Settings sections">
-        {settingsTabs.map(item => (
-          <button
-            key={item.id}
-            role="tab"
-            aria-selected={tab === item.id}
-            className={`settings-tab${tab === item.id ? " active" : ""}`}
-            onClick={() => setTab(item.id)}
-          >
-            {item.label}
-          </button>
-        ))}
+      <StudioPageHeader
+        eyebrow="Settings"
+        title={activeSection.label}
+        description={activeSection.description}
+        icon={activeSection.icon}
+        actions={<Link className="secondary-button" to="/settings"><ArrowLeft size={15} /> Settings overview</Link>}
+      />
+      <nav className="settings-section-navigation" aria-label="Settings section">
+        <span>Section</span>
+        <select value={activeSection.id} onChange={event => navigate(`/settings/${event.target.value}`)}>
+          {settingsSections.map(item => <option value={item.id} key={item.id}>{item.label}</option>)}
+        </select>
       </nav>
 
-      {tab === "environments" && <EnvironmentsTab workspaceId={workspaceId} />}
-      {tab === "secrets" && <SecretsTab workspaceId={workspaceId} />}
-      {tab === "history" && <HistoryTab workspaceId={workspaceId} environmentId={environment.activeEnvironmentId} />}
-      {tab === "transfer" && environment.activeEnvironmentId && (
+      {activeSection.id === "environments" && <EnvironmentsTab workspaceId={workspaceId} />}
+      {activeSection.id === "secrets" && <SecretsTab workspaceId={workspaceId} />}
+      {activeSection.id === "history" && <HistoryTab workspaceId={workspaceId} environmentId={environment.activeEnvironmentId} />}
+      {activeSection.id === "import-export" && environment.activeEnvironmentId && (
         <TransferTab workspaceId={workspaceId} environmentId={environment.activeEnvironmentId} environmentName={environment.activeEnvironment?.name ?? ""} />
       )}
-      {settingsTabs.find(item => item.id === tab)?.categories && environment.activeEnvironment && (
+      {activeSection.categories && environment.activeEnvironment && (
         <CategorySettingsTab
-          key={`${tab}-${environment.activeEnvironmentId}`}
+          key={`${activeSection.id}-${environment.activeEnvironmentId}`}
           workspaceId={workspaceId}
           environment={environment.activeEnvironment}
-          categories={settingsTabs.find(item => item.id === tab)!.categories!}
-          showProviderValidation={tab === "provider"}
+          categories={activeSection.categories}
+          showProviderValidation={activeSection.id === "provider"}
         />
       )}
-      {settingsTabs.find(item => item.id === tab)?.categories && !environment.activeEnvironment && (
+      {activeSection.categories && !environment.activeEnvironment && (
         <EmptyState title="No environment" description="Create an environment first to configure settings." />
       )}
     </div>
@@ -200,7 +251,7 @@ function EnvironmentsTab({ workspaceId }: { workspaceId: string }) {
                 {item.status === "Suspended" && (
                   <button className="text-button" onClick={() => runAction.mutate({ action: "activate", target: item })}><Play size={13} /> Activate</button>
                 )}
-                {item.status === "Active" && (
+                {item.status === "Active" && !item.isDefault && (
                   <button className="text-button" onClick={() => runAction.mutate({ action: "suspend", target: item })}>Suspend</button>
                 )}
                 {!item.isDefault && (
@@ -337,12 +388,17 @@ function SettingRow({
   return (
     <article className={`setting-row${editing ? " editing" : ""}`}>
       <div className="setting-meta">
-        <strong>{setting.displayName}</strong>
+        <div className="setting-title-row">
+          <strong>{setting.displayName}</strong>
+          {setting.isRequired && <span className="required-chip">Required</span>}
+        </div>
+        <p>{setting.description || "No additional guidance is available for this setting."}</p>
         <small className="setting-key">{setting.key}</small>
         <div className="setting-chips">
           <span className={`scope-chip scope-${setting.sourceScope.toLowerCase()}`}>{setting.sourceScope}</span>
           {setting.isInherited && <span className="inherited-chip">Inherited</span>}
           {setting.requiresRestart && <span className="restart-chip">Restart required</span>}
+          {!setting.allowsEnvironmentOverride && <span className="locked-chip">Not environment-overridable</span>}
           {setting.validationStatus && setting.validationStatus !== "Valid" && (
             <span className="validation-chip">{setting.validationStatus}</span>
           )}
@@ -353,7 +409,10 @@ function SettingRow({
         <div className="setting-value-display">
           <code>{displayValue}</code>
           <div className="setting-row-actions">
-            <button className="text-button" onClick={() => setEditing(true)}>Edit</button>
+            {setting.allowsEnvironmentOverride && setting.allowedValues.length !== 1 && (
+              <button className="text-button" onClick={() => setEditing(true)}>Edit</button>
+            )}
+            {setting.allowedValues.length === 1 && <span className="single-setting-context">Only available value</span>}
             {!setting.isInherited && setting.sourceScope !== "Platform" && (
               <button className="text-button" onClick={() => resetMutation.mutate()} disabled={resetMutation.isPending}>
                 <RotateCcw size={12} /> Reset to inherited
@@ -367,16 +426,38 @@ function SettingRow({
           onSubmit={(event: FormEvent) => { event.preventDefault(); saveMutation.mutate(); }}
         >
           {setting.valueType === "Boolean" ? (
+            <label className="setting-switch">
+              <input
+                type="checkbox"
+                aria-label={`Value for ${setting.displayName}`}
+                checked={value === "true"}
+                onChange={event => setValue(event.target.checked ? "true" : "false")}
+              />
+              <span aria-hidden="true" />
+              <strong>{value === "true" ? "Enabled" : "Disabled"}</strong>
+            </label>
+          ) : setting.allowedValues.length > 1 ? (
             <select aria-label={`Value for ${setting.displayName}`} value={value} onChange={event => setValue(event.target.value)}>
-              <option value="true">true</option>
-              <option value="false">false</option>
+              {setting.allowedValues.map(option => <option key={option} value={option}>{option}</option>)}
             </select>
+          ) : setting.valueType === "Json" ? (
+            <textarea
+              aria-label={`Value for ${setting.displayName}`}
+              value={value}
+              onChange={event => setValue(event.target.value)}
+              rows={7}
+              spellCheck={false}
+              placeholder="{ }"
+            />
           ) : (
             <input
+              type={["Integer", "Decimal", "Percentage", "Currency", "Duration"].includes(setting.valueType) ? "number" : "text"}
+              step={["Decimal", "Percentage", "Currency"].includes(setting.valueType) ? "any" : undefined}
               aria-label={`Value for ${setting.displayName}`}
               value={value}
               onChange={event => setValue(event.target.value)}
               placeholder={setting.isSecret ? "env:VARIABLE_NAME" : "Value"}
+              required={setting.isRequired}
             />
           )}
           {isProduction && (

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using ConvoLab.Domain.Settings;
 using ConvoLab.Domain.WorkspaceIdentity;
 using ConvoLab.Infrastructure.Data;
@@ -28,6 +29,8 @@ public sealed class SettingsBootstrapper
 
     public async Task ApplyAsync(CancellationToken ct = default)
     {
+        await EnsureStudioDefinitionMetadataAsync(ct);
+        await EnsureAnalyticsDefinitionsAsync(ct);
         var workspaces = await _db.Workspaces.AsNoTracking()
             .Where(w => w.Status == "Active")
             .ToListAsync(ct);
@@ -41,6 +44,41 @@ public sealed class SettingsBootstrapper
 
         await _db.SaveChangesAsync(ct);
         _logger.LogInformation("SettingsBootstrapper: processed {Count} workspace(s).", workspaces.Count);
+    }
+
+    private async Task EnsureStudioDefinitionMetadataAsync(CancellationToken ct)
+    {
+        var provider = await _db.SettingDefinitions.SingleOrDefaultAsync(
+            item => item.Key == SettingKeys.AiProvider, ct);
+        if (provider is null) return;
+
+        provider.ValueType = "Enum";
+        provider.Description = "Select the execution provider. ConvoLab Deterministic is the local repeatable test provider; Gemini performs live external inference when its secret is configured.";
+        provider.AllowedValues = JsonSerializer.Serialize(new[] { "Deterministic", "Gemini" });
+        provider.UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    private async Task EnsureAnalyticsDefinitionsAsync(CancellationToken ct)
+    {
+        var definitions = new[]
+        {
+            (SettingKeys.AnalyticsEventRetentionDays, "Analytics event retention", "Days to retain safe raw analytics events.", "90", "{\"min\":1,\"max\":730}"),
+            (SettingKeys.AnalyticsHourlyRetentionDays, "Hourly analytics retention", "Days to retain hourly analytics aggregates.", "90", "{\"min\":1,\"max\":730}"),
+            (SettingKeys.AnalyticsDailyRetentionDays, "Daily analytics retention", "Days to retain daily analytics aggregates.", "730", "{\"min\":30,\"max\":3650}"),
+            (SettingKeys.AnalyticsExportRetentionDays, "Analytics export retention", "Days before generated analytics exports expire.", "7", "{\"min\":1,\"max\":30}")
+        };
+        var keys = definitions.Select(item => item.Item1).ToArray();
+        var existing = await _db.SettingDefinitions.Where(item => keys.Contains(item.Key)).Select(item => item.Key).ToListAsync(ct);
+        foreach (var (key, name, description, defaultValue, validation) in definitions.Where(item => !existing.Contains(item.Item1)))
+        {
+            _db.SettingDefinitions.Add(new SettingDefinitionRecord
+            {
+                Key = key, Category = "Retention", DisplayName = name, Description = description,
+                ValueType = "Integer", DefaultValue = defaultValue, IsSecret = false, IsRequired = false,
+                AllowsOrganisationOverride = true, AllowsWorkspaceOverride = true, AllowsEnvironmentOverride = true,
+                ValidationRules = validation, RequiresRestart = false, UpdatedAt = DateTimeOffset.UtcNow
+            });
+        }
     }
 
     private async Task EnsureDevelopmentEnvironmentAsync(Guid workspaceId, Guid organisationId, CancellationToken ct)

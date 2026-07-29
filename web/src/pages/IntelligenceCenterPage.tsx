@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import type { CSSProperties } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
@@ -153,9 +154,10 @@ export function IntelligenceCenterPage() {
               <article key={provider.key} className={`provider-card ${provider.isConfigured ? "provider-ready" : "provider-unconfigured"}`}>
                 <div className="provider-card-header">
                   <div className="provider-icon"><Cpu size={18} /></div>
-                  <div><strong>{provider.displayName}</strong><span>{provider.isLive ? "Live external provider" : "Local deterministic adapter"}</span></div>
+                  <div><strong>{provider.displayName}</strong><span>{provider.isLive ? "Live external provider" : "Local test provider"}</span></div>
                   <span className={`runtime-badge ${provider.isConfigured ? "runtime-ready" : "runtime-blocked"}`}>{provider.status}</span>
                 </div>
+                {!provider.isLive && <p className="provider-explainer compact"><strong>Repeatable by design.</strong> Rule-based responses and synthetic usage make this adapter safe for workflow and recovery testing; no external model or key is used.</p>}
                 {!provider.isConfigured && <p className="provider-warning"><CircleAlert size={14} /> {provider.configurationHint}</p>}
                 <div className="provider-model-list">
                   {provider.models.map(model => <ModelSummary key={model.key} model={model} />)}
@@ -194,6 +196,7 @@ export function IntelligenceCenterPage() {
         </aside>
       </section>
 
+      <AdaptiveWorkspace storageKey="intelligence" rightLabel="Execution inspector" hasLeft={false}>
       <section className="intelligence-main-grid">
         <article className="panel execution-history-panel">
           <div className="panel-header">
@@ -229,13 +232,18 @@ export function IntelligenceCenterPage() {
           {selectedExecution ? <ExecutionInspector execution={selectedExecution} /> : <div className="inspector-placeholder"><Activity size={24} /><p>Select an execution to inspect model selection, recovery, quality, and cost.</p></div>}
         </aside>
       </section>
+      </AdaptiveWorkspace>
 
       <section className="panel plan-preview-panel">
         <div className="panel-header"><div><span className="panel-eyebrow">Admission control</span><h3>Execution plan preview</h3></div><ShieldCheck size={20} /></div>
         <div className="plan-preview-layout">
           <div className="plan-form-grid">
-            <label><span>Provider</span><select value={planRequest.provider} onChange={event => { const provider = overview.providers.find(item => item.key === event.target.value); setPlanRequest(current => ({ ...current, provider: event.target.value, model: provider?.models[0]?.key ?? current.model })); }}>{overview.providers.map(provider => <option key={provider.key} value={provider.key}>{provider.displayName}</option>)}</select></label>
-            <label><span>Model</span><select value={planRequest.model} onChange={event => setPlanRequest(current => ({ ...current, model: event.target.value }))}>{selectedProvider?.models.map(model => <option key={model.key} value={model.key}>{model.displayName}</option>)}</select></label>
+            {overview.providers.length > 1 ? (
+              <label><span>Provider</span><select value={planRequest.provider} onChange={event => { const provider = overview.providers.find(item => item.key === event.target.value); setPlanRequest(current => ({ ...current, provider: event.target.value, model: provider?.models[0]?.key ?? current.model })); }}>{overview.providers.map(provider => <option key={provider.key} value={provider.key}>{provider.displayName}</option>)}</select></label>
+            ) : <div className="singleton-context"><span>Provider</span><strong>{overview.providers[0]?.displayName ?? "Unavailable"}</strong></div>}
+            {(selectedProvider?.models.length ?? 0) > 1 ? (
+              <label><span>Model</span><select value={planRequest.model} onChange={event => setPlanRequest(current => ({ ...current, model: event.target.value }))}>{selectedProvider?.models.map(model => <option key={model.key} value={model.key}>{model.displayName}</option>)}</select></label>
+            ) : <div className="singleton-context"><span>Model</span><strong>{selectedProvider?.models[0]?.displayName ?? "Unavailable"}</strong></div>}
             <label><span>Estimated input tokens</span><input type="number" min="1" value={planRequest.estimatedInputTokens} onChange={event => setPlanRequest(current => ({ ...current, estimatedInputTokens: Number(event.target.value) }))} /></label>
             <label><span>Maximum output tokens</span><input type="number" min="1" value={planRequest.maxOutputTokens} onChange={event => setPlanRequest(current => ({ ...current, maxOutputTokens: Number(event.target.value) }))} /></label>
             <label><span>Maximum attempts</span><input type="number" min="1" max="10" value={planRequest.maxAttempts} onChange={event => setPlanRequest(current => ({ ...current, maxAttempts: Number(event.target.value) }))} /></label>

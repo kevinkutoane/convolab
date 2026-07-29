@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -252,11 +253,38 @@ export function WorkflowDesignerPage() {
   }
 
   function addTransition() {
-    if (!editable || !linkFrom || !linkTo || linkFrom === linkTo) return;
-    if (transitions.some(item => item.fromNodeId === linkFrom && item.toNodeId === linkTo)) return;
+    addTransitionBetween(linkFrom, linkTo);
+  }
+
+  function addTransitionBetween(fromNodeId: string, toNodeId: string) {
+    if (!editable || !fromNodeId || !toNodeId || fromNodeId === toNodeId) return;
+    if (transitions.some(item => item.fromNodeId === fromNodeId && item.toNodeId === toNodeId)) {
+      setMessage("Those nodes are already connected.");
+      return;
+    }
     setTransitions(currentTransitions => [...currentTransitions, {
-      id: newId(), fromNodeId: linkFrom, toNodeId: linkTo, label: "", condition: null,
+      id: newId(), fromNodeId, toNodeId, label: "", condition: null,
     }]);
+    const fromName = nodes.find(node => node.id === fromNodeId)?.name ?? "Source";
+    const toName = nodes.find(node => node.id === toNodeId)?.name ?? "target";
+    setLinkFrom("");
+    setLinkTo("");
+    setMessage(`${fromName} connected to ${toName}. Save the graph to persist this transition.`);
+  }
+
+  function beginCanvasConnection(node: WorkflowNode) {
+    if (!editable || node.kind === "End") return;
+    setLinkFrom(node.id);
+    setLinkTo("");
+    setSelectedNodeId(node.id);
+    setMessage(`Connecting from ${node.name}. Select the input dot on the destination node.`);
+  }
+
+  function completeCanvasConnection(node: WorkflowNode) {
+    if (!editable || !linkFrom || linkFrom === node.id || node.kind === "Start") return;
+    setLinkTo(node.id);
+    setSelectedNodeId(node.id);
+    addTransitionBetween(linkFrom, node.id);
   }
 
   function updateTransition(id: string, patch: Partial<WorkflowTransition>) {
@@ -305,6 +333,7 @@ export function WorkflowDesignerPage() {
 
     {message && <div className="panel workflow-notice" role="status" aria-live="polite">{message}</div>}
 
+    <AdaptiveWorkspace storageKey="workflows" leftLabel="Definitions" rightLabel="Inspector">
     <section className="workflow-studio-layout">
       <aside className="panel workflow-library">
         <div className="panel-header"><div><span className="panel-eyebrow">Definitions</span><h3>{items.length} workflows</h3></div></div>
@@ -331,6 +360,7 @@ export function WorkflowDesignerPage() {
         {detail && <>
           <div className="workflow-palette">
             {kinds.map(kind => <button key={kind} onClick={() => addNode(kind)} disabled={!editable}><Plus size={13} /> {kind}</button>)}
+            <span className="workflow-connect-hint"><span aria-hidden="true">● → ●</span> Connect: choose an output dot, then an input dot</span>
           </div>
           <div className="workflow-canvas" ref={canvasRef} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerLeave={onPointerUp}>
             <div className="workflow-canvas-inner">
@@ -344,16 +374,35 @@ export function WorkflowDesignerPage() {
                   return <g key={edge.id}><path d={`M ${x1} ${y1} C ${x1 + mid} ${y1}, ${x2 - mid} ${y2}, ${x2} ${y2}`} /><circle cx={x2} cy={y2} r="4" />{edge.label && <text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 8}>{edge.label}</text>}</g>;
                 })}
               </svg>
-              {nodes.map(node => <button
-                type="button"
-                key={node.id}
-                className={`workflow-node node-${node.kind.toLowerCase()} ${selectedNodeId === node.id ? "selected" : ""}`}
-                style={{ left: node.positionX, top: node.positionY, width: nodeWidth, height: nodeHeight }}
-                onClick={() => setSelectedNodeId(node.id)}
-                onPointerDown={event => onPointerDown(event, node)}
-              >
-                <GripVertical size={15} /><span><small>{node.kind}</small><strong>{node.name}</strong></span>
-              </button>)}
+              {nodes.map(node => <Fragment key={node.id}>
+                <button
+                  type="button"
+                  className={`workflow-node node-${node.kind.toLowerCase()} ${selectedNodeId === node.id ? "selected" : ""} ${linkFrom === node.id ? "connecting-from" : ""}`}
+                  style={{ left: node.positionX, top: node.positionY, width: nodeWidth, height: nodeHeight }}
+                  onClick={() => setSelectedNodeId(node.id)}
+                  onPointerDown={event => onPointerDown(event, node)}
+                >
+                  <GripVertical size={15} /><span><small>{node.kind}</small><strong>{node.name}</strong></span>
+                </button>
+                {node.kind !== "Start" && <button
+                  type="button"
+                  className="workflow-node-handle handle-input"
+                  style={{ left: node.positionX - 8, top: node.positionY + nodeHeight / 2 - 8 }}
+                  disabled={!editable || !linkFrom || linkFrom === node.id}
+                  onClick={() => completeCanvasConnection(node)}
+                  aria-label={`Connect to ${node.name}`}
+                  title={linkFrom ? `Connect to ${node.name}` : "Choose a source output first"}
+                />}
+                {node.kind !== "End" && <button
+                  type="button"
+                  className={`workflow-node-handle handle-output ${linkFrom === node.id ? "active" : ""}`}
+                  style={{ left: node.positionX + nodeWidth - 8, top: node.positionY + nodeHeight / 2 - 8 }}
+                  disabled={!editable}
+                  onClick={() => beginCanvasConnection(node)}
+                  aria-label={`Connect from ${node.name}`}
+                  title={`Connect from ${node.name}`}
+                />}
+              </Fragment>)}
             </div>
           </div>
         </>}
@@ -402,5 +451,6 @@ export function WorkflowDesignerPage() {
         </>}
       </aside>
     </section>
+    </AdaptiveWorkspace>
   </div>;
 }

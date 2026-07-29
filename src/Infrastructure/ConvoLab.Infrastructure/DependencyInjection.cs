@@ -26,6 +26,8 @@ using ConvoLab.Infrastructure.PluginStudio;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 using ConvoLab.Application.Settings;
 using ConvoLab.Infrastructure.Settings;
+using ConvoLab.Application.Analytics;
+using ConvoLab.Infrastructure.Analytics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +40,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<WorkspaceRequestContext>();
+        services.AddScoped<IRuntimeRequestContext>(provider => provider.GetRequiredService<WorkspaceRequestContext>());
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         var configuredProvider = configuration["Database:Provider"]?.Trim().ToLowerInvariant();
         var useSqlite = configuredProvider switch
@@ -104,6 +107,8 @@ public static class DependencyInjection
         services.AddScoped<IProviderValidationService, ProviderValidationService>();
         services.AddSingleton<ISecretStore, EnvironmentSecretStore>();
         services.AddScoped<SettingsBootstrapper>();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
+        services.AddHostedService<AnalyticsMaintenanceWorker>();
 
         return services;
     }

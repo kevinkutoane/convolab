@@ -28,7 +28,7 @@ import type {
 export const designTimePlatformStatus: PlatformStatus = {
   platformName: "ConvoLab Platform",
   productName: "ConvoLab Studio",
-  version: "1.0.0-alpha.13",
+  version: "1.0.0-alpha.14",
   environment: "Development",
   architectureHealth: "Healthy",
   apiHealth: "Unknown",
@@ -124,11 +124,19 @@ export const designTimePlatformStatus: PlatformStatus = {
       domainEvents: 8,
     },
     {
+      id: "analytics",
+      name: "Platform Analytics",
+      description: "Trusted workspace and environment usage, cost, quality, governance, performance, and adoption evidence.",
+      status: "active",
+      version: "1.0",
+      domainEvents: 12,
+    },
+    {
       id: "studio",
       name: "ConvoLab Studio",
       description: "Functional conversation simulation, governance, evaluation, tracing, replay, and plugin workspace.",
       status: "active",
-      version: "0.13",
+      version: "0.14",
       domainEvents: 0,
     },
   ],
@@ -223,7 +231,7 @@ export const navigationItems: NavigationItem[] = [
     path: "/analytics",
     icon: BarChart3,
     description: "Monitor quality, cost, latency, and adoption",
-    status: "planned",
+    status: "active",
   },
   {
     label: "Settings",
@@ -341,7 +349,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     ],
     emptyTitle: "No intelligence providers",
     emptyDescription:
-      "Install a provider adapter after Platform Core integration contracts are finalized.",
+      "Configure a live provider adapter when you are ready to run external model inference.",
     primaryAction: "View provider contract",
   },
   policies: {
@@ -447,7 +455,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     activities: [
       "Plugins expose capabilities rather than concrete types",
       "Health and lifecycle are first-class concepts",
-      "Provider implementations remain outside Platform Core",
+      "Provider adapters keep Studio workflows portable",
     ],
     emptyTitle: "No plugins match",
     emptyDescription:
@@ -460,21 +468,21 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     description:
       "Monitor adoption, quality, containment, latency, cost, reliability, and capability health.",
     icon: BarChart3,
-    status: "planned",
+    status: "active",
     metrics: [
-      { label: "Events", value: "0", detail: "No telemetry connected" },
-      { label: "Cost", value: "R0.00", detail: "No provider usage" },
-      { label: "Quality", value: "—", detail: "No evaluated responses" },
+      { label: "Scope", value: "Workspace", detail: "Environment-filtered" },
+      { label: "Cost", value: "ZAR", detail: "Actual, estimated, or unavailable" },
+      { label: "Evidence", value: "Safe", detail: "No prompt or secret content" },
     ],
     activities: [
-      "Analytics will consume normalized platform telemetry",
-      "Cost will be tracked by conversation and workflow",
-      "Quality trends will integrate Evaluation results",
+      "Trusted execution context resolves the runtime environment",
+      "Append-only evidence is aggregated with restart-safe checkpoints",
+      "Role permissions filter cost, actor, quality, and governance data",
     ],
     emptyTitle: "No analytics data",
     emptyDescription:
       "Connect runtime telemetry to start monitoring the platform across environments.",
-    primaryAction: "View metrics roadmap",
+    primaryAction: "Open Analytics",
   },
   settings: {
     title: "Studio Settings",

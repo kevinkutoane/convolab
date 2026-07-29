@@ -27,6 +27,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
     private readonly ITraceStudioService _traceStudio;
     private readonly IIntelligenceCatalogueBootstrapper _catalogueBootstrapper;
     private readonly IPolicyDecisionService _policyStudio;
+    private readonly IRuntimeRequestContext _runtime;
 
     public ConversationSimulationService(
         IConversationSimulationStore store,
@@ -38,7 +39,8 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         IEvaluationStudioService evaluationStudio,
         ITraceStudioService traceStudio,
         IIntelligenceCatalogueBootstrapper catalogueBootstrapper,
-        IPolicyDecisionService policyStudio)
+        IPolicyDecisionService policyStudio,
+        IRuntimeRequestContext runtime)
     {
         _store = store;
         _intelligence = intelligence;
@@ -50,6 +52,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         _traceStudio = traceStudio;
         _catalogueBootstrapper = catalogueBootstrapper;
         _policyStudio = policyStudio;
+        _runtime = runtime;
     }
 
     public async Task<SimulationOptions> GetOptionsAsync(CancellationToken cancellationToken = default)
@@ -214,7 +217,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
                 AllowFallback: true,
                 AllowStreaming: true,
                 Source: isReplay ? "ReplayStudio" : "ConversationSimulator",
-                Environment: ResolveRuntimeEnvironment(),
+                Environment: _runtime.EnvironmentName ?? "Development",
                 SimulationId: state.Id,
                 RunId: runId), cancellationToken);
             policyTimer.Stop();
@@ -356,11 +359,6 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
                 $"The simulation remains available and Trace Explorer will synchronize it later. {exception.Message}");
         }
     }
-
-    private static string ResolveRuntimeEnvironment()
-        => Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
-            ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
-            ?? "Development";
 
     private static ProviderKind ResolveProviderKind(string provider)
         => provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase)

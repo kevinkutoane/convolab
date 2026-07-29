@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -112,6 +113,7 @@ export function TraceExplorerPage() {
         </div>
       </section>
 
+      <AdaptiveWorkspace storageKey="traces" leftLabel="Trace list" hasRight={false}>
       <section className="trace-workspace">
         <article className="panel trace-list-panel">
           <div className="panel-header"><div><span className="panel-eyebrow">Persisted runtime telemetry</span><h3>Execution traces</h3></div><span className="result-count">{traces.length}</span></div>
@@ -148,6 +150,7 @@ export function TraceExplorerPage() {
           ) : null}
         </article>
       </section>
+      </AdaptiveWorkspace>
     </div>
   );
 }

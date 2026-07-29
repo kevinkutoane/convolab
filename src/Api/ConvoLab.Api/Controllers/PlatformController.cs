@@ -15,7 +15,7 @@ public sealed class PlatformController : ControllerBase
         var response = new PlatformStatusResponse(
             PlatformName: "ConvoLab Platform",
             ProductName: "ConvoLab Studio",
-            Version: "1.0.0-alpha.13",
+            Version: "1.0.0-alpha.14",
             Environment: HttpContext.RequestServices
                 .GetRequiredService<IHostEnvironment>()
                 .EnvironmentName,
@@ -34,7 +34,8 @@ public sealed class PlatformController : ControllerBase
                 new("replay", "Replay Studio", "Controlled re-execution, immutable baselines, candidate comparisons, and findings.", "stable", "1.0", 3),
                 new("plugins", "Plugin Engine", "Persistent extension registry, immutable versions, compatibility, lifecycle, health, and capability contracts.", "stable", "1.0", 4),
                 new("workspace-identity", "Workspace, Identity and Access", "Secure local authentication, workspace isolation, RBAC, service identities, and attributable audit.", "active", "1.0", 8),
-                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", "active", "0.13", 0),
+                new("analytics", "Platform Analytics", "Trusted workspace and environment usage, cost, quality, governance, performance, adoption, and safe event evidence.", "active", "1.0", 12),
+                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, analytics, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", "active", "0.14", 0),
             ],
             GeneratedAt: DateTimeOffset.UtcNow,
             Source: "api");

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { normalizeProblemDetails, type PlatformProblem } from "../lib/problemDetails.js";
 import { prepareAntiforgery } from "./authApi";
+import { getRuntimeEnvironmentId } from "./runtimeEnvironment";
 
 export class PlatformApiError extends Error {
   readonly problem: PlatformProblem;
@@ -21,9 +22,21 @@ export const api = axios.create({
   xsrfCookieName: "",  // Disable axios auto-XSRF; our interceptor sends the correct request token
 });
 
+function isEnvironmentAwareRequest(url?: string, method?: string) {
+  if (!url || ["GET", "HEAD", "OPTIONS", "TRACE"].includes((method ?? "GET").toUpperCase())) return false;
+  return url.startsWith("/api/simulations")
+    || url.startsWith("/api/evaluation")
+    || url.startsWith("/api/replay")
+    || url.startsWith("/api/plugins");
+}
+
 api.interceptors.request.use((config) => {
   const method = (config.method ?? "get").toUpperCase();
   const unsafeMethod = !["GET", "HEAD", "OPTIONS", "TRACE"].includes(method);
+  const runtimeEnvironmentId = getRuntimeEnvironmentId();
+  if (runtimeEnvironmentId && isEnvironmentAwareRequest(config.url, method)) {
+    config.headers.set("X-ConvoLab-Environment-Id", runtimeEnvironmentId);
+  }
   if (!unsafeMethod) return config;
   return prepareAntiforgery(true).then((token) => {
     if (token) config.headers.set("X-XSRF-TOKEN", token);

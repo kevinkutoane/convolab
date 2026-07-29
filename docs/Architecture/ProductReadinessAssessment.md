@@ -1,4 +1,4 @@
-# Product Readiness Assessment — v1.0.0-alpha.13
+# Product Readiness Assessment — v1.0.0-alpha.14
 
 ## Decision
 
@@ -15,6 +15,7 @@ The functional Studio baseline is stabilized and suitable for controlled interna
 - Single ASP.NET Core backend topology
 - Studio dashboard, navigation, command palette, responsive shell, and meaningful capability workspaces
 - Platform status endpoint and design-time fallback
+- Trusted environment attribution, append-only analytics evidence, restart-safe aggregation, and permission-filtered Analytics workspace
 
 ## Experimental
 

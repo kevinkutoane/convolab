@@ -3,6 +3,8 @@ using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.EvaluationStudio;
 using ConvoLab.Infrastructure.Simulation;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql;
 
 namespace ConvoLab.Infrastructure.IntegrationTests.Data;
@@ -20,7 +22,10 @@ public sealed class PostgresMigrationTests
         await using (var first = new ApplicationDbContext(options))
         {
             await first.Database.MigrateAsync();
-            Assert.Equal(11, (await first.Database.GetAppliedMigrationsAsync()).Count());
+            var known = first.Database.GetMigrations().ToArray();
+            var applied = (await first.Database.GetAppliedMigrationsAsync()).ToArray();
+            Assert.Equal(known, applied);
+            Assert.Empty(await first.Database.GetPendingMigrationsAsync());
             Assert.Equal(1, await first.Organisations.CountAsync());
             Assert.Equal(1, await first.Workspaces.CountAsync());
             var store = new EfConversationSimulationStore(first);
@@ -32,6 +37,45 @@ public sealed class PostgresMigrationTests
             var loaded = await new EfConversationSimulationStore(restarted).GetAsync(simulationId);
             Assert.NotNull(loaded);
             Assert.Equal("PostgreSQL restart evidence", loaded.Title);
+        }
+    }
+
+    [Fact]
+    public async Task Alpha13_database_upgrades_with_idempotent_analytics_backfill_and_restart()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        if (!database.Available) return;
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.ConnectionString).Options;
+        Guid simulationId;
+
+        await using (var alpha13 = new ApplicationDbContext(options))
+        {
+            var migrator = alpha13.Database.GetService<IMigrator>();
+            var alpha13Migration = alpha13.Database.GetMigrations()
+                .Single(id => id.EndsWith("_EnvironmentSettingsManagementV1", StringComparison.Ordinal));
+            var targetName = alpha13.Database.GetService<IMigrationsIdGenerator>().GetName(alpha13Migration);
+            await migrator.MigrateAsync(targetName);
+            simulationId = (await new EfConversationSimulationStore(alpha13).AddAsync(
+                new CreateSimulationCommand("Alpha 13 analytics upgrade", "Workflow", "Prompt", "Knowledge"))).Id;
+        }
+
+        await using (var upgraded = new ApplicationDbContext(options))
+        {
+            await upgraded.Database.MigrateAsync();
+            await upgraded.Database.MigrateAsync();
+            Assert.Empty(await upgraded.Database.GetPendingMigrationsAsync());
+            Assert.Equal(1, await upgraded.ExecutionAttributions.CountAsync(item =>
+                item.SourceResourceType == "Simulation" && item.SourceResourceId == simulationId));
+            var attribution = await upgraded.ExecutionAttributions.SingleAsync(item => item.SourceResourceId == simulationId);
+            Assert.Equal("BackfilledDefaultEnvironment", attribution.AttributionStatus);
+            Assert.Equal("legacy:alpha13-unattributed", attribution.ConfigurationRevision);
+        }
+
+        await using (var restarted = new ApplicationDbContext(options))
+        {
+            Assert.Equal(1, await restarted.ExecutionAttributions.CountAsync(item =>
+                item.SourceResourceType == "Simulation" && item.SourceResourceId == simulationId));
+            Assert.NotNull(await new EfConversationSimulationStore(restarted).GetAsync(simulationId));
         }
     }
 

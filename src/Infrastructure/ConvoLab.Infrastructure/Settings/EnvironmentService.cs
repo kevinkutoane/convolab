@@ -3,6 +3,8 @@ using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Settings;
 using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.Analytics;
+using ConvoLab.Domain.Analytics;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConvoLab.Infrastructure.Settings;
@@ -108,6 +110,7 @@ public sealed class EnvironmentService : IEnvironmentService
     {
         var record = await FindAsync(workspaceId, environmentId, expectedRevision, ct);
         if (record.Status == "Archived") throw new ResourceConflictException("environment.archived", "Archived environments are immutable.");
+        if (record.IsDefault) throw new ResourceConflictException("environment.default", "Change the default environment before suspending this one.");
         if (record.EnvironmentType == "Production" && !isAdmin)
         {
             var otherActive = await _db.RuntimeEnvironments.CountAsync(e => e.WorkspaceId == workspaceId && e.Status == "Active" && e.Id != environmentId && e.EnvironmentType == "Production", ct);
@@ -136,6 +139,42 @@ public sealed class EnvironmentService : IEnvironmentService
         record.IsDefault = true; record.UpdatedAt = DateTimeOffset.UtcNow; record.UpdatedBy = actorId; record.Revision++;
         AddChange(record.OrganisationId, workspaceId, environmentId, "environment.default_changed", null, record.Name, actorId, actorDisplay, correlationId);
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<EnvironmentDto> SelectAsync(
+        Guid workspaceId,
+        Guid environmentId,
+        Guid actorId,
+        string actorType,
+        string? actorRole,
+        string correlationId,
+        CancellationToken ct = default)
+    {
+        var record = await _db.RuntimeEnvironments.AsNoTracking()
+            .SingleOrDefaultAsync(item => item.Id == environmentId && item.WorkspaceId == workspaceId, ct)
+            ?? throw NotFound("environment", environmentId);
+        if (record.Status != "Active")
+            throw new ResourceConflictException("environment.inactive", $"Environment '{environmentId}' is not active.");
+
+        var eventKey = AnalyticsKeys.Event("EnvironmentSelection", Guid.NewGuid(), "EnvironmentSelected");
+        var analyticsEvent = new AnalyticsEventRecord
+        {
+            Id = Guid.NewGuid(), EventKey = eventKey, OrganisationId = record.OrganisationId,
+            WorkspaceId = workspaceId, EnvironmentId = environmentId, ActorId = actorId,
+            ActorType = actorType, ActorRole = actorRole, Capability = "Environment",
+            EventType = "EnvironmentSelected", Outcome = "Succeeded", CostType = "Unavailable",
+            SourceType = "RuntimeEnvironment", SourceId = environmentId,
+            ConfigurationRevision = "selection:no-execution", CorrelationId = correlationId,
+            OccurredAt = DateTimeOffset.UtcNow
+        };
+        _db.AnalyticsOutbox.Add(new AnalyticsOutboxRecord
+        {
+            Id = Guid.NewGuid(), EventKey = eventKey,
+            PayloadJson = JsonSerializer.Serialize(analyticsEvent),
+            Status = "Pending", AvailableAt = DateTimeOffset.UtcNow, CreatedAt = DateTimeOffset.UtcNow
+        });
+        await _db.SaveChangesAsync(ct);
+        return ToDto(record);
     }
 
     private async Task ClearDefaultAsync(Guid workspaceId, CancellationToken ct)

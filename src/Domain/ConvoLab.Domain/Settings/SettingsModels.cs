@@ -327,6 +327,10 @@ public static class SettingKeys
     public const string TraceRetentionDays = "retention.trace_days";
     public const string EvalRetentionDays = "retention.evaluation_days";
     public const string ReplayRetentionDays = "retention.replay_days";
+    public const string AnalyticsEventRetentionDays = "retention.analytics_event_days";
+    public const string AnalyticsHourlyRetentionDays = "retention.analytics_hourly_days";
+    public const string AnalyticsDailyRetentionDays = "retention.analytics_daily_days";
+    public const string AnalyticsExportRetentionDays = "retention.analytics_export_days";
     public const string StoreProviderPayloads = "retention.store_provider_payloads";
     public const string StoreProviderResponses = "retention.store_provider_responses";
     public const string DefaultRedactionLevel = "retention.redaction_level";
@@ -383,7 +387,11 @@ public sealed record EffectiveSettingResult(
     bool RequiresRestart,
     string DisplayName,
     string Category,
-    string? InheritedFromDisplay);
+    string? InheritedFromDisplay,
+    string Description,
+    bool IsRequired,
+    IReadOnlyList<string> AllowedValues,
+    bool AllowsEnvironmentOverride);
 
 public sealed record ConfigurationSnapshot(
     string ConfigurationRevision,

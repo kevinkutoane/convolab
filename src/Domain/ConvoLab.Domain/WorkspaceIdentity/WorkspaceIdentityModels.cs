@@ -162,14 +162,23 @@ public static class WorkspacePermissions
     public const string ExportConfiguration = "CanExportConfiguration";
     public const string ImportConfiguration = "CanImportConfiguration";
     public const string ManageFeatureFlags = "CanManageFeatureFlags";
+    public const string ViewWorkspaceAnalytics = "CanViewWorkspaceAnalytics";
+    public const string ViewEnvironmentAnalytics = "CanViewEnvironmentAnalytics";
+    public const string ViewCostAnalytics = "CanViewCostAnalytics";
+    public const string ViewQualityAnalytics = "CanViewQualityAnalytics";
+    public const string ViewGovernanceAnalytics = "CanViewGovernanceAnalytics";
+    public const string ViewAdoptionAnalytics = "CanViewAdoptionAnalytics";
+    public const string ViewActorAnalytics = "CanViewActorAnalytics";
+    public const string ExportAnalytics = "CanExportAnalytics";
+    public const string ViewPlatformAnalytics = "CanViewPlatformAnalytics";
 
     public static IReadOnlySet<string> For(WorkspaceRole role) => role switch
     {
         WorkspaceRole.Administrator => All,
-        WorkspaceRole.Engineer => new HashSet<string> { WorkspaceMember, CreateAssets, EditAssets, RunSimulation, RunReplay, CreateEvaluations, InspectSensitiveTrace, ViewOperationalTrace, ViewPolicyDecisions, DraftPolicies, DraftPlugins, ViewSettings, ManageWorkspaceSettings, ManageEnvironmentSettings, ValidateProviderConfiguration, ExportConfiguration },
-        WorkspaceRole.Reviewer => new HashSet<string> { WorkspaceMember, ReviewAssets, PublishAssets, ReviewEvaluations, CompleteReplay, InspectSensitiveTrace, ViewOperationalTrace, ViewPolicyDecisions, ManagePolicies, ViewSettings, ExportConfiguration },
-        WorkspaceRole.Operator => new HashSet<string> { WorkspaceMember, RunSimulation, CreateEvaluations, ViewOperationalTrace, ViewPolicyDecisions, CheckProviderHealth, ViewSettings, ValidateProviderConfiguration },
-        _ => new HashSet<string> { WorkspaceMember, ViewSettings }
+        WorkspaceRole.Engineer => new HashSet<string> { WorkspaceMember, CreateAssets, EditAssets, RunSimulation, RunReplay, CreateEvaluations, InspectSensitiveTrace, ViewOperationalTrace, ViewPolicyDecisions, DraftPolicies, DraftPlugins, ViewSettings, ManageWorkspaceSettings, ManageEnvironmentSettings, ValidateProviderConfiguration, ExportConfiguration, ViewWorkspaceAnalytics, ViewEnvironmentAnalytics, ViewCostAnalytics, ViewQualityAnalytics },
+        WorkspaceRole.Reviewer => new HashSet<string> { WorkspaceMember, ReviewAssets, PublishAssets, ReviewEvaluations, CompleteReplay, InspectSensitiveTrace, ViewOperationalTrace, ViewPolicyDecisions, ManagePolicies, ViewSettings, ExportConfiguration, ViewWorkspaceAnalytics, ViewEnvironmentAnalytics, ViewQualityAnalytics, ViewGovernanceAnalytics, ViewAdoptionAnalytics },
+        WorkspaceRole.Operator => new HashSet<string> { WorkspaceMember, RunSimulation, CreateEvaluations, ViewOperationalTrace, ViewPolicyDecisions, CheckProviderHealth, ViewSettings, ValidateProviderConfiguration, ViewWorkspaceAnalytics, ViewEnvironmentAnalytics, ViewCostAnalytics, ViewGovernanceAnalytics },
+        _ => new HashSet<string> { WorkspaceMember, ViewSettings, ViewWorkspaceAnalytics }
     };
 
     private static readonly IReadOnlySet<string> All = new HashSet<string>
@@ -179,6 +188,9 @@ public static class WorkspacePermissions
         DraftPolicies, ManagePlugins, DraftPlugins, CreateEvaluations, ReviewEvaluations, CompleteReplay,
         ViewOperationalTrace, ViewPolicyDecisions, CheckProviderHealth,
         ViewSettings, ManageWorkspaceSettings, ManageEnvironmentSettings, ManageSecretReferences,
-        ValidateProviderConfiguration, ExportConfiguration, ImportConfiguration, ManageFeatureFlags
+        ValidateProviderConfiguration, ExportConfiguration, ImportConfiguration, ManageFeatureFlags,
+        ViewWorkspaceAnalytics, ViewEnvironmentAnalytics, ViewCostAnalytics, ViewQualityAnalytics,
+        ViewGovernanceAnalytics, ViewAdoptionAnalytics, ViewActorAnalytics, ExportAnalytics,
+        ViewPlatformAnalytics
     };
 }

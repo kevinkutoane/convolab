@@ -66,6 +66,18 @@ public sealed class EnvironmentsController(IEnvironmentService service) : Contro
         return NoContent();
     }
 
+    [Authorize(Policy = WorkspacePermissions.ViewSettings)]
+    [HttpPost("{environmentId:guid}/select")]
+    public async Task<ActionResult<EnvironmentDto>> Select(Guid workspaceId, Guid environmentId, CancellationToken ct)
+        => Ok(await service.SelectAsync(
+            workspaceId,
+            environmentId,
+            ActorId(),
+            User.FindFirstValue("actor_type") ?? "User",
+            User.FindFirstValue(ClaimTypes.Role),
+            HttpContext.TraceIdentifier,
+            ct));
+
     private Guid ActorId() => Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
     private string ActorDisplay() => User.Identity?.Name ?? User.FindFirstValue(ClaimTypes.Email) ?? "Authenticated user";
 }
