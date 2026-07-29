@@ -44,6 +44,10 @@ export interface EffectiveSetting {
   displayName: string;
   category: string;
   inheritedFromDisplay?: string;
+  description: string;
+  isRequired: boolean;
+  allowedValues: string[];
+  allowsEnvironmentOverride: boolean;
 }
 
 export interface SecretReference {

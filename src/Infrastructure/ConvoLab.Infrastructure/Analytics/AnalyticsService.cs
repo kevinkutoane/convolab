@@ -13,6 +13,53 @@ public sealed class AnalyticsService(ApplicationDbContext db) : IAnalyticsServic
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
+    public async Task<AnalyticsFilterOptionsDto> FilterOptionsAsync(AnalyticsQuery query, CancellationToken ct = default)
+    {
+        ValidateQuery(query, 366);
+        await RequireEnvironmentAsync(query.WorkspaceId, query.EnvironmentId, ct);
+        var eventQuery = db.AnalyticsEvents.AsNoTracking()
+            .Where(item => item.WorkspaceId == query.WorkspaceId);
+        if (query.EnvironmentId.HasValue)
+            eventQuery = eventQuery.Where(item => item.EnvironmentId == query.EnvironmentId.Value);
+        if (!db.Database.IsSqlite())
+            eventQuery = eventQuery.Where(item => item.OccurredAt >= query.From && item.OccurredAt < query.To);
+
+        var rows = await eventQuery
+            .Select(item => new
+            {
+                item.OccurredAt,
+                item.Provider,
+                item.Model,
+                item.Capability,
+                item.Outcome,
+                item.PromptName,
+                item.WorkflowName,
+                item.ConfigurationRevision,
+                item.EventType
+            })
+            .ToListAsync(ct);
+        if (db.Database.IsSqlite())
+            rows = rows.Where(item => item.OccurredAt >= query.From && item.OccurredAt < query.To).ToList();
+
+        static IReadOnlyList<string> Options(IEnumerable<string?> values, int maximum = 200) =>
+            values.Where(value => !string.IsNullOrWhiteSpace(value))
+                .Select(value => value!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
+                .Take(maximum)
+                .ToList();
+
+        return new AnalyticsFilterOptionsDto(
+            Options(rows.Select(item => item.Provider)),
+            Options(rows.Select(item => item.Model)),
+            Options(rows.Select(item => item.Capability)),
+            Options(rows.Select(item => item.Outcome)),
+            Options(rows.Select(item => item.PromptName)),
+            Options(rows.Select(item => item.WorkflowName)),
+            Options(rows.Select(item => item.ConfigurationRevision), 100),
+            Options(rows.Select(item => item.EventType)));
+    }
+
     public async Task<AnalyticsDashboardDto> DashboardAsync(string category, AnalyticsQuery query, CancellationToken ct = default)
     {
         ValidateQuery(query, query.Granularity.Equals("hour", StringComparison.OrdinalIgnoreCase) ? 31 : 366);

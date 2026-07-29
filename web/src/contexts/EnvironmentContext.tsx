@@ -77,19 +77,23 @@ export function EnvironmentProvider({ children }: { children: ReactNode }) {
     () => state.environments.filter(environment => environment.status !== "Archived"),
     [state.environments],
   );
+  const activeEnvironments = useMemo(
+    () => environments.filter(environment => environment.status === "Active"),
+    [environments],
+  );
 
   const selectedId = workspaceId
     ? selections[workspaceId] ?? localStorage.getItem(storageKey(workspaceId)) ?? undefined
     : undefined;
 
   const activeEnvironment = useMemo(() => {
-    if (!environments.length) return undefined;
+    if (!activeEnvironments.length) return undefined;
     return (
-      environments.find(environment => environment.id === selectedId) ??
-      environments.find(environment => environment.isDefault) ??
-      environments[0]
+      activeEnvironments.find(environment => environment.id === selectedId) ??
+      activeEnvironments.find(environment => environment.isDefault) ??
+      activeEnvironments[0]
     );
-  }, [environments, selectedId]);
+  }, [activeEnvironments, selectedId]);
 
   useEffect(() => {
     setRuntimeEnvironmentId(activeEnvironment?.id);

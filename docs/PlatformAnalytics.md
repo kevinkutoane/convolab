@@ -14,6 +14,17 @@ Each new simulation run stores:
 - associated execution attribution for organisation, workspace, environment, actor, role, configuration, and correlation;
 - a deterministic, safe analytics event in the transactional outbox.
 
+## Current event coverage
+
+Alpha 14 currently emits analytics events for:
+
+- completed, failed, and policy-denied simulation executions;
+- validated Studio environment selections.
+
+Simulation events record safe dimensions only: workspace/environment scope, actor classification subject to permission redaction, capability and event type, outcome, provider/model, token counts, actual/estimated/unavailable ZAR cost, duration, quality score, policy-prevented invocation, safe source reference, workflow/prompt reference, configuration revision, and correlation ID.
+
+The Studio derives its provider, model, capability, outcome, workflow, prompt, and configuration-revision filter dropdowns from the event values actually present in the selected environment and period. Empty dropdowns therefore mean that dimension has not been recorded for the current selection.
+
 Alpha 13 operational records are attributed to the default environment during migration and explicitly marked `BackfilledDefaultEnvironment` with revision `legacy:alpha13-unattributed`.
 
 ## Persistence and processing

@@ -71,6 +71,7 @@ function StudioRoutes() {
           <Route path="policies" element={<PolicyCenterPage />} />
           <Route path="plugins" element={<PluginCenterPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="settings/:section" element={<SettingsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="workspace" element={<WorkspacePage />} />
           <Route path="workspace/select" element={<WorkspacePage selectionOnly />} />

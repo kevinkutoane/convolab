@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import {
@@ -132,6 +133,8 @@ export function ConversationSimulatorPage() {
 
   const apiUnavailable = Boolean(optionsQuery.error || listQuery.error);
   const isExecuting = sendMutation.isPending || replayMutation.isPending;
+  const availableProviders = (optionsQuery.data?.providers ?? []).filter(item => item.isConfigured);
+  const selectedProvider = optionsQuery.data?.providers.find(item => item.key === provider);
 
   const handleCreate = () => createMutation.mutate(createRequest);
   const handleSend = () => {
@@ -156,7 +159,7 @@ export function ConversationSimulatorPage() {
         </div>
         <div className="simulator-heading-actions">
           <span className={`runtime-chip ${apiUnavailable ? "runtime-offline" : ""}`}>
-            <span /> {apiUnavailable ? "Platform API offline" : "Deterministic runtime connected"}
+            <span /> {apiUnavailable ? "Platform API offline" : selectedProvider?.isLive ? "Live provider connected" : "Local test provider ready"}
           </span>
           <button className="secondary-button" onClick={() => setShowCreate(value => !value)}>
             <Plus size={16} /> New simulation
@@ -186,16 +189,24 @@ export function ConversationSimulatorPage() {
         <section className="panel provider-controls-panel">
           <div className="panel-header"><div><span className="panel-eyebrow">Intelligence runtime</span><h3>Provider configuration</h3></div><span className={`runtime-chip ${provider === "Gemini" && !optionsQuery.data?.providers.find(item => item.key === "Gemini")?.isConfigured ? "runtime-offline" : ""}`}><span />{provider === "Gemini" ? "Live provider" : "Safe deterministic mode"}</span></div>
           <div className="provider-control-grid">
-            <label>Provider<select value={provider} onChange={event => { const next = event.target.value; setProvider(next); const option = optionsQuery.data?.providers.find(item => item.key === next); if (option) setModel(option.defaultModel); }}>{(optionsQuery.data?.providers ?? []).map(item => <option key={item.key} value={item.key} disabled={!item.isConfigured}>{item.displayName}{!item.isConfigured ? " — configure API key" : ""}</option>)}</select></label>
-            <label>Model<input value={model} onChange={event => setModel(event.target.value)} /></label>
+            {availableProviders.length > 1 ? (
+              <label>Provider<select value={provider} onChange={event => { const next = event.target.value; setProvider(next); const option = optionsQuery.data?.providers.find(item => item.key === next); if (option) setModel(option.defaultModel); }}>{availableProviders.map(item => <option key={item.key} value={item.key}>{item.displayName}</option>)}</select></label>
+            ) : (
+              <div className="singleton-context"><span>Provider</span><strong>{availableProviders[0]?.displayName ?? "Unavailable"}</strong></div>
+            )}
+            <div className="singleton-context"><span>Model</span><strong>{model}</strong></div>
             <label>Temperature<input type="number" min="0" max="2" step="0.1" value={temperature} onChange={event => setTemperature(Number(event.target.value))} /></label>
             <label>Max output tokens<input type="number" min="32" max="8192" step="32" value={maxOutputTokens} onChange={event => setMaxOutputTokens(Number(event.target.value))} /></label>
           </div>
+          {!selectedProvider?.isLive && (
+            <p className="provider-explainer"><strong>Local test provider.</strong> ConvoLab Deterministic returns repeatable rule-based responses with synthetic tokens, latency, and cost. It uses no external model or API key and is intended for reliable workflow testing.</p>
+          )}
           {provider === "Gemini" && !optionsQuery.data?.providers.find(item => item.key === "Gemini")?.isConfigured && <p className="provider-warning">Gemini is disabled until <code>GEMINI_API_KEY</code> is set on the API host. Keys are never sent to or stored by the browser.</p>}
         </section>
       )}
 
       {!apiUnavailable && (
+        <AdaptiveWorkspace storageKey="conversations" leftLabel="Simulations" rightLabel="Run inspector">
         <section className="simulator-workspace">
           <SimulationList
             simulations={listQuery.data ?? []}
@@ -232,6 +243,7 @@ export function ConversationSimulatorPage() {
             onReplay={() => selectedRun && handleReplay(selectedRun)}
           />
         </section>
+        </AdaptiveWorkspace>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import {
@@ -263,6 +264,7 @@ export function PolicyCenterPage() {
         />
       )}
 
+      <AdaptiveWorkspace storageKey="policies" leftLabel="Policy registry" hasRight={false}>
       <section className="policy-workspace">
         <aside className="panel policy-list-panel">
           <div className="panel-header"><div><span className="panel-eyebrow">Version registry</span><h3>Policies</h3></div><BookLock size={18} /></div>
@@ -295,6 +297,7 @@ export function PolicyCenterPage() {
           )}
         </main>
       </section>
+      </AdaptiveWorkspace>
 
       <section className="policy-lower-grid">
         <article className="panel policy-simulator-panel">

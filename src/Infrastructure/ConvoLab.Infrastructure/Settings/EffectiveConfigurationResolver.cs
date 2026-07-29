@@ -189,7 +189,33 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
             scope, sourceId,
             isInherited, def.IsSecret,
             "Valid", def.RequiresRestart,
-            def.DisplayName, def.Category, inheritedDisplay);
+            def.DisplayName, def.Category, inheritedDisplay,
+            def.Description, def.IsRequired,
+            ParseAllowedValues(def.AllowedValues),
+            def.AllowsEnvironmentOverride);
+    }
+
+    private static IReadOnlyList<string> ParseAllowedValues(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return [];
+        try
+        {
+            using var document = JsonDocument.Parse(value);
+            return document.RootElement.ValueKind switch
+            {
+                JsonValueKind.Array => document.RootElement.EnumerateArray()
+                    .Where(item => item.ValueKind == JsonValueKind.String)
+                    .Select(item => item.GetString()!)
+                    .ToArray(),
+                JsonValueKind.String => document.RootElement.GetString()?
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [],
+                _ => []
+            };
+        }
+        catch (JsonException)
+        {
+            return value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        }
     }
 
     private async Task RequireScopeAsync(

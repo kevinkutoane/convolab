@@ -81,6 +81,17 @@ export interface AnalyticsEventPage {
   nextCursor?: string;
 }
 
+export interface AnalyticsFilterOptions {
+  providers: string[];
+  models: string[];
+  capabilities: string[];
+  outcomes: string[];
+  prompts: string[];
+  workflows: string[];
+  configurationRevisions: string[];
+  eventTypes: string[];
+}
+
 export interface AnalyticsExport {
   id: string;
   status: string;

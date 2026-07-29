@@ -82,8 +82,9 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
 
     private async Task<AuthenticateResult> AuthenticateServiceAccountAsync(string credential)
     {
-        var parts = credential.Split('_', 3, StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length != 3 || parts[0] != "clsa" || !Guid.TryParseExact(parts[1], "N", out var id))
+        var parts = credential.Split('_', 3, StringSplitOptions.None);
+        if (parts.Length != 3 || parts[0] != "clsa" || parts[2].Length == 0
+            || !Guid.TryParseExact(parts[1], "N", out var id))
             return AuthenticateResult.Fail("The service credential is invalid.");
         var now = DateTimeOffset.UtcNow;
         var account = await _db.ServiceAccounts.AsTracking().SingleOrDefaultAsync(item => item.Id == id);

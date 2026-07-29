@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using ConvoLab.Api.Security;
 using ConvoLab.Domain.WorkspaceIdentity;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.Settings;
@@ -60,13 +61,30 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             name = $"Viewer bot {Guid.NewGuid():N}", scopes = new[] { "WorkspaceMember" }, expiresAt = DateTimeOffset.UtcNow.AddHours(1)
         });
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
-        var credential = (await ReadJsonAsync(created)).RootElement.GetProperty("credential").GetString();
+        var createdPayload = await ReadJsonAsync(created);
+        var accountId = createdPayload.RootElement.GetProperty("id").GetGuid();
+        var credential = createdPayload.RootElement.GetProperty("credential").GetString();
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/prompts");
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential);
         Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(request)).StatusCode);
         using var mutation = new HttpRequestMessage(HttpMethod.Post, "/api/simulations") { Content = JsonContent.Create(new { title = "Forbidden", workflow = "Claims intake", promptVersion = "1.0.0", knowledgeCollection = "Claims" }) };
         mutation.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential);
         Assert.Equal(HttpStatusCode.Forbidden, (await _client.SendAsync(mutation)).StatusCode);
+
+        const string leadingUnderscoreSecret = "_leading-underscore-secret";
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var account = await db.ServiceAccounts.FindAsync(accountId);
+            Assert.NotNull(account);
+            account.SecretHash = ConvoLabAuthentication.HashSecret(leadingUnderscoreSecret);
+            await db.SaveChangesAsync();
+        }
+        using var leadingUnderscoreRequest = new HttpRequestMessage(HttpMethod.Get, "/api/prompts");
+        leadingUnderscoreRequest.Headers.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue(
+                "Bearer", $"clsa_{accountId:N}_{leadingUnderscoreSecret}");
+        Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(leadingUnderscoreRequest)).StatusCode);
     }
 
     [Fact]
@@ -162,6 +180,31 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
     }
 
     [Fact]
+    public async Task Effective_settings_expose_metadata_for_typed_studio_controls()
+    {
+        Guid environmentId;
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            environmentId = db.RuntimeEnvironments
+                .Single(environment => environment.WorkspaceId == WorkspaceIdentityDefaults.WorkspaceId && environment.IsDefault)
+                .Id;
+        }
+
+        var response = await _client.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/environments/{environmentId}/settings/effective");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await ReadJsonAsync(response);
+        var settings = payload.RootElement.EnumerateArray().ToArray();
+        var provider = settings.Single(setting => setting.GetProperty("key").GetString() == "ai.provider");
+
+        Assert.Contains("local repeatable test provider", provider.GetProperty("description").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Enum", provider.GetProperty("valueType").GetString());
+        Assert.Equal(new[] { "Deterministic", "Gemini" }, provider.GetProperty("allowedValues").EnumerateArray().Select(item => item.GetString()));
+        Assert.True(provider.GetProperty("allowsEnvironmentOverride").GetBoolean());
+    }
+
+    [Fact]
     public async Task Execution_environment_is_validated_and_defaulted_without_refresh()
     {
         using var malformed = new HttpRequestMessage(HttpMethod.Post, "/api/simulations")
@@ -214,6 +257,15 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/overview?environmentId={resolvedId}");
         Assert.Equal(HttpStatusCode.OK, analytics.StatusCode);
         Assert.Contains("\"category\":\"overview\"", await analytics.Content.ReadAsStringAsync());
+
+        var filterOptions = await _client.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/filter-options?environmentId={resolvedId}");
+        var filterOptionsPayload = await filterOptions.Content.ReadAsStringAsync();
+        Assert.True(
+            filterOptions.StatusCode == HttpStatusCode.OK,
+            $"Expected analytics filter options, received {(int)filterOptions.StatusCode}: {filterOptionsPayload}");
+        Assert.Contains("\"providers\"", filterOptionsPayload);
+        Assert.Contains("\"eventTypes\"", filterOptionsPayload);
     }
 
     [Fact]

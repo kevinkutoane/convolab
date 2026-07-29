@@ -104,6 +104,15 @@ public sealed class SettingValueValidatorTests
         Assert.False(SettingValueValidator.Validate(def, "\"Claude\"").IsValid);
     }
 
+    [Fact]
+    public void Enum_supports_legacy_comma_separated_json_string_metadata()
+    {
+        var def = Definition(SettingValueType.Enum, allowedValues: "\"Allow,Warn,Review,Block\"");
+
+        Assert.True(SettingValueValidator.Validate(def, "\"Review\"").IsValid);
+        Assert.False(SettingValueValidator.Validate(def, "\"Ignore\"").IsValid);
+    }
+
     // ─── JSON ────────────────────────────────────────────────────────────────
 
     [Fact]

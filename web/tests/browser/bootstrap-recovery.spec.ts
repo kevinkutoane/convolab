@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.use({ storageState: { cookies: [], origins: [] } });
+
 test("session bootstrap recovers from a transient API failure without a page refresh", async ({ page }) => {
   let sessionAttempts = 0;
   let documentRequests = 0;

@@ -204,11 +204,16 @@ public static partial class SettingValueValidator
         try
         {
             using var doc = JsonDocument.Parse(allowedValues);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array) return [];
-            return doc.RootElement.EnumerateArray()
-                .Where(e => e.ValueKind == JsonValueKind.String)
-                .Select(e => e.GetString()!)
-                .ToList();
+            return doc.RootElement.ValueKind switch
+            {
+                JsonValueKind.Array => doc.RootElement.EnumerateArray()
+                    .Where(e => e.ValueKind == JsonValueKind.String)
+                    .Select(e => e.GetString()!)
+                    .ToList(),
+                JsonValueKind.String => doc.RootElement.GetString()?
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [],
+                _ => []
+            };
         }
         catch (JsonException)
         {

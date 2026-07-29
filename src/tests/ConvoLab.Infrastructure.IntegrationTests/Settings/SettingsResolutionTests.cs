@@ -96,6 +96,21 @@ public sealed class SettingsResolutionTests : IAsyncLifetime
         Assert.Equal("Active", fetched.Status);
     }
 
+    [Fact]
+    public async Task Default_environment_cannot_be_suspended()
+    {
+        var created = await CreateEnvironmentAsync("Default Env");
+        await _environments.MakeDefaultAsync(
+            WorkspaceId, created.Id, created.Revision, ActorId, Actor, Correlation);
+
+        var exception = await Assert.ThrowsAsync<ResourceConflictException>(() =>
+            _environments.SuspendAsync(
+                WorkspaceId, created.Id, created.Revision + 1, true, ActorId, Actor, Correlation));
+
+        Assert.Equal("environment.default", exception.Code);
+        Assert.Equal("Active", (await _environments.GetAsync(WorkspaceId, created.Id)).Status);
+    }
+
     // ─── Effective resolution across scopes ──────────────────────────────────
 
     [Fact]
@@ -118,6 +133,22 @@ public sealed class SettingsResolutionTests : IAsyncLifetime
         Assert.Equal("Environment", temperature.SourceScope);
         Assert.False(temperature.IsInherited);
         Assert.Contains("0.55", temperature.EffectiveValue);
+    }
+
+    [Fact]
+    public async Task Effective_settings_expose_definition_metadata_for_typed_studio_controls()
+    {
+        var env = await CreateEnvironmentAsync("Metadata Env");
+
+        var effective = await _settings.GetEffectiveEnvironmentSettingsAsync(WorkspaceId, env.Id);
+        var failureAction = effective.Single(setting => setting.Key == "evaluation.failure_action");
+        var sensitiveReveal = effective.Single(setting => setting.Key == "retention.allow_sensitive_reveal");
+
+        Assert.Contains("evaluation fails", failureAction.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(new[] { "Allow", "Warn", "Review", "Block" }, failureAction.AllowedValues);
+        Assert.True(failureAction.AllowsEnvironmentOverride);
+        Assert.False(failureAction.IsRequired);
+        Assert.False(sensitiveReveal.AllowsEnvironmentOverride);
     }
 
     [Fact]

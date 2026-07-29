@@ -387,7 +387,11 @@ public sealed record EffectiveSettingResult(
     bool RequiresRestart,
     string DisplayName,
     string Category,
-    string? InheritedFromDisplay);
+    string? InheritedFromDisplay,
+    string Description,
+    bool IsRequired,
+    IReadOnlyList<string> AllowedValues,
+    bool AllowsEnvironmentOverride);
 
 public sealed record ConfigurationSnapshot(
     string ConfigurationRevision,

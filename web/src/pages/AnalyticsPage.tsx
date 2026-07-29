@@ -6,9 +6,10 @@ import {
 } from "lucide-react";
 import { ErrorState, LoadingState, EmptyState } from "../components/AsyncStates";
 import { MetricCard } from "../components/MetricCard";
+import { SingletonSelect } from "../components/StudioPrimitives";
 import { useAuth } from "../contexts/useAuth";
 import { useEnvironment } from "../contexts/EnvironmentContext";
-import { createAnalyticsExport, getAnalyticsDashboard, getAnalyticsEvents, getAnalyticsExports, type AnalyticsFilters } from "../services/analyticsApi";
+import { createAnalyticsExport, getAnalyticsDashboard, getAnalyticsEvents, getAnalyticsExports, getAnalyticsFilterOptions, type AnalyticsFilters } from "../services/analyticsApi";
 import { getApiErrorMessage } from "../services/apiClient";
 import type { AnalyticsMetric, AnalyticsPoint } from "../types/analytics";
 import "../analytics.css";
@@ -71,6 +72,12 @@ export function AnalyticsPage() {
     enabled: Boolean(workspaceId && !["events", "exports"].includes(activeTab)),
     retry: 1,
   });
+  const filterOptionsQuery = useQuery({
+    queryKey: ["analytics-filter-options", workspaceId, filters],
+    queryFn: () => getAnalyticsFilterOptions(workspaceId!, filters),
+    enabled: Boolean(workspaceId && role !== "Viewer"),
+    staleTime: 60_000,
+  });
   const eventsQuery = useQuery({
     queryKey: ["analytics-events", workspaceId, environment.activeEnvironmentId, filters],
     queryFn: () => getAnalyticsEvents(workspaceId!, filters),
@@ -105,15 +112,32 @@ export function AnalyticsPage() {
       </header>
 
       <div className="analytics-filters" aria-label="Analytics filters">
+        <EnvironmentFilter
+          environments={environment.environments.filter(item => item.status === "Active")}
+          value={environment.activeEnvironmentId ?? ""}
+          disabled={environment.isSwitching}
+          onChange={value => void environment.setActiveEnvironmentId(value)}
+        />
         <label>Period<select value={days} onChange={event => setDays(Number(event.target.value))}><option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option></select></label>
         <label>Granularity<select value={granularity} onChange={event => setGranularity(event.target.value as "day" | "hour")}><option value="day">Daily</option><option value="hour">Hourly</option></select></label>
-        <label>Provider<input value={provider} onChange={event => setProvider(event.target.value)} placeholder="All providers" /></label>
-        <label>Model<input value={model} onChange={event => setModel(event.target.value)} placeholder="All models" /></label>
-        <label>Capability<input value={capability} onChange={event => setCapability(event.target.value)} placeholder="All capabilities" /></label>
-        <label>Outcome<select value={outcome} onChange={event => setOutcome(event.target.value)}><option value="">All outcomes</option><option>Succeeded</option><option>Failed</option><option>Denied</option></select></label>
-        <label>Prompt<input value={prompt} onChange={event => setPrompt(event.target.value)} placeholder="Prompt reference" /></label>
-        <label>Workflow<input value={workflow} onChange={event => setWorkflow(event.target.value)} placeholder="Workflow reference" /></label>
-        <label>Configuration revision<input value={configurationRevision} onChange={event => setConfigurationRevision(event.target.value)} placeholder="All revisions" /></label>
+        {role !== "Viewer" && <>
+          <SingletonSelect label="Provider" value={provider} values={filterOptionsQuery.data?.providers} onChange={setProvider} />
+          <SingletonSelect label="Model" value={model} values={filterOptionsQuery.data?.models} onChange={setModel} />
+          <SingletonSelect label="Capability" value={capability} values={filterOptionsQuery.data?.capabilities} onChange={setCapability} />
+          <SingletonSelect label="Outcome" value={outcome} values={filterOptionsQuery.data?.outcomes} onChange={setOutcome} />
+          <SingletonSelect label="Prompt" value={prompt} values={filterOptionsQuery.data?.prompts} onChange={setPrompt} />
+          <SingletonSelect label="Workflow" value={workflow} values={filterOptionsQuery.data?.workflows} onChange={setWorkflow} />
+          <SingletonSelect label="Configuration revision" value={configurationRevision} values={filterOptionsQuery.data?.configurationRevisions} onChange={setConfigurationRevision} />
+        </>}
+      </div>
+
+      <div className="analytics-recording-note">
+        <ShieldCheck size={19} />
+        <div>
+          <strong>{role === "Viewer" ? "Aggregated evidence" : "Recorded in this period"}</strong>
+          <span>{role === "Viewer" ? "Your role receives overview totals without event or actor detail." : filterOptionsQuery.isPending ? "Discovering event types…" : filterOptionsQuery.data?.eventTypes.length ? filterOptionsQuery.data.eventTypes.join(", ") : "No events recorded for this environment and period."}</span>
+          <p>Events contain safe operational metadata—scope, outcome, provider/model, tokens, classified ZAR cost, duration, quality, source, configuration revision, and correlation. Prompts, messages, trace content, credentials, and secret settings are never stored in analytics.</p>
+        </div>
       </div>
 
       <nav className="analytics-tabs" aria-label="Analytics views">
@@ -142,6 +166,24 @@ export function AnalyticsPage() {
       )}
     </section>
   );
+}
+
+function EnvironmentFilter({
+  environments,
+  value,
+  disabled,
+  onChange,
+}: {
+  environments: { id: string; name: string; isDefault: boolean }[];
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  if (!environments.length) return null;
+  if (environments.length === 1) {
+    return <div className="singleton-context"><span>Environment</span><strong>{environments[0].name}</strong></div>;
+  }
+  return <label>Environment<select value={value} onChange={event => onChange(event.target.value)} disabled={disabled}>{environments.map(item => <option key={item.id} value={item.id}>{item.name}{item.isDefault ? " (default)" : ""}</option>)}</select></label>;
 }
 
 function Dashboard({ data }: { data: import("../types/analytics").AnalyticsDashboard }) {

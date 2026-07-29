@@ -36,7 +36,7 @@ export function DashboardPage({ status }: DashboardPageProps) {
           <h2>Design, test, and operate conversational AI.</h2>
           <p>
             Build governed conversations, workflows, prompts, and knowledge, then evaluate,
-            trace, replay, and monitor every execution from one engineering workspace.
+            trace, replay, and understand every execution from one connected Studio.
           </p>
           <div className="hero-actions">
             <button className="primary-button" onClick={() => navigate("/conversations")}>

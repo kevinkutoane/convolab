@@ -33,13 +33,19 @@ export function Topbar({
   onOpenMobile,
 }: TopbarProps) {
   const location = useLocation();
-  const current = navigationItems.find(item => item.path === location.pathname);
+  const current = navigationItems.find(item =>
+    item.path === "/"
+      ? location.pathname === "/"
+      : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
+  );
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
   const [userOpen, setUserOpen] = useState(false);
   const auth = useAuth();
   const environment = useEnvironment();
   const activeWorkspace = auth.session?.workspaces.find(item => item.id === auth.session?.activeWorkspaceId);
+  const workspaces = auth.session?.workspaces ?? [];
+  const activeEnvironments = environment.environments.filter(item => item.status === "Active");
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -61,7 +67,7 @@ export function Topbar({
           <Menu size={20} />
         </button>
         <div>
-          <span className="topbar-eyebrow">Engineering workspace</span>
+          <span className="topbar-eyebrow">Build · test · govern</span>
           <h1>{current?.label ?? "ConvoLab Studio"}</h1>
         </div>
       </div>
@@ -75,21 +81,27 @@ export function Topbar({
       </button>
 
       <div className="topbar-actions">
-        <select className="workspace-switcher" aria-label="Switch workspace" value={activeWorkspace?.id ?? ""} onChange={event => auth.switchWorkspace(event.target.value)}>{auth.session?.workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-        {environment.environments.length > 0 ? (
+        {workspaces.length > 1 ? (
+          <select className="workspace-switcher" aria-label="Switch workspace" value={activeWorkspace?.id ?? ""} onChange={event => auth.switchWorkspace(event.target.value)}>{workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+        ) : activeWorkspace ? (
+          <span className="topbar-context-chip" title="Active workspace"><Building2 size={14} /><span>{activeWorkspace.name}</span></span>
+        ) : null}
+        {activeEnvironments.length > 0 ? (
           <span className={`environment-chip environment-${environment.activeEnvironment?.environmentType.toLowerCase() ?? "development"}`}>
             <span className="environment-dot" />
-            <select
-              className="environment-switcher"
-              aria-label="Switch environment"
-              value={environment.activeEnvironmentId ?? ""}
-              onChange={event => void environment.setActiveEnvironmentId(event.target.value)}
-              disabled={environment.isLoading || environment.isSwitching}
-            >
-              {environment.environments.map(item => (
-                <option key={item.id} value={item.id}>{item.name}{item.isDefault ? " (default)" : ""}</option>
-              ))}
-            </select>
+            {activeEnvironments.length > 1 ? (
+              <select
+                className="environment-switcher"
+                aria-label="Switch environment"
+                value={environment.activeEnvironmentId ?? ""}
+                onChange={event => void environment.setActiveEnvironmentId(event.target.value)}
+                disabled={environment.isLoading || environment.isSwitching}
+              >
+                {activeEnvironments.map(item => (
+                  <option key={item.id} value={item.id}>{item.name}{item.isDefault ? " (default)" : ""}</option>
+                ))}
+              </select>
+            ) : <strong title="Active environment">{activeEnvironments[0].name}</strong>}
           </span>
         ) : (
           <span className="environment-chip">

@@ -349,7 +349,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     ],
     emptyTitle: "No intelligence providers",
     emptyDescription:
-      "Install a provider adapter after Platform Core integration contracts are finalized.",
+      "Configure a live provider adapter when you are ready to run external model inference.",
     primaryAction: "View provider contract",
   },
   policies: {
@@ -455,7 +455,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     activities: [
       "Plugins expose capabilities rather than concrete types",
       "Health and lifecycle are first-class concepts",
-      "Provider implementations remain outside Platform Core",
+      "Provider adapters keep Studio workflows portable",
     ],
     emptyTitle: "No plugins match",
     emptyDescription:

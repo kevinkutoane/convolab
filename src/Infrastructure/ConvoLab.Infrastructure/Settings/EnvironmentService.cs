@@ -110,6 +110,7 @@ public sealed class EnvironmentService : IEnvironmentService
     {
         var record = await FindAsync(workspaceId, environmentId, expectedRevision, ct);
         if (record.Status == "Archived") throw new ResourceConflictException("environment.archived", "Archived environments are immutable.");
+        if (record.IsDefault) throw new ResourceConflictException("environment.default", "Change the default environment before suspending this one.");
         if (record.EnvironmentType == "Production" && !isAdmin)
         {
             var otherActive = await _db.RuntimeEnvironments.CountAsync(e => e.WorkspaceId == workspaceId && e.Status == "Active" && e.Id != environmentId && e.EnvironmentType == "Production", ct);

@@ -13,6 +13,19 @@ namespace ConvoLab.Api.Controllers;
 [Route("api/workspaces/{workspaceId:guid}/analytics")]
 public sealed class AnalyticsController(IAnalyticsService analytics, ApplicationDbContext db) : ControllerBase
 {
+    [Authorize(Policy = WorkspacePermissions.ViewEnvironmentAnalytics)]
+    [HttpGet("filter-options")]
+    public async Task<ActionResult<AnalyticsFilterOptionsDto>> FilterOptions(
+        Guid workspaceId,
+        [FromQuery] AnalyticsFilter filter,
+        CancellationToken ct)
+    {
+        var to = filter.To ?? DateTimeOffset.UtcNow;
+        return Ok(await analytics.FilterOptionsAsync(
+            new AnalyticsQuery(workspaceId, filter.EnvironmentId, filter.From ?? to.AddDays(-30), to),
+            ct));
+    }
+
     [HttpGet("overview")]
     public Task<ActionResult<AnalyticsDashboardDto>> Overview(Guid workspaceId, [FromQuery] AnalyticsFilter filter, CancellationToken ct) =>
         Dashboard("overview", workspaceId, filter, ct);

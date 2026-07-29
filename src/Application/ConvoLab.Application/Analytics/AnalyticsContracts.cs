@@ -90,6 +90,16 @@ public sealed record AnalyticsEventPageDto(
     IReadOnlyList<AnalyticsEventDto> Items,
     string? NextCursor);
 
+public sealed record AnalyticsFilterOptionsDto(
+    IReadOnlyList<string> Providers,
+    IReadOnlyList<string> Models,
+    IReadOnlyList<string> Capabilities,
+    IReadOnlyList<string> Outcomes,
+    IReadOnlyList<string> Prompts,
+    IReadOnlyList<string> Workflows,
+    IReadOnlyList<string> ConfigurationRevisions,
+    IReadOnlyList<string> EventTypes);
+
 public sealed record CreateAnalyticsExportRequest(
     Guid? EnvironmentId,
     DateTimeOffset From,
@@ -113,6 +123,7 @@ public sealed record AnalyticsExportDto(
 
 public interface IAnalyticsService
 {
+    Task<AnalyticsFilterOptionsDto> FilterOptionsAsync(AnalyticsQuery query, CancellationToken ct = default);
     Task<AnalyticsDashboardDto> DashboardAsync(string category, AnalyticsQuery query, CancellationToken ct = default);
     Task<AnalyticsEventPageDto> EventsAsync(AnalyticsQuery query, int take, string? cursor, bool includeActor, CancellationToken ct = default);
     Task<AnalyticsEventDto> EventAsync(Guid workspaceId, Guid eventId, bool includeActor, CancellationToken ct = default);

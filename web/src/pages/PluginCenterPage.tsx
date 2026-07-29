@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import {
@@ -236,7 +237,7 @@ export function PluginCenterPage() {
         <div>
           <span className="page-eyebrow">Extension governance capability</span>
           <h1>Plugin Center</h1>
-          <p>Register provider, connector, tool, evaluator, channel, and exporter adapters without coupling Platform Core to vendor-specific implementations.</p>
+          <p>Register provider, connector, tool, evaluator, channel, and exporter adapters while keeping Studio workflows portable across vendors.</p>
         </div>
         <div className="plugin-header-actions">
           <Link className="secondary-button" to="/documentation/plugins"><BookOpen size={16} /> Documentation</Link>
@@ -252,7 +253,7 @@ export function PluginCenterPage() {
 
       <section className="metric-grid plugin-metric-grid">
         <MetricCard icon={Boxes} label="Registered" value={formatNumber(overview?.metrics.registered)} detail={`${formatNumber(overview?.metrics.categories)} extension categories`} tone="accent" />
-        <MetricCard icon={Power} label="Active" value={formatNumber(overview?.metrics.active)} detail="Available to Platform Core" tone="positive" />
+        <MetricCard icon={Power} label="Active" value={formatNumber(overview?.metrics.active)} detail="Available to Studio runtimes" tone="positive" />
         <MetricCard icon={HeartPulse} label="Healthy" value={formatNumber(overview?.metrics.healthy)} detail={`${formatNumber(overview?.metrics.healthChecks)} recorded probes`} />
         <MetricCard icon={CircleAlert} label="Unhealthy" value={formatNumber(overview?.metrics.unhealthy)} detail="Blocked from activation" tone={(overview?.metrics.unhealthy ?? 0) > 0 ? "warning" : "default"} />
       </section>
@@ -268,6 +269,7 @@ export function PluginCenterPage() {
         />
       )}
 
+      <AdaptiveWorkspace storageKey="plugins" leftLabel="Plugin registry" hasRight={false}>
       <section className="plugin-workspace">
         <aside className="panel plugin-list-panel">
           <div className="panel-header"><div><span className="panel-eyebrow">Extension registry</span><h3>Plugins</h3></div><PlugZap size={18} /></div>
@@ -305,6 +307,7 @@ export function PluginCenterPage() {
           {!detailQuery.isLoading && !detail && <div className="plugin-loading"><PlugZap /> Register a plugin to begin.</div>}
         </main>
       </section>
+      </AdaptiveWorkspace>
 
       <section className="panel plugin-health-panel">
         <div className="panel-header"><div><span className="panel-eyebrow">Operational evidence</span><h3>Recent health checks</h3></div><Activity size={18} /></div>

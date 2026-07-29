@@ -439,7 +439,8 @@ public sealed class SettingsService : ISettingsService
         new(r.Key, r.IsSecret ? null : r.EffectiveValue, r.ValueType.ToString(),
             r.SourceScope.ToString(), r.SourceId?.ToString(),
             r.IsInherited, r.IsSecret, r.ValidationStatus,
-            r.RequiresRestart, r.DisplayName, r.Category, r.InheritedFromDisplay);
+            r.RequiresRestart, r.DisplayName, r.Category, r.InheritedFromDisplay,
+            r.Description, r.IsRequired, r.AllowedValues, r.AllowsEnvironmentOverride);
 
     private async Task<WorkspaceIdentity.WorkspaceRecord> RequireWorkspaceAsync(Guid workspaceId, CancellationToken ct) =>
         await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)

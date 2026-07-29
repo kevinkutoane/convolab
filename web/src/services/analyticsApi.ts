@@ -1,5 +1,5 @@
 import { api } from "./apiClient";
-import type { AnalyticsDashboard, AnalyticsEventPage, AnalyticsExport } from "../types/analytics";
+import type { AnalyticsDashboard, AnalyticsEventPage, AnalyticsExport, AnalyticsFilterOptions } from "../types/analytics";
 
 export interface AnalyticsFilters {
   environmentId?: string;
@@ -25,6 +25,9 @@ const params = (filters: AnalyticsFilters) => {
 
 export const getAnalyticsDashboard = async (workspaceId: string, category: string, filters: AnalyticsFilters) =>
   (await api.get<AnalyticsDashboard>(`/api/workspaces/${workspaceId}/analytics/${category}?${params(filters)}`)).data;
+
+export const getAnalyticsFilterOptions = async (workspaceId: string, filters: AnalyticsFilters) =>
+  (await api.get<AnalyticsFilterOptions>(`/api/workspaces/${workspaceId}/analytics/filter-options?${params(filters)}`)).data;
 
 export const getAnalyticsEvents = async (workspaceId: string, filters: AnalyticsFilters, cursor?: string) => {
   const query = new URLSearchParams(params(filters));
