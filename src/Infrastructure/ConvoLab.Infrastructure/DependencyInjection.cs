@@ -96,14 +96,15 @@ public static class DependencyInjection
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         services.AddSingleton<GeminiIntelligenceExecutor>();
         services.AddSingleton<IIntelligenceExecutor, RoutingIntelligenceExecutor>();
-        services.AddSingleton<IIntelligenceStudioConfiguration, EnvironmentIntelligenceStudioConfiguration>();
-        services.AddSingleton<IEvaluationStudioConfiguration, EnvironmentEvaluationStudioConfiguration>();
+        services.AddScoped<IIntelligenceStudioConfiguration, PersistedIntelligenceStudioConfiguration>();
+        services.AddScoped<IEvaluationStudioConfiguration, PersistedEvaluationStudioConfiguration>();
 
         // Settings
         services.AddScoped<IEnvironmentService, EnvironmentService>();
         services.AddScoped<ISettingsService, SettingsService>();
         services.AddScoped<ISecretReferenceService, SecretReferenceService>();
         services.AddScoped<IEffectiveConfigurationResolver, EffectiveConfigurationResolver>();
+        services.AddScoped<IRuntimeConfigurationResolver, RuntimeConfigurationResolver>();
         services.AddScoped<IProviderValidationService, ProviderValidationService>();
         services.AddSingleton<ISecretStore, EnvironmentSecretStore>();
         services.AddScoped<SettingsBootstrapper>();

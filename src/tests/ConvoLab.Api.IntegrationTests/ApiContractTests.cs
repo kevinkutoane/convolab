@@ -3,13 +3,16 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ConvoLab.Api.Security;
 using ConvoLab.Domain.WorkspaceIdentity;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.Settings;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Xunit.Abstractions;
 
 namespace ConvoLab.Api.IntegrationTests;
 
@@ -17,10 +20,12 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
 {
     private readonly HttpClient _client;
     private readonly ConvoLabApiFactory _factory;
+    private readonly ITestOutputHelper _output;
 
-    public ApiContractTests(ConvoLabApiFactory factory)
+    public ApiContractTests(ConvoLabApiFactory factory, ITestOutputHelper output)
     {
         _factory = factory;
+        _output = output;
         _client = factory.CreateClient();
     }
 
@@ -647,12 +652,257 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             Assert.Contains(deniedRunId.ToString(), decisionJson, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("\"effect\":\"Deny\"", decisionJson);
             Assert.Contains("\"source\":\"ConversationSimulator\"", decisionJson);
+
+            IReadOnlyList<AnalyticsEventRecord> baselineEvents;
+            IReadOnlyList<AnalyticsEventRecord> deniedEvents;
+            await using (var scope = _factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var eventPayloads = await db.AnalyticsOutbox.AsNoTracking()
+                    .Select(item => item.PayloadJson)
+                    .ToListAsync();
+                var emittedEvents = eventPayloads
+                    .Select(payload => JsonSerializer.Deserialize<AnalyticsEventRecord>(
+                        payload,
+                        new JsonSerializerOptions(JsonSerializerDefaults.Web)))
+                    .OfType<AnalyticsEventRecord>()
+                    .ToList();
+                baselineEvents = emittedEvents
+                    .Where(item => item.SourceExecutionId == baselineRunId)
+                    .ToList();
+                deniedEvents = emittedEvents
+                    .Where(item => item.SourceExecutionId == deniedRunId)
+                    .ToList();
+            }
+
+            Assert.Single(baselineEvents, item => item.EventType == "SimulationCompleted");
+            Assert.Single(deniedEvents, item => item.EventType == "SimulationFailed");
+            var baselineRevision = Assert.Single(baselineEvents.Select(item => item.ConfigurationRevision).Distinct());
+            var baselineCorrelation = Assert.Single(baselineEvents.Select(item => item.CorrelationId).Distinct());
+            var prevented = Assert.Single(
+                deniedEvents,
+                item => item.EventType == "ProviderInvocationPrevented");
+            Assert.True(prevented.ProviderInvocationPrevented);
+            Assert.Equal(0, prevented.InputTokens);
+            Assert.Equal(0, prevented.OutputTokens);
+            Assert.Equal(0m, prevented.CostZar);
+            Assert.Equal("Denied", prevented.PolicyOutcome);
+            Assert.DoesNotContain(deniedEvents, item => item.EventType == "ProviderInvocationCompleted");
+
+            _output.WriteLine(
+                "Allowed reconciliation: SourceExecutionId={0}; CorrelationId={1}; OrganisationId={2}; WorkspaceId={3}; EnvironmentId={4}; ActorId={5}; ConfigurationRevision={6}; Provider={7}; Model={8}; InputTokens={9}; OutputTokens={10}; CostZar={11}; CostType={12}; EventIds={13}",
+                baselineRunId,
+                baselineCorrelation,
+                baselineEvents[0].OrganisationId,
+                baselineEvents[0].WorkspaceId,
+                baselineEvents[0].EnvironmentId,
+                baselineEvents[0].ActorId,
+                baselineRevision,
+                baselineEvents.FirstOrDefault(item => item.EventType == "ProviderInvocationCompleted")?.Provider,
+                baselineEvents.FirstOrDefault(item => item.EventType == "ProviderInvocationCompleted")?.Model,
+                baselineEvents.FirstOrDefault(item => item.EventType == "ProviderInvocationCompleted")?.InputTokens,
+                baselineEvents.FirstOrDefault(item => item.EventType == "ProviderInvocationCompleted")?.OutputTokens,
+                baselineEvents.FirstOrDefault(item => item.EventType == "ProviderInvocationCompleted")?.CostZar,
+                baselineEvents.FirstOrDefault(item => item.EventType == "ProviderInvocationCompleted")?.CostType,
+                string.Join(",", baselineEvents.Select(item => item.Id)));
+            _output.WriteLine(
+                "Denied reconciliation: SourceExecutionId={0}; CorrelationId={1}; OrganisationId={2}; WorkspaceId={3}; EnvironmentId={4}; ActorId={5}; ConfigurationRevision={6}; ProviderPrevented={7}; InputTokens={8}; OutputTokens={9}; CostZar={10}; PolicyOutcome={11}; EventIds={12}",
+                deniedRunId,
+                Assert.Single(deniedEvents.Select(item => item.CorrelationId).Distinct()),
+                deniedEvents[0].OrganisationId,
+                deniedEvents[0].WorkspaceId,
+                deniedEvents[0].EnvironmentId,
+                deniedEvents[0].ActorId,
+                Assert.Single(deniedEvents.Select(item => item.ConfigurationRevision).Distinct()),
+                prevented.ProviderInvocationPrevented,
+                prevented.InputTokens,
+                prevented.OutputTokens,
+                prevented.CostZar,
+                prevented.PolicyOutcome,
+                string.Join(",", deniedEvents.Select(item => item.Id)));
         }
         finally
         {
             if (denyPolicyId != Guid.Empty)
                 await _client.PostAsync($"/api/policies/{denyPolicyId}/retire", null);
         }
+    }
+
+    [Fact]
+    public async Task Analytics_field_visibility_blocks_production_cost_event_and_correlation_bypasses()
+    {
+        var environmentId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        var actorId = Guid.NewGuid();
+        var sourceId = Guid.NewGuid();
+        var correlationId = $"security-{Guid.NewGuid():N}";
+        var now = DateTimeOffset.UtcNow;
+
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.RuntimeEnvironments.Add(new RuntimeEnvironmentRecord
+            {
+                Id = environmentId,
+                OrganisationId = WorkspaceIdentityDefaults.OrganisationId,
+                WorkspaceId = WorkspaceIdentityDefaults.WorkspaceId,
+                Name = $"Production security {environmentId:N}",
+                Slug = $"production-security-{environmentId:N}",
+                EnvironmentType = "Production",
+                Description = "Analytics field-visibility test environment.",
+                Status = "Active",
+                IsDefault = false,
+                CreatedAt = now,
+                CreatedBy = WorkspaceIdentityDefaults.BootstrapUserId,
+                UpdatedAt = now,
+                Revision = 1
+            });
+            db.AnalyticsEvents.Add(new AnalyticsEventRecord
+            {
+                Id = eventId,
+                EventKey = $"security-{eventId:N}",
+                OrganisationId = WorkspaceIdentityDefaults.OrganisationId,
+                WorkspaceId = WorkspaceIdentityDefaults.WorkspaceId,
+                EnvironmentId = environmentId,
+                ActorId = actorId,
+                ActorType = "User",
+                ActorRole = "Administrator",
+                Capability = "Provider",
+                EventType = "ProviderInvocationCompleted",
+                Outcome = "Succeeded",
+                Provider = "Restricted provider",
+                Model = "restricted-model",
+                InputTokens = 321,
+                OutputTokens = 123,
+                CostZar = 9.876543m,
+                CostType = "Actual",
+                PricingRevision = "restricted-pricing",
+                DurationMs = 42,
+                ProviderInvocationPrevented = false,
+                SourceExecutionId = sourceId,
+                SourceType = "SimulationRun",
+                SourceId = sourceId,
+                PromptName = "Restricted prompt",
+                WorkflowName = "Restricted workflow",
+                ConfigurationRevision = "restricted-configuration",
+                CorrelationId = correlationId,
+                OccurredAt = now
+            });
+            await db.SaveChangesAsync();
+        }
+
+        using var engineer = await CreateRoleClientAsync(WorkspaceRole.Engineer);
+        var engineerCost = await engineer.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/cost?environmentId={environmentId}");
+        Assert.Equal(HttpStatusCode.Forbidden, engineerCost.StatusCode);
+        await AssertProtectedAnalyticsFieldsAsync(
+            await engineer.GetAsync(
+                $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/events?environmentId={environmentId}&eventType=ProviderInvocationCompleted"),
+            paged: true);
+        await AssertProtectedAnalyticsFieldsAsync(
+            await engineer.GetAsync(
+                $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/correlations/{correlationId}"),
+            paged: false);
+
+        using var reviewer = await CreateRoleClientAsync(WorkspaceRole.Reviewer);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await reviewer.GetAsync(
+                $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/cost?environmentId={environmentId}")).StatusCode);
+        await AssertProtectedAnalyticsFieldsAsync(
+            await reviewer.GetAsync(
+                $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/events?environmentId={environmentId}&eventType=ProviderInvocationCompleted"),
+            paged: true);
+
+        using var viewer = await CreateRoleClientAsync(WorkspaceRole.Viewer);
+        Assert.Equal(
+            HttpStatusCode.OK,
+            (await viewer.GetAsync(
+                $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/overview?environmentId={environmentId}")).StatusCode);
+        Assert.Equal(
+            HttpStatusCode.Forbidden,
+            (await viewer.GetAsync(
+                $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/events?environmentId={environmentId}")).StatusCode);
+
+        var administratorResponse = await _client.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/events/{eventId}");
+        Assert.Equal(HttpStatusCode.OK, administratorResponse.StatusCode);
+        var administratorEvent = await ReadJsonAsync(administratorResponse);
+        Assert.Equal(actorId, administratorEvent.RootElement.GetProperty("actorId").GetGuid());
+        Assert.Equal(321, administratorEvent.RootElement.GetProperty("inputTokens").GetInt32());
+        Assert.Equal(9.876543m, administratorEvent.RootElement.GetProperty("costZar").GetDecimal());
+        Assert.Equal(sourceId, administratorEvent.RootElement.GetProperty("sourceId").GetGuid());
+    }
+
+    private async Task<HttpClient> CreateRoleClientAsync(WorkspaceRole role)
+    {
+        var userId = Guid.NewGuid();
+        var token = $"role-test-{Guid.NewGuid():N}";
+        var now = DateTimeOffset.UtcNow;
+        await using (var scope = _factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            db.IdentityUsers.Add(new IdentityUserRecord
+            {
+                Id = userId,
+                Email = $"{role.ToString().ToLowerInvariant()}-{userId:N}@convolab.test",
+                NormalizedEmail = $"{role.ToString().ToUpperInvariant()}-{userId:N}@CONVOLAB.TEST",
+                DisplayName = $"{role} analytics test",
+                Status = "Active",
+                IsPlatformAdministrator = false,
+                Revision = 1,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            db.WorkspaceMemberships.Add(new WorkspaceMembershipRecord
+            {
+                Id = Guid.NewGuid(),
+                WorkspaceId = WorkspaceIdentityDefaults.WorkspaceId,
+                UserId = userId,
+                Role = role.ToString(),
+                Status = "Active",
+                Revision = 1,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            db.AuthenticationSessions.Add(new AuthenticationSessionRecord
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                ActiveWorkspaceId = WorkspaceIdentityDefaults.WorkspaceId,
+                TokenHash = ConvoLabAuthentication.HashSecret(token),
+                CreatedAt = now,
+                LastSeenAt = now,
+                ExpiresAt = now.AddMinutes(15)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            HandleCookies = false
+        });
+        client.DefaultRequestHeaders.Add("Cookie", $"{ConvoLabAuthentication.SessionCookie}={token}");
+        return client;
+    }
+
+    private static async Task AssertProtectedAnalyticsFieldsAsync(HttpResponseMessage response, bool paged)
+    {
+        var payload = await response.Content.ReadAsStringAsync();
+        Assert.True(
+            response.StatusCode == HttpStatusCode.OK,
+            $"Expected analytics payload, received {(int)response.StatusCode}: {payload}");
+        var document = JsonDocument.Parse(payload);
+        var events = paged
+            ? document.RootElement.GetProperty("items")
+            : document.RootElement;
+        var analyticsEvent = Assert.Single(events.EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, analyticsEvent.GetProperty("actorId").ValueKind);
+        Assert.Equal(JsonValueKind.Null, analyticsEvent.GetProperty("inputTokens").ValueKind);
+        Assert.Equal(JsonValueKind.Null, analyticsEvent.GetProperty("outputTokens").ValueKind);
+        Assert.Equal(JsonValueKind.Null, analyticsEvent.GetProperty("costZar").ValueKind);
+        Assert.Equal("Restricted", analyticsEvent.GetProperty("costType").GetString());
+        Assert.Equal(JsonValueKind.Null, analyticsEvent.GetProperty("sourceId").ValueKind);
     }
 
     private async Task<int> CountArrayAsync(string path)

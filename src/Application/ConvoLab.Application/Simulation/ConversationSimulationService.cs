@@ -7,6 +7,7 @@ using ConvoLab.Application.IntelligenceStudio;
 using ConvoLab.Application.EvaluationStudio;
 using ConvoLab.Application.TraceStudio;
 using ConvoLab.Application.PolicyStudio;
+using ConvoLab.Application.Settings;
 using ConvoLab.Application.Common.Errors;
 using ConvoLab.Domain.Intelligence.Aggregates;
 using ConvoLab.Domain.Intelligence.Enums;
@@ -28,6 +29,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
     private readonly IIntelligenceCatalogueBootstrapper _catalogueBootstrapper;
     private readonly IPolicyDecisionService _policyStudio;
     private readonly IRuntimeRequestContext _runtime;
+    private readonly IRuntimeConfigurationResolver _runtimeConfiguration;
 
     public ConversationSimulationService(
         IConversationSimulationStore store,
@@ -40,7 +42,8 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         ITraceStudioService traceStudio,
         IIntelligenceCatalogueBootstrapper catalogueBootstrapper,
         IPolicyDecisionService policyStudio,
-        IRuntimeRequestContext runtime)
+        IRuntimeRequestContext runtime,
+        IRuntimeConfigurationResolver runtimeConfiguration)
     {
         _store = store;
         _intelligence = intelligence;
@@ -53,6 +56,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         _catalogueBootstrapper = catalogueBootstrapper;
         _policyStudio = policyStudio;
         _runtime = runtime;
+        _runtimeConfiguration = runtimeConfiguration;
     }
 
     public async Task<SimulationOptions> GetOptionsAsync(CancellationToken cancellationToken = default)
@@ -107,7 +111,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         if (state is null) return null;
 
         var userMessage = state.AddMessage("user", command.Content.Trim());
-        await ExecuteRunAsync(state, userMessage, command.Mode, null, false, command.Provider, command.Model, command.Temperature, command.MaxOutputTokens, state.Workflow, state.PromptVersion, state.KnowledgeCollection, cancellationToken);
+        await ExecuteRunAsync(state, userMessage, command.Mode, null, false, command.Provider, command.Model, command.Temperature, command.MaxOutputTokens, state.Workflow, state.PromptVersion, state.KnowledgeCollection, null, cancellationToken);
         await _store.SaveAsync(state, cancellationToken);
         return state.Snapshot();
     }
@@ -124,6 +128,17 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
             ?? throw new InvalidOperationException($"Run '{command.RunId}' does not exist in this simulation.");
         var userMessage = state.FindMessage(sourceRun.UserMessageId)
             ?? throw new InvalidOperationException("The source user message is no longer available.");
+        var useOriginalConfiguration = command.ConfigurationMode.Equals(
+            "Original",
+            StringComparison.OrdinalIgnoreCase);
+        if (!useOriginalConfiguration
+            && !command.ConfigurationMode.Equals("Current", StringComparison.OrdinalIgnoreCase))
+            throw new DomainRuleViolationException(
+                "replay.configuration_mode_invalid",
+                "Replay configuration mode must be 'Original' or 'Current'.");
+        var originalConfiguration = useOriginalConfiguration
+            ? sourceRun.Configuration
+            : null;
 
         await ExecuteRunAsync(
             state,
@@ -131,13 +146,14 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
             command.Mode,
             sourceRun.Id,
             true,
-            command.Provider,
-            command.Model,
-            command.Temperature,
-            command.MaxOutputTokens,
+            originalConfiguration?.Provider ?? command.Provider,
+            originalConfiguration?.Model ?? command.Model,
+            originalConfiguration?.Temperature ?? command.Temperature,
+            originalConfiguration?.MaxOutputTokens ?? command.MaxOutputTokens,
             string.IsNullOrWhiteSpace(command.Workflow) ? sourceRun.Configuration?.Workflow ?? state.Workflow : command.Workflow.Trim(),
             string.IsNullOrWhiteSpace(command.PromptVersion) ? sourceRun.Configuration?.PromptVersion ?? state.PromptVersion : command.PromptVersion.Trim(),
             string.IsNullOrWhiteSpace(command.KnowledgeCollection) ? sourceRun.Configuration?.KnowledgeCollection ?? state.KnowledgeCollection : command.KnowledgeCollection.Trim(),
+            originalConfiguration,
             cancellationToken);
         await _store.SaveAsync(state, cancellationToken);
         return state.Snapshot();
@@ -165,9 +181,68 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         string workflow,
         string promptVersion,
         string knowledgeCollection,
+        SimulationRunConfiguration? originalConfiguration,
         CancellationToken cancellationToken)
     {
         await _catalogueBootstrapper.EnsureReadyAsync(cancellationToken);
+        var providerDefinition = _intelligenceConfiguration.GetProviders()
+            .SingleOrDefault(item => item.Key.Equals(provider, StringComparison.OrdinalIgnoreCase))
+            ?? throw new DomainRuleViolationException(
+                "runtime_configuration.provider_override_invalid",
+                $"Provider '{provider}' is not available in the selected environment.");
+        model = string.IsNullOrWhiteSpace(model)
+            ? providerDefinition.Models.FirstOrDefault()?.Key
+            : model.Trim();
+        if (model is null || !providerDefinition.Models.Any(item =>
+                item.Key.Equals(model, StringComparison.OrdinalIgnoreCase)))
+            throw new DomainRuleViolationException(
+                "runtime_configuration.model_override_invalid",
+                $"Model '{model}' is not available for provider '{providerDefinition.DisplayName}'.");
+
+        var governed = await _runtimeConfiguration.ResolveAsync(
+            _runtime,
+            new RuntimeExecutionOverrides(providerDefinition.Key, model, temperature, maxOutputTokens),
+            cancellationToken);
+        if (originalConfiguration is not null
+            && !string.IsNullOrWhiteSpace(originalConfiguration.ConfigurationRevision))
+        {
+            governed = governed with
+            {
+                Snapshot = governed.Snapshot with
+                {
+                    ConfigurationRevision = originalConfiguration.ConfigurationRevision,
+                    Provider = originalConfiguration.Provider,
+                    Model = originalConfiguration.Model
+                },
+                Provider = originalConfiguration.Provider,
+                Model = originalConfiguration.Model,
+                Temperature = originalConfiguration.Temperature,
+                MaximumOutputTokens = originalConfiguration.MaxOutputTokens,
+                RequestTimeoutSeconds = originalConfiguration.RequestTimeoutSeconds,
+                RetryCount = originalConfiguration.RetryCount,
+                MonthlyBudgetZar = originalConfiguration.MonthlyBudgetZar,
+                BudgetWarningThreshold = originalConfiguration.BudgetWarningThreshold,
+                BudgetHardStopThreshold = originalConfiguration.BudgetHardStopThreshold,
+                InputPriceZarPer1K = originalConfiguration.InputPriceZarPer1K,
+                OutputPriceZarPer1K = originalConfiguration.OutputPriceZarPer1K,
+                MinimumGroundedness = originalConfiguration.MinimumGroundedness,
+                MinimumRelevance = originalConfiguration.MinimumRelevance,
+                MinimumSafety = originalConfiguration.MinimumSafety,
+                MinimumOverall = originalConfiguration.MinimumOverall,
+                EvaluationFailureAction = originalConfiguration.EvaluationFailureAction,
+                PolicyEnforcementEnabled = originalConfiguration.PolicyEnforcementEnabled
+            };
+            provider = governed.Provider;
+            model = governed.Model;
+            temperature = governed.Temperature;
+            maxOutputTokens = governed.MaximumOutputTokens;
+        }
+        provider = governed.Provider;
+        model = governed.Model;
+        temperature = governed.Temperature;
+        maxOutputTokens = governed.MaximumOutputTokens;
+        if (isReplay && !governed.ReplayExecutionEnabled)
+            throw new DomainRuleViolationException("replay.execution.disabled", "Replay execution is disabled by the effective environment configuration.");
 
         var timeline = new List<SimulationTimelineStep>();
         var runId = Guid.NewGuid();
@@ -183,6 +258,11 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
 
         try
         {
+            if (!governed.ProviderExecutionEnabled)
+                throw new DomainRuleViolationException(
+                    "provider.execution.disabled",
+                    "Provider execution is disabled by the effective environment configuration.");
+
             AddInstantStep(timeline, "Conversation accepted", "Conversation", "Completed",
                 isReplay ? "Existing customer message accepted for replay." : "Customer message added to the active simulation.");
 
@@ -200,7 +280,10 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
 
             var promptStartedAt = DateTimeOffset.UtcNow;
             var promptTimer = Stopwatch.StartNew();
-            renderedPrompt = await RenderPromptAsync(state, userMessage.Content, knowledgePackage, workflow, promptVersion, knowledgeCollection, mode, provider, model, temperature, maxOutputTokens, cancellationToken);
+            renderedPrompt = await RenderPromptAsync(
+                state, userMessage.Content, knowledgePackage, workflow, promptVersion,
+                knowledgeCollection, mode, provider, model, temperature, maxOutputTokens,
+                governed, cancellationToken);
             promptTimer.Stop();
             AddStep(timeline, "Prompt rendered", "Prompt", "Completed",
                 $"{promptVersion} rendered with a sealed knowledge package.",
@@ -208,18 +291,40 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
 
             var policyStartedAt = DateTimeOffset.UtcNow;
             var policyTimer = Stopwatch.StartNew();
-            var guardrails = await _policyStudio.EvaluateExecutionAsync(new PolicyExecutionRequest(
-                provider,
-                model ?? "default",
-                1.00m,
-                "ZAR",
-                Math.Clamp(maxOutputTokens, 32, 8192),
-                AllowFallback: true,
-                AllowStreaming: true,
-                Source: isReplay ? "ReplayStudio" : "ConversationSimulator",
-                Environment: _runtime.EnvironmentName ?? "Development",
-                SimulationId: state.Id,
-                RunId: runId), cancellationToken);
+            var estimatedCost = EstimateCost(
+                Math.Max(1, renderedPrompt.Length / 4),
+                maxOutputTokens,
+                governed.InputPriceZarPer1K,
+                governed.OutputPriceZarPer1K);
+            if (!estimatedCost.HasValue && !governed.AllowExecutionWhenPricingUnknown)
+                throw new DomainRuleViolationException(
+                    "provider.pricing_unavailable",
+                    "Execution is blocked because provider pricing is unavailable in the effective environment configuration.");
+            var guardrails = governed.PolicyEnforcementEnabled
+                ? await _policyStudio.EvaluateExecutionAsync(new PolicyExecutionRequest(
+                    provider,
+                    model ?? "default",
+                    estimatedCost ?? 0m,
+                    "ZAR",
+                    Math.Clamp(maxOutputTokens, 32, 8192),
+                    AllowFallback: true,
+                    AllowStreaming: true,
+                    Source: isReplay ? "ReplayStudio" : "ConversationSimulator",
+                    Environment: _runtime.EnvironmentName ?? "Development",
+                    SimulationId: state.Id,
+                    RunId: runId,
+                    ConfigurationRevision: governed.Snapshot.ConfigurationRevision,
+                    CorrelationId: _runtime.CorrelationId), cancellationToken)
+                : new PolicyExecutionGuardrails(
+                    true,
+                    "Policy enforcement is disabled by the effective environment configuration.",
+                    estimatedCost ?? 0m,
+                    "ZAR",
+                    Math.Clamp(maxOutputTokens, 32, 8192),
+                    true,
+                    true,
+                    [],
+                    _runtime.CorrelationId);
             policyTimer.Stop();
             AddStep(timeline, "Policy decision", "Policy", guardrails.IsAllowed ? "Completed" : "Denied",
                 $"{guardrails.Decisions.Count} governance decision(s); {guardrails.Reason}",
@@ -247,7 +352,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
                 allowFallback: guardrails.AllowFallback,
                 allowStreaming: guardrails.AllowStreaming,
                 allowTools: false,
-                timeout: TimeSpan.FromSeconds(10));
+                timeout: TimeSpan.FromSeconds(governed.RequestTimeoutSeconds));
 
             var planningStartedAt = DateTimeOffset.UtcNow;
             var planningTimer = Stopwatch.StartNew();
@@ -295,7 +400,7 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
 
                 var evaluationStartedAt = DateTimeOffset.UtcNow;
                 var evaluationTimer = Stopwatch.StartNew();
-                evaluation = Evaluate(response.Result.PrimaryText, knowledgePackage);
+                evaluation = Evaluate(response.Result.PrimaryText, knowledgePackage, governed);
                 evaluationTimer.Stop();
                 AddStep(timeline, "Evaluation completed", "Evaluation", "Completed",
                     $"Groundedness {evaluation.Groundedness:P0}; relevance {evaluation.Relevance:P0}; verdict: {evaluation.Verdict}.",
@@ -334,7 +439,24 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
                 model ?? planView?.Model ?? "default",
                 temperature,
                 maxOutputTokens,
-                mode));
+                mode,
+                governed.Snapshot.ConfigurationRevision,
+                _runtime.CorrelationId,
+                governed.RequestTimeoutSeconds,
+                governed.RetryCount,
+                governed.MonthlyBudgetZar,
+                governed.BudgetWarningThreshold,
+                governed.BudgetHardStopThreshold,
+                governed.InputPriceZarPer1K,
+                governed.OutputPriceZarPer1K,
+                governed.MinimumGroundedness,
+                governed.MinimumRelevance,
+                governed.MinimumSafety,
+                governed.MinimumOverall,
+                governed.EvaluationFailureAction,
+                governed.PolicyEnforcementEnabled,
+                originalConfiguration is null ? "Current" : "Original",
+                originalConfiguration?.ConfigurationRevision));
         state.AddRun(completedRun);
         try
         {
@@ -478,12 +600,19 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
         string promptVersion,
         string knowledgeCollection,
         SimulationMode mode, string provider, string? model, double temperature, int maxOutputTokens,
+        RuntimeExecutionConfiguration governed,
         CancellationToken cancellationToken)
     {
         var knowledge = string.Join("\n", package.Citations.Select((citation, index) =>
             $"[{index + 1}] {citation.Source} — {citation.Section}: {citation.Snippet}"));
         var template = await _promptStudio.ResolvePublishedAsync(promptVersion, cancellationToken);
-        var runtimeHeaders = $"[SIMULATION_MODE:{mode}]\n[PROVIDER:{provider}]\n[MODEL:{model ?? "default"}]\n[TEMPERATURE:{temperature:0.00}]\n[MAX_OUTPUT_TOKENS:{maxOutputTokens}]";
+        var secretReference = string.IsNullOrWhiteSpace(governed.SecretReference)
+            ? string.Empty
+            : $"\n[SECRET_REFERENCE:{governed.SecretReference}]";
+        var runtimeHeaders =
+            $"[SIMULATION_MODE:{mode}]\n[PROVIDER:{provider}]\n[MODEL:{model ?? "default"}]\n" +
+            $"[TEMPERATURE:{temperature:0.00}]\n[MAX_OUTPUT_TOKENS:{maxOutputTokens}]\n" +
+            $"[CONFIGURATION_REVISION:{governed.Snapshot.ConfigurationRevision}]{secretReference}";
         if (template is not null)
         {
             var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -515,14 +644,36 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
             """;
     }
 
-    private static SimulationEvaluation Evaluate(string response, SimulationKnowledgePackage package)
+    private static SimulationEvaluation Evaluate(
+        string response,
+        SimulationKnowledgePackage package,
+        RuntimeExecutionConfiguration configuration)
     {
         var grounded = package.Citations.Count > 0 && response.Contains("Source:", StringComparison.OrdinalIgnoreCase)
             ? 0.98
             : 0.91;
         var relevance = response.Length > 80 ? 0.96 : 0.88;
-        return new SimulationEvaluation(grounded, relevance, 1.0, grounded >= 0.9 ? "Passed" : "Review");
+        const double safety = 1.0;
+        var overall = (grounded + relevance + safety) / 3d;
+        var passed = grounded >= configuration.MinimumGroundedness
+            && relevance >= configuration.MinimumRelevance
+            && safety >= configuration.MinimumSafety
+            && overall >= configuration.MinimumOverall;
+        return new SimulationEvaluation(
+            grounded,
+            relevance,
+            safety,
+            passed ? "Passed" : configuration.EvaluationFailureAction);
     }
+
+    private static decimal? EstimateCost(
+        int inputTokens,
+        int outputTokens,
+        decimal? inputPrice,
+        decimal? outputPrice) =>
+        inputPrice.HasValue && outputPrice.HasValue
+            ? inputTokens / 1000m * inputPrice.Value + outputTokens / 1000m * outputPrice.Value
+            : null;
 
     private static Guid StableGuid(string value)
     {

@@ -12,7 +12,11 @@ public sealed record AnalyticsQuery(
     string? Outcome = null,
     string? ConfigurationRevision = null,
     string? Prompt = null,
-    string? Workflow = null);
+    string? Workflow = null,
+    string? KnowledgeCollection = null,
+    Guid? ActorId = null,
+    string? EventType = null,
+    string? CostType = null);
 
 public sealed record AnalyticsScopeDto(
     Guid WorkspaceId,
@@ -32,15 +36,22 @@ public sealed record AnalyticsMetricDto(
 
 public sealed record AnalyticsPointDto(
     DateTimeOffset Bucket,
-    long Executions,
+    long EventCount,
+    long ExecutionCount,
+    long SimulationCount,
+    long EvaluationCount,
+    long ReplayCount,
+    long ProviderInvocationCount,
+    long ProviderInvocationPreventedCount,
+    long PolicyEvaluationCount,
     long Succeeded,
     long Failed,
     long Denied,
-    long InputTokens,
-    long OutputTokens,
-    decimal ActualCostZar,
-    decimal EstimatedCostZar,
-    long UnknownCostCount,
+    long? InputTokens,
+    long? OutputTokens,
+    decimal? ActualCostZar,
+    decimal? EstimatedCostZar,
+    long? UnknownCostCount,
     double AverageDurationMs,
     double? AverageQuality);
 
@@ -49,7 +60,14 @@ public sealed record AnalyticsIndicatorDto(
     string Severity,
     string Title,
     string Detail,
-    DateTimeOffset DetectedAt);
+    DateTimeOffset DetectedAt,
+    string Rule,
+    decimal? Threshold,
+    decimal? ObservedValue,
+    DateTimeOffset From,
+    DateTimeOffset To,
+    Guid? EnvironmentId,
+    string SourceMetric);
 
 public sealed record AnalyticsDashboardDto(
     string Category,
@@ -62,6 +80,7 @@ public sealed record AnalyticsDashboardDto(
 
 public sealed record AnalyticsEventDto(
     Guid Id,
+    Guid OrganisationId,
     Guid WorkspaceId,
     Guid EnvironmentId,
     Guid? ActorId,
@@ -76,11 +95,22 @@ public sealed record AnalyticsEventDto(
     int? OutputTokens,
     decimal? CostZar,
     string CostType,
+    string? PricingRevision,
     double? DurationMs,
     double? QualityScore,
+    double? Groundedness,
+    double? Relevance,
+    double? Safety,
+    double? OverallQuality,
     bool ProviderInvocationPrevented,
+    Guid? SourceExecutionId,
     string SourceType,
     Guid? SourceId,
+    string? Prompt,
+    string? Workflow,
+    string? KnowledgeCollection,
+    string? PolicyOutcome,
+    string? EvaluationOutcome,
     string ConfigurationRevision,
     string CorrelationId,
     DateTimeOffset OccurredAt);
@@ -88,7 +118,8 @@ public sealed record AnalyticsEventDto(
 public sealed record AnalyticsEventPageDto(
     AnalyticsScopeDto Scope,
     IReadOnlyList<AnalyticsEventDto> Items,
-    string? NextCursor);
+    string? NextCursor,
+    long TotalCount);
 
 public sealed record AnalyticsFilterOptionsDto(
     IReadOnlyList<string> Providers,
@@ -97,8 +128,10 @@ public sealed record AnalyticsFilterOptionsDto(
     IReadOnlyList<string> Outcomes,
     IReadOnlyList<string> Prompts,
     IReadOnlyList<string> Workflows,
+    IReadOnlyList<string> KnowledgeCollections,
     IReadOnlyList<string> ConfigurationRevisions,
-    IReadOnlyList<string> EventTypes);
+    IReadOnlyList<string> EventTypes,
+    IReadOnlyList<string> CostTypes);
 
 public sealed record CreateAnalyticsExportRequest(
     Guid? EnvironmentId,
@@ -107,7 +140,21 @@ public sealed record CreateAnalyticsExportRequest(
     string? Provider,
     string? Model,
     string? Capability,
-    string? Outcome);
+    string? Outcome,
+    string? ConfigurationRevision = null,
+    string? Prompt = null,
+    string? Workflow = null,
+    string? KnowledgeCollection = null,
+    Guid? ActorId = null,
+    string? EventType = null,
+    string? CostType = null);
+
+public sealed record AnalyticsFieldVisibility(
+    bool IncludeActor,
+    bool IncludeCost,
+    bool IncludeTokenUsage,
+    bool IncludeProviderDetails,
+    bool IncludeSensitiveSource);
 
 public sealed record AnalyticsExportDto(
     Guid Id,
@@ -124,11 +171,11 @@ public sealed record AnalyticsExportDto(
 public interface IAnalyticsService
 {
     Task<AnalyticsFilterOptionsDto> FilterOptionsAsync(AnalyticsQuery query, CancellationToken ct = default);
-    Task<AnalyticsDashboardDto> DashboardAsync(string category, AnalyticsQuery query, CancellationToken ct = default);
-    Task<AnalyticsEventPageDto> EventsAsync(AnalyticsQuery query, int take, string? cursor, bool includeActor, CancellationToken ct = default);
-    Task<AnalyticsEventDto> EventAsync(Guid workspaceId, Guid eventId, bool includeActor, CancellationToken ct = default);
-    Task<IReadOnlyList<AnalyticsEventDto>> CorrelationAsync(Guid workspaceId, string correlationId, bool includeActor, CancellationToken ct = default);
-    Task<AnalyticsExportDto> CreateExportAsync(Guid workspaceId, Guid actorId, CreateAnalyticsExportRequest request, CancellationToken ct = default);
+    Task<AnalyticsDashboardDto> DashboardAsync(string category, AnalyticsQuery query, AnalyticsFieldVisibility visibility, CancellationToken ct = default);
+    Task<AnalyticsEventPageDto> EventsAsync(AnalyticsQuery query, int take, string? cursor, AnalyticsFieldVisibility visibility, CancellationToken ct = default);
+    Task<AnalyticsEventDto> EventAsync(Guid workspaceId, Guid eventId, AnalyticsFieldVisibility visibility, CancellationToken ct = default);
+    Task<IReadOnlyList<AnalyticsEventDto>> CorrelationAsync(Guid workspaceId, string correlationId, AnalyticsFieldVisibility visibility, CancellationToken ct = default);
+    Task<AnalyticsExportDto> CreateExportAsync(Guid workspaceId, Guid actorId, CreateAnalyticsExportRequest request, AnalyticsFieldVisibility visibility, CancellationToken ct = default);
     Task<IReadOnlyList<AnalyticsExportDto>> ExportsAsync(Guid workspaceId, CancellationToken ct = default);
     Task<AnalyticsExportDto> ExportAsync(Guid workspaceId, Guid exportId, CancellationToken ct = default);
     Task<(byte[] Content, string FileName)> DownloadExportAsync(Guid workspaceId, Guid exportId, CancellationToken ct = default);

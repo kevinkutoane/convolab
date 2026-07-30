@@ -138,7 +138,9 @@ public sealed record PolicyExecutionRequest(
     string Environment,
     Guid? SimulationId = null,
     Guid? RunId = null,
-    Guid? TenantId = null);
+    Guid? TenantId = null,
+    string? ConfigurationRevision = null,
+    string? CorrelationId = null);
 
 public sealed record PolicyExecutionGuardrails(
     bool IsAllowed,

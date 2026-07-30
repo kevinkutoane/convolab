@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using ConvoLab.Api.Security;
 using ConvoLab.Application.Common.Errors;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.AspNetCore.Antiforgery;
@@ -51,7 +52,9 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
         };
         var organisationId = membership is null ? null : await db.Workspaces.AsNoTracking().Where(item => item.Id == membership.WorkspaceId).Select(item => (Guid?)item.OrganisationId).SingleAsync(ct);
         db.AuthenticationSessions.Add(session);
-        db.WorkspaceAuditEvents.Add(Audit(membership is null ? "Platform" : "Workspace", organisationId, membership?.WorkspaceId, "User", user.Id, user.Email, "Authentication.Login", "AuthenticationSession", session.Id.ToString(), "Succeeded", HttpContext.TraceIdentifier));
+        var loginAudit = Audit(membership is null ? "Platform" : "Workspace", organisationId, membership?.WorkspaceId, "User", user.Id, user.Email, "Authentication.Login", "AuthenticationSession", session.Id.ToString(), "Succeeded", HttpContext.TraceIdentifier);
+        db.WorkspaceAuditEvents.Add(loginAudit);
+        await AnalyticsOutboxFactory.EnqueueAuditAsync(db, loginAudit, cancellationToken: ct);
         await db.SaveChangesAsync(ct);
         WriteSessionCookie(token, session.ExpiresAt);
         return Ok(await DescribeAsync(user, session, ct));
@@ -99,6 +102,30 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
         {
             var session = await db.AuthenticationSessions.SingleOrDefaultAsync(item => item.Id == sessionId, ct);
             if (session is not null && !session.RevokedAt.HasValue) session.RevokedAt = DateTimeOffset.UtcNow;
+            var workspaceId = session?.ActiveWorkspaceId;
+            var organisationId = workspaceId.HasValue
+                ? await db.Workspaces.AsNoTracking()
+                    .Where(item => item.Id == workspaceId)
+                    .Select(item => (Guid?)item.OrganisationId)
+                    .SingleOrDefaultAsync(ct)
+                : null;
+            var logoutAudit = Audit(
+                workspaceId.HasValue ? "Workspace" : "Platform",
+                organisationId,
+                workspaceId,
+                User.FindFirstValue("actor_type") ?? "User",
+                ClaimGuid(ClaimTypes.NameIdentifier),
+                User.Identity?.Name ?? "Authenticated actor",
+                "Authentication.Logout",
+                "AuthenticationSession",
+                sessionId.Value.ToString(),
+                "Succeeded",
+                HttpContext.TraceIdentifier);
+            db.WorkspaceAuditEvents.Add(logoutAudit);
+            await AnalyticsOutboxFactory.EnqueueAuditAsync(
+                db,
+                logoutAudit,
+                cancellationToken: ct);
             await db.SaveChangesAsync(ct);
         }
         Response.Cookies.Delete(ConvoLabAuthentication.SessionCookie);
@@ -132,6 +159,24 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
         var membership = await db.WorkspaceMemberships.AsNoTracking().SingleOrDefaultAsync(item => item.UserId == userId && item.WorkspaceId == request.WorkspaceId && item.Status == "Active", ct)
             ?? throw new ResourceNotFoundException("workspace.not_found", $"Workspace '{request.WorkspaceId}' was not found.");
         var session = await db.AuthenticationSessions.SingleAsync(item => item.Id == sessionId, ct); session.ActiveWorkspaceId = membership.WorkspaceId;
+        var organisationId = await db.Workspaces.AsNoTracking()
+            .Where(item => item.Id == membership.WorkspaceId)
+            .Select(item => item.OrganisationId)
+            .SingleAsync(ct);
+        var audit = Audit(
+            "Workspace",
+            organisationId,
+            membership.WorkspaceId,
+            User.FindFirstValue("actor_type") ?? "User",
+            userId,
+            User.Identity?.Name ?? "Authenticated actor",
+            "Workspace.Selected",
+            "Workspace",
+            membership.WorkspaceId.ToString(),
+            "Succeeded",
+            HttpContext.TraceIdentifier);
+        db.WorkspaceAuditEvents.Add(audit);
+        await AnalyticsOutboxFactory.EnqueueAuditAsync(db, audit, cancellationToken: ct);
         await db.SaveChangesAsync(ct);
         var user = await db.IdentityUsers.AsNoTracking().SingleAsync(item => item.Id == userId, ct);
         return Ok(await DescribeAsync(user, session, ct));

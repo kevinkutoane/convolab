@@ -205,7 +205,10 @@ public sealed class EvaluationStudioService : IEvaluationStudioService
             null,
             null,
             run.CreatedAt);
-        await _repository.AddRunAsync(state, cancellationToken);
+        if (_repository is IAttributedEvaluationStudioRepository attributed)
+            await attributed.AddAttributedRunAsync(state, run, cancellationToken);
+        else
+            await _repository.AddRunAsync(state, cancellationToken);
         return Map(state);
     }
 

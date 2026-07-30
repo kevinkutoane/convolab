@@ -29,6 +29,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("every canonical and compatibility route loads without browser errors", async ({ page }) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
@@ -58,9 +59,9 @@ test("governance workspaces expose functional dialogs, tabs and documentation", 
 
   await page.goto("/replay");
   await page.getByRole("button", { name: /new experiment/i }).click();
-  const immutableBaseline = page.getByRole("heading", { name: "Immutable baseline", exact: true });
-  if (await immutableBaseline.count()) await expect(immutableBaseline).toBeVisible();
-  else await expect(page.getByText(/no source runs available/i)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Create from an immutable baseline", exact: true }),
+  ).toBeVisible();
 
   await page.goto("/policies");
   await page.getByRole("button", { name: /new policy/i }).click();
@@ -169,7 +170,9 @@ test("analytics collapses singleton dimensions and clears stale selections", asy
   await page.getByLabel("Period").selectOption("7");
   await expect(page.locator(".singleton-context").filter({ hasText: "ConvoLab Deterministic" })).toBeVisible();
   await expect(page.getByLabel("Provider")).toHaveCount(0);
-  await expect(page.getByText("simulation.execution.completed")).toBeVisible();
+  await expect(
+    page.getByLabel("Analytics filters").getByText("simulation.execution.completed"),
+  ).toBeVisible();
 });
 
 test("dark and light themes keep the premium shell readable", async ({ page }) => {

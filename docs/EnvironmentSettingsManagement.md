@@ -16,6 +16,8 @@ Environment override → Workspace override → Organisation override → Platfo
 
 Every effective setting reports its source scope, inheritance status, and validation state.
 
+At execution time the runtime adapters resolve this effective configuration for the trusted request context, validate any permitted simulator overrides, persist/reuse an immutable secret-free SHA-256 snapshot, and pass the resolved values to provider, policy, evaluation, plugin, replay and trace behavior. Process environment variables remain bootstrap/infrastructure or secret-value sources; they do not silently replace persisted business settings.
+
 **Secret references** never store secret material. A reference names an external location (environment variable today; vault providers later). The database stores only the reference, its validation status, and audit metadata. Exports never contain secret values; imports never accept them.
 
 **Configuration changes** are append-only audit records with actor, reason, correlation ID, previous/new value summaries, and outcome. History is queryable per workspace and per environment.

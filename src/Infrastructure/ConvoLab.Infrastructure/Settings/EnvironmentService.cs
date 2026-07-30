@@ -69,7 +69,7 @@ public sealed class EnvironmentService : IEnvironmentService
             Revision = 1
         };
         _db.RuntimeEnvironments.Add(record);
-        AddChange(record.OrganisationId, workspaceId, null, "environment.created", null, record.Name, actorId, actorDisplay, correlationId);
+        await AddChangeAsync(record.OrganisationId, workspaceId, record.Id, "environment.created", null, record.Name, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
         return ToDto(record);
     }
@@ -92,7 +92,7 @@ public sealed class EnvironmentService : IEnvironmentService
         record.UpdatedBy = actorId;
         record.Revision++;
 
-        AddChange(record.OrganisationId, workspaceId, environmentId, "environment.updated", prev, record.Name, actorId, actorDisplay, correlationId);
+        await AddChangeAsync(record.OrganisationId, workspaceId, environmentId, "environment.updated", prev, record.Name, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
         return ToDto(record);
     }
@@ -102,7 +102,7 @@ public sealed class EnvironmentService : IEnvironmentService
         var record = await FindAsync(workspaceId, environmentId, expectedRevision, ct);
         if (record.Status == "Archived") throw new ResourceConflictException("environment.archived", "Archived environments cannot be activated.");
         record.Status = "Active"; record.UpdatedAt = DateTimeOffset.UtcNow; record.UpdatedBy = actorId; record.Revision++;
-        AddChange(record.OrganisationId, workspaceId, environmentId, "environment.activated", null, "Active", actorId, actorDisplay, correlationId);
+        await AddChangeAsync(record.OrganisationId, workspaceId, environmentId, "environment.activated", null, "Active", actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
     }
 
@@ -117,7 +117,7 @@ public sealed class EnvironmentService : IEnvironmentService
             if (otherActive == 0) throw new ResourceConflictException("environment.last_production", "The final active Production environment cannot be suspended without Administrator access.");
         }
         record.Status = "Suspended"; record.UpdatedAt = DateTimeOffset.UtcNow; record.UpdatedBy = actorId; record.Revision++;
-        AddChange(record.OrganisationId, workspaceId, environmentId, "environment.suspended", null, "Suspended", actorId, actorDisplay, correlationId);
+        await AddChangeAsync(record.OrganisationId, workspaceId, environmentId, "environment.suspended", null, "Suspended", actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
     }
 
@@ -127,7 +127,7 @@ public sealed class EnvironmentService : IEnvironmentService
         if (record.Status == "Archived") return;
         if (record.IsDefault) throw new ResourceConflictException("environment.default", "Change the default environment before archiving this one.");
         record.Status = "Archived"; record.UpdatedAt = DateTimeOffset.UtcNow; record.UpdatedBy = actorId; record.Revision++;
-        AddChange(record.OrganisationId, workspaceId, environmentId, "environment.archived", null, "Archived", actorId, actorDisplay, correlationId);
+        await AddChangeAsync(record.OrganisationId, workspaceId, environmentId, "environment.archived", null, "Archived", actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
     }
 
@@ -137,7 +137,7 @@ public sealed class EnvironmentService : IEnvironmentService
         if (record.Status != "Active") throw new ResourceConflictException("environment.not_active", "Only active environments can be set as default.");
         await ClearDefaultAsync(workspaceId, ct);
         record.IsDefault = true; record.UpdatedAt = DateTimeOffset.UtcNow; record.UpdatedBy = actorId; record.Revision++;
-        AddChange(record.OrganisationId, workspaceId, environmentId, "environment.default_changed", null, record.Name, actorId, actorDisplay, correlationId);
+        await AddChangeAsync(record.OrganisationId, workspaceId, environmentId, "environment.default_changed", null, record.Name, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
     }
 
@@ -191,14 +191,28 @@ public sealed class EnvironmentService : IEnvironmentService
         return record;
     }
 
-    private void AddChange(Guid orgId, Guid? wsId, Guid? envId, string key, string? prev, string next, Guid actor, string display, string correlation) =>
-        _db.ConfigurationChanges.Add(new ConfigurationChangeRecord
+    private async Task AddChangeAsync(
+        Guid orgId,
+        Guid? wsId,
+        Guid? envId,
+        string key,
+        string? prev,
+        string next,
+        Guid actor,
+        string display,
+        string correlation,
+        CancellationToken ct)
+    {
+        var change = new ConfigurationChangeRecord
         {
             Id = Guid.NewGuid(), OrganisationId = orgId, WorkspaceId = wsId, EnvironmentId = envId,
             SettingKey = key, PreviousValueSummary = prev, NewValueSummary = next,
             ChangedBy = actor, ChangedByDisplay = display, ChangedAt = DateTimeOffset.UtcNow,
             CorrelationId = correlation, Outcome = "Succeeded", Revision = 1
-        });
+        };
+        _db.ConfigurationChanges.Add(change);
+        await AnalyticsOutboxFactory.EnqueueConfigurationChangeAsync(_db, change, ct);
+    }
 
     private static EnvironmentDto ToDto(RuntimeEnvironmentRecord r) =>
         new(r.Id, r.OrganisationId, r.WorkspaceId, r.Name, r.Slug,

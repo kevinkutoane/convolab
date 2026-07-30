@@ -111,4 +111,4 @@ Platform Core is not:
 
 ## Current maturity
 
-Platform Core and Studio are stabilized at `v1.0.0-alpha.11`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, and Plugin Center are functional persisted v1 capabilities. Authentication, tenant isolation, managed environments, secret governance, and production operations remain the blockers for beta.
+Platform Core and Studio are at `v1.0.0-alpha.14`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, managed environments, trusted runtime attribution, and workspace/environment Platform Analytics are functional persisted v1 capabilities. Production SSO, managed vault adapters, enterprise operational rehearsal, and UAT sign-off remain beta work.

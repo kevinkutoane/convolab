@@ -52,9 +52,13 @@ public sealed class AnalyticsMaintenanceWorker(
                 FOR UPDATE SKIP LOCKED
                 LIMIT 100
                 """).ToListAsync(ct)
-            : await db.AnalyticsOutbox
-                .Where(item => item.Status == "Pending" && item.AvailableAt <= now)
-                .OrderBy(item => item.CreatedAt).Take(100).ToListAsync(ct);
+            : (await db.AnalyticsOutbox
+                    .Where(item => item.Status == "Pending")
+                    .ToListAsync(ct))
+                .Where(item => item.AvailableAt <= now)
+                .OrderBy(item => item.CreatedAt)
+                .Take(100)
+                .ToList();
         foreach (var item in pending)
         {
             try
@@ -66,9 +70,36 @@ public sealed class AnalyticsMaintenanceWorker(
                     db.AnalyticsEvents.Add(analyticsEvent);
                     var checkpoints = await db.AnalyticsAggregationCheckpoints
                         .Where(value => value.WorkspaceId == analyticsEvent.WorkspaceId).ToListAsync(ct);
-                    foreach (var checkpoint in checkpoints.Where(value =>
-                        !value.DirtyFromUtc.HasValue || analyticsEvent.OccurredAt < value.DirtyFromUtc))
-                        checkpoint.DirtyFromUtc = analyticsEvent.OccurredAt;
+                    foreach (var granularity in new[] { "hour", "day" })
+                    {
+                        var checkpoint = checkpoints.SingleOrDefault(value =>
+                            value.Granularity == granularity);
+                        if (checkpoint is null)
+                        {
+                            checkpoint = new AnalyticsAggregationCheckpointRecord
+                            {
+                                Id = Guid.NewGuid(),
+                                WorkspaceId = analyticsEvent.WorkspaceId,
+                                Granularity = granularity,
+                                Status = "Pending"
+                            };
+                            db.AnalyticsAggregationCheckpoints.Add(checkpoint);
+                            checkpoints.Add(checkpoint);
+                        }
+
+                        checkpoint.DirtyFromUtc = !checkpoint.DirtyFromUtc.HasValue
+                            || analyticsEvent.OccurredAt < checkpoint.DirtyFromUtc
+                            ? analyticsEvent.OccurredAt
+                            : checkpoint.DirtyFromUtc;
+                        checkpoint.DirtyToUtc = !checkpoint.DirtyToUtc.HasValue
+                            || analyticsEvent.OccurredAt > checkpoint.DirtyToUtc
+                            ? analyticsEvent.OccurredAt
+                            : checkpoint.DirtyToUtc;
+                        checkpoint.LastProcessedEventId = analyticsEvent.Id;
+                        checkpoint.Status = "Pending";
+                        checkpoint.FailureReason = null;
+                        checkpoint.UpdatedAt = now;
+                    }
                 }
                 item.Status = "Processed";
                 item.ProcessedAt = now;
@@ -96,29 +127,82 @@ public sealed class AnalyticsMaintenanceWorker(
             {
                 var request = JsonSerializer.Deserialize<CreateAnalyticsExportRequest>(export.FiltersJson, JsonOptions)
                     ?? throw new InvalidOperationException("Export filters are invalid.");
-                var events = (await db.AnalyticsEvents.AsNoTracking()
-                        .Where(item => item.WorkspaceId == export.WorkspaceId).ToListAsync(ct))
-                    .Where(item => item.OccurredAt >= request.From && item.OccurredAt < request.To
-                        && (!request.EnvironmentId.HasValue || item.EnvironmentId == request.EnvironmentId)
-                        && (request.Provider == null || item.Provider == request.Provider)
-                        && (request.Model == null || item.Model == request.Model)
-                        && (request.Capability == null || item.Capability == request.Capability)
-                        && (request.Outcome == null || item.Outcome == request.Outcome))
-                    .OrderBy(item => item.OccurredAt).Take(100_001).ToList();
+                var query = db.AnalyticsEvents.AsNoTracking()
+                    .Where(item => item.WorkspaceId == export.WorkspaceId
+                        && item.OccurredAt >= request.From
+                        && item.OccurredAt < request.To);
+                if (request.EnvironmentId.HasValue)
+                    query = query.Where(item => item.EnvironmentId == request.EnvironmentId);
+                if (request.Provider is not null) query = query.Where(item => item.Provider == request.Provider);
+                if (request.Model is not null) query = query.Where(item => item.Model == request.Model);
+                if (request.Capability is not null) query = query.Where(item => item.Capability == request.Capability);
+                if (request.Outcome is not null) query = query.Where(item => item.Outcome == request.Outcome);
+                if (request.ConfigurationRevision is not null)
+                    query = query.Where(item => item.ConfigurationRevision == request.ConfigurationRevision);
+                if (request.Prompt is not null) query = query.Where(item => item.PromptName == request.Prompt);
+                if (request.Workflow is not null) query = query.Where(item => item.WorkflowName == request.Workflow);
+                if (request.KnowledgeCollection is not null)
+                    query = query.Where(item => item.KnowledgeCollectionName == request.KnowledgeCollection);
+                if (request.ActorId.HasValue) query = query.Where(item => item.ActorId == request.ActorId);
+                if (request.EventType is not null) query = query.Where(item => item.EventType == request.EventType);
+                if (request.CostType is not null) query = query.Where(item => item.CostType == request.CostType);
+
+                var events = await query.OrderBy(item => item.OccurredAt)
+                    .ThenBy(item => item.Id)
+                    .Take(100_001)
+                    .ToListAsync(ct);
                 if (events.Count > 100_000) throw new InvalidOperationException("Export exceeds the 100,000 row limit.");
-                var csv = new StringBuilder("occurredAt,environmentId,capability,eventType,outcome,provider,model,inputTokens,outputTokens,costZar,costType,durationMs,qualityScore,sourceType,sourceId,configurationRevision,correlationId\r\n");
+                var columns = new List<string>
+                {
+                    "occurredAt", "environmentId", "capability", "eventType", "outcome"
+                };
+                if (export.IncludeActor) columns.AddRange(["actorId", "actorType", "actorRole"]);
+                if (export.IncludeProviderDetails) columns.AddRange(["provider", "model"]);
+                if (export.IncludeTokenUsage) columns.AddRange(["inputTokens", "outputTokens"]);
+                if (export.IncludeCost) columns.AddRange(["costZar", "costType", "pricingRevision"]);
+                columns.AddRange([
+                    "durationMs", "qualityScore", "groundedness", "relevance", "safety",
+                    "overallQuality", "providerInvocationPrevented", "sourceExecutionId",
+                    "sourceType", "sourceId"
+                ]);
+                if (export.IncludeSensitiveSource)
+                    columns.AddRange(["prompt", "workflow", "knowledgeCollection"]);
+                columns.AddRange([
+                    "policyOutcome", "evaluationOutcome", "configurationRevision", "correlationId"
+                ]);
+
+                var csv = new StringBuilder();
+                csv.AppendLine(string.Join(',', columns.Select(Cell)));
                 foreach (var item in events)
                 {
-                    csv.AppendLine(string.Join(',', new[]
+                    var values = new List<string?>
                     {
-                        Cell(item.OccurredAt.ToString("O")), Cell(item.EnvironmentId.ToString()), Cell(item.Capability),
-                        Cell(item.EventType), Cell(item.Outcome), Cell(item.Provider), Cell(item.Model),
-                        Cell(item.InputTokens?.ToString()), Cell(item.OutputTokens?.ToString()),
-                        Cell(item.CostZar?.ToString(System.Globalization.CultureInfo.InvariantCulture)), Cell(item.CostType),
-                        Cell(item.DurationMs?.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                        Cell(item.QualityScore?.ToString(System.Globalization.CultureInfo.InvariantCulture)),
-                        Cell(item.SourceType), Cell(item.SourceId?.ToString()), Cell(item.ConfigurationRevision), Cell(item.CorrelationId)
-                    }));
+                        item.OccurredAt.ToString("O"), item.EnvironmentId.ToString(), item.Capability,
+                        item.EventType, item.Outcome
+                    };
+                    if (export.IncludeActor)
+                        values.AddRange([item.ActorId?.ToString(), item.ActorType, item.ActorRole]);
+                    if (export.IncludeProviderDetails) values.AddRange([item.Provider, item.Model]);
+                    if (export.IncludeTokenUsage)
+                        values.AddRange([item.InputTokens?.ToString(), item.OutputTokens?.ToString()]);
+                    if (export.IncludeCost)
+                        values.AddRange([
+                            Invariant(item.CostZar), item.CostType, item.PricingRevision
+                        ]);
+                    values.AddRange([
+                        Invariant(item.DurationMs), Invariant(item.QualityScore),
+                        Invariant(item.Groundedness), Invariant(item.Relevance),
+                        Invariant(item.Safety), Invariant(item.OverallQuality),
+                        item.ProviderInvocationPrevented.ToString(), item.SourceExecutionId?.ToString(),
+                        item.SourceType, item.SourceId?.ToString()
+                    ]);
+                    if (export.IncludeSensitiveSource)
+                        values.AddRange([item.PromptName, item.WorkflowName, item.KnowledgeCollectionName]);
+                    values.AddRange([
+                        item.PolicyOutcome, item.EvaluationOutcome, item.ConfigurationRevision,
+                        item.CorrelationId
+                    ]);
+                    csv.AppendLine(string.Join(',', values.Select(Cell)));
                 }
                 var bytes = Encoding.UTF8.GetBytes(csv.ToString());
                 if (bytes.Length > 25 * 1024 * 1024) throw new InvalidOperationException("Export exceeds the 25 MB limit.");
@@ -139,6 +223,9 @@ public sealed class AnalyticsMaintenanceWorker(
         if (exports.Count > 0) await db.SaveChangesAsync(ct);
     }
 
+    private static string? Invariant<T>(T? value) where T : struct, IFormattable =>
+        value?.ToString(null, System.Globalization.CultureInfo.InvariantCulture);
+
     private static string Cell(string? value)
     {
         value ??= string.Empty;
@@ -148,49 +235,141 @@ public sealed class AnalyticsMaintenanceWorker(
 
     private static async Task RebuildAggregatesAsync(ApplicationDbContext db, CancellationToken ct)
     {
-        var newest = await db.AnalyticsEvents.OrderByDescending(item => item.OccurredAt)
-            .Select(item => (DateTimeOffset?)item.OccurredAt).FirstOrDefaultAsync(ct);
-        if (!newest.HasValue) return;
         var checkpoints = await db.AnalyticsAggregationCheckpoints.ToListAsync(ct);
-        var requiresRebuild = checkpoints.Count == 0
-            || checkpoints.Any(item => item.DirtyFromUtc.HasValue || item.HighWatermarkUtc < newest);
-        if (!requiresRebuild) return;
-
-        await db.AnalyticsHourlyAggregates.ExecuteDeleteAsync(ct);
-        await db.AnalyticsDailyAggregates.ExecuteDeleteAsync(ct);
-        var events = await db.AnalyticsEvents.AsNoTracking().ToListAsync(ct);
-        AddAggregates(db, events, true);
-        AddAggregates(db, events, false);
-        var now = DateTimeOffset.UtcNow;
-        foreach (var workspace in events.GroupBy(item => item.WorkspaceId))
+        var ranges = await db.AnalyticsEvents.AsNoTracking()
+            .GroupBy(item => item.WorkspaceId)
+            .Select(group => new
+            {
+                WorkspaceId = group.Key,
+                From = group.Min(item => item.OccurredAt),
+                To = group.Max(item => item.OccurredAt)
+            })
+            .ToListAsync(ct);
+        foreach (var range in ranges)
         {
-            var workspaceWatermark = workspace.Max(item => item.OccurredAt);
             foreach (var granularity in new[] { "hour", "day" })
             {
                 var checkpoint = checkpoints.SingleOrDefault(item =>
-                    item.WorkspaceId == workspace.Key && item.Granularity == granularity);
+                    item.WorkspaceId == range.WorkspaceId && item.Granularity == granularity);
                 if (checkpoint is null)
                 {
                     checkpoint = new AnalyticsAggregationCheckpointRecord
                     {
-                        Id = Guid.NewGuid(), WorkspaceId = workspace.Key, Granularity = granularity
+                        Id = Guid.NewGuid(),
+                        WorkspaceId = range.WorkspaceId,
+                        Granularity = granularity,
+                        DirtyFromUtc = range.From,
+                        DirtyToUtc = range.To,
+                        Status = "Pending",
+                        UpdatedAt = DateTimeOffset.UtcNow
                     };
                     db.AnalyticsAggregationCheckpoints.Add(checkpoint);
+                    checkpoints.Add(checkpoint);
                 }
-                checkpoint.HighWatermarkUtc = workspaceWatermark;
-                checkpoint.DirtyFromUtc = null;
-                checkpoint.UpdatedAt = now;
-                checkpoint.Revision++;
+                else if (!checkpoint.DirtyFromUtc.HasValue
+                    && (!checkpoint.HighWatermarkUtc.HasValue
+                        || range.To > checkpoint.HighWatermarkUtc))
+                {
+                    checkpoint.DirtyFromUtc = checkpoint.HighWatermarkUtc ?? range.From;
+                    checkpoint.DirtyToUtc = range.To;
+                    checkpoint.Status = "Pending";
+                    checkpoint.UpdatedAt = DateTimeOffset.UtcNow;
+                }
+                else if (!checkpoint.DirtyFromUtc.HasValue
+                    && checkpoint.LastSuccessfulRunAt < DateTimeOffset.UtcNow.AddHours(-1))
+                {
+                    var reconciliationFrom = range.To.AddHours(-24);
+                    checkpoint.DirtyFromUtc = reconciliationFrom > range.From
+                        ? reconciliationFrom
+                        : range.From;
+                    checkpoint.DirtyToUtc = range.To;
+                    checkpoint.Status = "Pending";
+                    checkpoint.UpdatedAt = DateTimeOffset.UtcNow;
+                }
             }
         }
         await db.SaveChangesAsync(ct);
+
+        foreach (var checkpoint in checkpoints
+            .Where(item => item.DirtyFromUtc.HasValue)
+            .OrderBy(item => item.UpdatedAt))
+        {
+            try
+            {
+                await using var transaction = await db.Database.BeginTransactionAsync(ct);
+                if (db.Database.IsNpgsql())
+                {
+                    var lockKey = $"analytics-aggregate:{checkpoint.WorkspaceId:N}:{checkpoint.Granularity}";
+                    await db.Database.ExecuteSqlInterpolatedAsync(
+                        $"SELECT pg_advisory_xact_lock(hashtext({lockKey}))",
+                        ct);
+                }
+                checkpoint.Status = "Processing";
+                checkpoint.FailureReason = null;
+                checkpoint.UpdatedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(ct);
+
+                var hourly = checkpoint.Granularity == "hour";
+                var from = Truncate(checkpoint.DirtyFromUtc!.Value, hourly);
+                var dirtyTo = checkpoint.DirtyToUtc ?? checkpoint.DirtyFromUtc.Value;
+                var to = Truncate(dirtyTo, hourly).Add(hourly
+                    ? TimeSpan.FromHours(1)
+                    : TimeSpan.FromDays(1));
+
+                if (hourly)
+                {
+                    await db.AnalyticsHourlyAggregates
+                        .Where(item => item.WorkspaceId == checkpoint.WorkspaceId
+                            && item.BucketStart >= from
+                            && item.BucketStart < to)
+                        .ExecuteDeleteAsync(ct);
+                }
+                else
+                {
+                    await db.AnalyticsDailyAggregates
+                        .Where(item => item.WorkspaceId == checkpoint.WorkspaceId
+                            && item.BucketStart >= from
+                            && item.BucketStart < to)
+                        .ExecuteDeleteAsync(ct);
+                }
+
+                var events = await db.AnalyticsEvents.AsNoTracking()
+                    .Where(item => item.WorkspaceId == checkpoint.WorkspaceId
+                        && item.OccurredAt >= from
+                        && item.OccurredAt < to)
+                    .ToListAsync(ct);
+                AddAggregates(db, events, hourly);
+
+                checkpoint.HighWatermarkUtc = checkpoint.HighWatermarkUtc > dirtyTo
+                    ? checkpoint.HighWatermarkUtc
+                    : dirtyTo;
+                checkpoint.DirtyFromUtc = null;
+                checkpoint.DirtyToUtc = null;
+                checkpoint.LastSuccessfulRunAt = DateTimeOffset.UtcNow;
+                checkpoint.Status = "Completed";
+                checkpoint.FailureReason = null;
+                checkpoint.UpdatedAt = DateTimeOffset.UtcNow;
+                checkpoint.Revision++;
+                await db.SaveChangesAsync(ct);
+                await transaction.CommitAsync(ct);
+            }
+            catch (Exception exception)
+            {
+                checkpoint.Status = "Failed";
+                checkpoint.FailureReason = exception.Message[..Math.Min(
+                    exception.Message.Length,
+                    2000)];
+                checkpoint.UpdatedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(ct);
+            }
+        }
     }
 
     private static void AddAggregates(ApplicationDbContext db, IReadOnlyList<AnalyticsEventRecord> events, bool hourly)
     {
         var groups = events.GroupBy(item => new
         {
-            item.WorkspaceId, item.EnvironmentId,
+            item.OrganisationId, item.WorkspaceId, item.EnvironmentId,
             Bucket = Truncate(item.OccurredAt, hourly),
             item.Provider, item.Model, item.Capability, item.Outcome
         });
@@ -203,10 +382,39 @@ public sealed class AnalyticsMaintenanceWorker(
                 ? new AnalyticsHourlyAggregateRecord()
                 : new AnalyticsDailyAggregateRecord();
             aggregate.Id = Guid.NewGuid(); aggregate.AggregateKey = key;
+            aggregate.OrganisationId = group.Key.OrganisationId;
             aggregate.WorkspaceId = group.Key.WorkspaceId; aggregate.EnvironmentId = group.Key.EnvironmentId;
             aggregate.BucketStart = group.Key.Bucket; aggregate.Provider = group.Key.Provider; aggregate.Model = group.Key.Model;
             aggregate.Capability = group.Key.Capability; aggregate.Outcome = group.Key.Outcome;
-            aggregate.Executions = group.LongCount();
+            aggregate.EventCount = group.LongCount();
+            aggregate.ExecutionCount = group
+                .Where(item => AnalyticsSemantics.IsExecutionTerminal(item.EventType))
+                .Select(item => item.SourceExecutionId ?? item.Id)
+                .Distinct()
+                .LongCount();
+            aggregate.Executions = aggregate.ExecutionCount;
+            aggregate.SimulationCount = group.LongCount(item =>
+                AnalyticsSemantics.IsSimulationTerminal(item.EventType));
+            aggregate.EvaluationCount = group.LongCount(item =>
+                AnalyticsSemantics.IsEvaluationTerminal(item.EventType));
+            aggregate.TraceCount = group.LongCount(item =>
+                AnalyticsSemantics.IsTraceTerminal(item.EventType));
+            aggregate.ReplayCount = group.LongCount(item =>
+                AnalyticsSemantics.IsReplayTerminal(item.EventType));
+            aggregate.ProviderInvocationCount = group.LongCount(item =>
+                AnalyticsSemantics.IsProviderInvocation(item.EventType));
+            aggregate.ProviderInvocationPreventedCount = group.LongCount(item =>
+                item.ProviderInvocationPrevented);
+            aggregate.PolicyEvaluationCount = group.LongCount(item =>
+                AnalyticsSemantics.IsPolicyEvaluation(item.EventType));
+            aggregate.PolicyAllowedCount = group.LongCount(item =>
+                AnalyticsSemantics.IsPolicyEvaluation(item.EventType) && item.Outcome == "Allowed");
+            aggregate.PolicyDeniedCount = group.LongCount(item =>
+                AnalyticsSemantics.IsPolicyEvaluation(item.EventType) && item.Outcome == "Denied");
+            aggregate.PolicyWarningCount = group.LongCount(item =>
+                AnalyticsSemantics.IsPolicyEvaluation(item.EventType) && item.Outcome == "Warning");
+            aggregate.PluginOperationCount = group.LongCount(item =>
+                AnalyticsSemantics.IsPluginOperation(item.EventType));
             aggregate.Succeeded = group.LongCount(item => item.Outcome is "Succeeded" or "Completed");
             aggregate.Failed = group.LongCount(item => item.Outcome == "Failed");
             aggregate.Denied = group.LongCount(item => item.Outcome == "Denied");
@@ -216,6 +424,8 @@ public sealed class AnalyticsMaintenanceWorker(
             aggregate.EstimatedCostZar = group.Where(item => item.CostType == "Estimated").Sum(item => item.CostZar ?? 0);
             aggregate.UnknownCostCount = group.LongCount(item => item.CostType == "Unavailable");
             aggregate.TotalDurationMs = group.Sum(item => item.DurationMs ?? 0);
+            aggregate.MaximumDurationMs = group.Max(item => item.DurationMs ?? 0);
+            aggregate.DurationCount = group.LongCount(item => item.DurationMs.HasValue);
             aggregate.TotalQualityScore = group.Sum(item => item.QualityScore ?? 0);
             aggregate.QualityCount = group.LongCount(item => item.QualityScore.HasValue);
             aggregate.UpdatedAt = DateTimeOffset.UtcNow;
@@ -246,11 +456,9 @@ public sealed class AnalyticsMaintenanceWorker(
             await db.AnalyticsHourlyAggregates.Where(item => item.EnvironmentId == environment.EnvironmentId && item.BucketStart < now.AddDays(-hourlyDays)).ExecuteDeleteAsync(ct);
             await db.AnalyticsDailyAggregates.Where(item => item.EnvironmentId == environment.EnvironmentId && item.BucketStart < now.AddDays(-dailyDays)).ExecuteDeleteAsync(ct);
         }
-        foreach (var workspaceId in environments.Select(item => item.WorkspaceId).Distinct())
-        {
-            var exportDays = await RetentionDaysAsync(db, SettingKeys.AnalyticsExportRetentionDays, workspaceId, null, 7, ct);
-            await db.AnalyticsExports.Where(item => item.WorkspaceId == workspaceId && item.CreatedAt < now.AddDays(-exportDays)).ExecuteDeleteAsync(ct);
-        }
+        await db.AnalyticsExports
+            .Where(item => item.ExpiresAt <= now)
+            .ExecuteDeleteAsync(ct);
     }
 
     private static async Task<int> RetentionDaysAsync(

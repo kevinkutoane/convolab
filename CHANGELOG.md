@@ -2,12 +2,18 @@
 
 ## 1.0.0-alpha.14 — 2026-07-28
 
+- Completed effective Settings-driven runtime configuration and shared immutable snapshot attribution across simulation, policy, provider, evaluation, trace, and replay.
+- Separated event and distinct terminal-execution measures and added category-specific usage, cost/budget, quality, governance, performance, and adoption semantics.
+- Expanded trusted event coverage across authentication, selection, provider, policy, evaluation, trace, replay, plugin, and configuration activity.
+- Closed event/correlation cost-field bypasses, including Production token redaction, and added real role-principal API security coverage.
+- Completed matching dashboard/export filters, event detail/correlation drill-down, incremental dirty-range aggregation, reconciliation tooling, and measured 10k/100k PostgreSQL evidence.
 - Added trusted runtime-environment attribution, server-generated correlation, immutable configuration snapshots, and explicit Alpha 13 backfill status.
 - Added metadata-only Platform Analytics events with a transactional outbox, restart-safe aggregation/checkpoints, governed retention, and asynchronous sanitized CSV exports.
 - Added workspace/environment analytics APIs with fixed RBAC, tenant isolation, actor redaction, and Production-cost restrictions.
 - Added the lazy, accessible Studio Analytics workspace and eliminated stale environment state that previously required a refresh.
 - Replaced the PostgreSQL migration-count assertion with known/applied/pending checks and added a real Alpha 13 upgrade/restart gate.
 - Pinned Node 22.22.0 across Docker and CI and removed the unused pnpm lockfile.
+- Upgraded the complete Studio to the restrained premium glass system and kept hamburger/close controls mobile-only.
 
 ## 1.0.0-alpha.13 — 2026-07-28
 

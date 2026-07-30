@@ -80,6 +80,83 @@ public sealed class PostgresMigrationTests
     }
 
     [Fact]
+    public async Task Alpha14_analytics_database_upgrades_through_completion_migration()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        if (!database.Available) return;
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.ConnectionString)
+            .Options;
+        var eventId = Guid.NewGuid();
+        var executionId = Guid.NewGuid();
+
+        await using (var alpha14 = new ApplicationDbContext(options))
+        {
+            var migrator = alpha14.Database.GetService<IMigrator>();
+            // The repository deliberately retains its established 12-digit
+            // migration IDs. Ask the configured EF ID generator for the target
+            // name rather than assuming the conventional 14-digit split point.
+            var analyticsMigration = alpha14.Database.GetMigrations()
+                .Single(id => id.EndsWith("_PlatformAnalyticsV1", StringComparison.Ordinal));
+            var targetName = alpha14.Database.GetService<IMigrationsIdGenerator>()
+                .GetName(analyticsMigration);
+            await migrator.MigrateAsync(targetName);
+            Assert.Contains(
+                "202607240001_PlatformAnalyticsV1",
+                await alpha14.Database.GetAppliedMigrationsAsync());
+            var scope = await alpha14.RuntimeEnvironments.AsNoTracking()
+                .Join(
+                    alpha14.Workspaces.AsNoTracking(),
+                    environment => environment.WorkspaceId,
+                    workspace => workspace.Id,
+                    (environment, workspace) => new
+                    {
+                        OrganisationId = workspace.OrganisationId,
+                        WorkspaceId = workspace.Id,
+                        EnvironmentId = environment.Id
+                    })
+                .FirstAsync();
+            await alpha14.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "AnalyticsEvents"
+                    ("Id", "EventKey", "OrganisationId", "WorkspaceId", "EnvironmentId",
+                     "ActorId", "ActorType", "ActorRole", "Capability", "EventType",
+                     "Outcome", "Provider", "Model", "InputTokens", "OutputTokens",
+                     "CostZar", "CostType", "PricingRevision", "DurationMs", "QualityScore",
+                     "ProviderInvocationPrevented", "SourceType", "SourceId", "PromptName",
+                     "WorkflowName", "ConfigurationRevision", "CorrelationId", "OccurredAt")
+                VALUES
+                    ({eventId}, {$"event-{eventId:N}"}, {scope.OrganisationId},
+                     {scope.WorkspaceId}, {scope.EnvironmentId}, {null}, {"System"}, {null},
+                     {"Simulation"}, {"SimulationExecution"}, {"Succeeded"},
+                     {"Deterministic"}, {"convolab-deterministic-primary"}, {12}, {8},
+                     {0.001m}, {"Estimated"}, {"pricing:test"}, {25d}, {0.9d}, {false},
+                     {"SimulationRun"}, {executionId}, {"Prompt v1"}, {"Workflow v1"},
+                     {"sha256:alpha14"}, {"alpha14-upgrade"}, {DateTimeOffset.UtcNow});
+                """);
+        }
+
+        await using (var upgraded = new ApplicationDbContext(options))
+        {
+            await upgraded.Database.MigrateAsync();
+            await upgraded.Database.MigrateAsync();
+            Assert.Empty(await upgraded.Database.GetPendingMigrationsAsync());
+            var analyticsEvent = await upgraded.AnalyticsEvents.SingleAsync(item => item.Id == eventId);
+            Assert.Equal(executionId, analyticsEvent.SourceExecutionId);
+            Assert.Null(analyticsEvent.KnowledgeCollectionName);
+        }
+
+        await using (var restarted = new ApplicationDbContext(options))
+        {
+            Assert.Equal(
+                executionId,
+                await restarted.AnalyticsEvents
+                    .Where(item => item.Id == eventId)
+                    .Select(item => item.SourceExecutionId)
+                    .SingleAsync());
+        }
+    }
+
+    [Fact]
     public async Task Existing_Postgres_scorecard_schema_upgrades_without_data_loss()
     {
         await using var database = await TemporaryPostgresDatabase.CreateAsync();

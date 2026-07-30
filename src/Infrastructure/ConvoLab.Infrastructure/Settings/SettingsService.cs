@@ -2,6 +2,7 @@ using System.Text.Json;
 using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Settings;
 using ConvoLab.Domain.Settings;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -236,6 +237,27 @@ public sealed class SettingsService : ISettingsService
                 var upsertRequest = new UpsertSettingRequest(entry.Setting.Value!, request.Reason ?? "Configuration import", null);
                 await UpsertAsync("Environment", ws.OrganisationId, workspaceId, environmentId, entry.Setting.Key, upsertRequest, actorId, actorDisplay, correlationId, ct);
             }
+            var appliedCount = preview.Count(item => item.Outcome == "Apply");
+            var importChange = new ConfigurationChangeRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganisationId = ws.OrganisationId,
+                WorkspaceId = workspaceId,
+                EnvironmentId = environmentId,
+                SettingKey = "configuration.import",
+                PreviousValueSummary = null,
+                NewValueSummary = $"{appliedCount} setting changes applied",
+                ChangedBy = actorId,
+                ChangedByDisplay = actorDisplay,
+                ChangedAt = DateTimeOffset.UtcNow,
+                Reason = request.Reason ?? "Configuration import",
+                CorrelationId = correlationId,
+                Outcome = "Succeeded",
+                Revision = 1
+            };
+            _db.ConfigurationChanges.Add(importChange);
+            await AnalyticsOutboxFactory.EnqueueConfigurationChangeAsync(_db, importChange, ct);
+            await _db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
         });
 
@@ -383,7 +405,7 @@ public sealed class SettingsService : ISettingsService
         }
 
         var summary = SummariseSafe(def.IsSecret, request.ValueJson);
-        _db.ConfigurationChanges.Add(new ConfigurationChangeRecord
+        var change = new ConfigurationChangeRecord
         {
             Id = Guid.NewGuid(), OrganisationId = orgId, WorkspaceId = wsId, EnvironmentId = envId,
             SettingKey = settingKey,
@@ -391,7 +413,9 @@ public sealed class SettingsService : ISettingsService
             NewValueSummary = summary,
             ChangedBy = actorId, ChangedByDisplay = actorDisplay, ChangedAt = now,
             Reason = request.Reason, CorrelationId = correlationId, Outcome = "Succeeded", Revision = 1
-        });
+        };
+        _db.ConfigurationChanges.Add(change);
+        await AnalyticsOutboxFactory.EnqueueConfigurationChangeAsync(_db, change, ct);
 
         await _db.SaveChangesAsync(ct);
         return ToDto(existing, def);
@@ -410,7 +434,7 @@ public sealed class SettingsService : ISettingsService
 
         var def = await _db.SettingDefinitions.AsNoTracking().SingleOrDefaultAsync(d => d.Key == settingKey, ct);
         _db.SettingValues.Remove(existing);
-        _db.ConfigurationChanges.Add(new ConfigurationChangeRecord
+        var change = new ConfigurationChangeRecord
         {
             Id = Guid.NewGuid(), OrganisationId = orgId, WorkspaceId = wsId, EnvironmentId = envId,
             SettingKey = settingKey,
@@ -418,7 +442,9 @@ public sealed class SettingsService : ISettingsService
             NewValueSummary = "(inherited)",
             ChangedBy = actorId, ChangedByDisplay = actorDisplay, ChangedAt = DateTimeOffset.UtcNow,
             CorrelationId = correlationId, Outcome = "Succeeded", Revision = 1
-        });
+        };
+        _db.ConfigurationChanges.Add(change);
+        await AnalyticsOutboxFactory.EnqueueConfigurationChangeAsync(_db, change, ct);
         await _db.SaveChangesAsync(ct);
     }
 

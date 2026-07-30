@@ -4,3 +4,13 @@
 **/obj
 web/node_modules
 web/dist
+tmp
+temp
+artifacts
+playwright-report
+test-results
+coverage
+*.db
+*.sqlite
+*.sqlite3
+*.zip

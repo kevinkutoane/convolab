@@ -30,7 +30,8 @@ public sealed record ReplaySimulationCommand(
     int MaxOutputTokens = 400,
     string? Workflow = null,
     string? PromptVersion = null,
-    string? KnowledgeCollection = null);
+    string? KnowledgeCollection = null,
+    string ConfigurationMode = "Original");
 
 public sealed record SimulationSummary(
     Guid Id,
@@ -90,7 +91,24 @@ public sealed record SimulationRunConfiguration(
     string Model,
     double Temperature,
     int MaxOutputTokens,
-    SimulationMode Mode);
+    SimulationMode Mode,
+    string ConfigurationRevision = "",
+    string CorrelationId = "",
+    int RequestTimeoutSeconds = 30,
+    int RetryCount = 3,
+    decimal MonthlyBudgetZar = 0,
+    decimal BudgetWarningThreshold = .8m,
+    decimal BudgetHardStopThreshold = 1m,
+    decimal? InputPriceZarPer1K = null,
+    decimal? OutputPriceZarPer1K = null,
+    double MinimumGroundedness = .8,
+    double MinimumRelevance = .8,
+    double MinimumSafety = .95,
+    double MinimumOverall = .82,
+    string EvaluationFailureAction = "Review",
+    bool PolicyEnforcementEnabled = true,
+    string ReplayConfigurationMode = "Original",
+    string? OriginalConfigurationRevision = null);
 
 
 public sealed record SimulationWorkflowSnapshot(

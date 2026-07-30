@@ -809,12 +809,24 @@ public sealed class ApplicationDbContext : DbContext
             entity.Property(item => item.SourceType).HasMaxLength(80).IsRequired();
             entity.Property(item => item.PromptName).HasMaxLength(240);
             entity.Property(item => item.WorkflowName).HasMaxLength(240);
+            entity.Property(item => item.KnowledgeCollectionName).HasMaxLength(240);
+            entity.Property(item => item.PolicyOutcome).HasMaxLength(40);
+            entity.Property(item => item.EvaluationOutcome).HasMaxLength(40);
             entity.Property(item => item.ConfigurationRevision).HasMaxLength(80).IsRequired();
             entity.Property(item => item.CorrelationId).HasMaxLength(100).IsRequired();
             entity.HasIndex(item => item.EventKey).IsUnique();
             entity.HasIndex(item => new { item.WorkspaceId, item.EnvironmentId, item.OccurredAt });
             entity.HasIndex(item => new { item.WorkspaceId, item.CorrelationId, item.OccurredAt });
             entity.HasIndex(item => new { item.WorkspaceId, item.Capability, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.SourceExecutionId, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.Provider, item.Model, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.ConfigurationRevision, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.EventType, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.Outcome, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.ActorId, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.PromptName, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.WorkflowName, item.OccurredAt });
+            entity.HasIndex(item => new { item.WorkspaceId, item.CostType, item.OccurredAt });
         });
         ConfigureAggregate<AnalyticsHourlyAggregateRecord>(modelBuilder, "AnalyticsHourlyAggregates");
         ConfigureAggregate<AnalyticsDailyAggregateRecord>(modelBuilder, "AnalyticsDailyAggregates");
@@ -822,6 +834,8 @@ public sealed class ApplicationDbContext : DbContext
         {
             entity.ToTable("AnalyticsAggregationCheckpoints"); entity.HasKey(item => item.Id);
             entity.Property(item => item.Granularity).HasMaxLength(20).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.FailureReason).HasMaxLength(2000);
             entity.Property(item => item.Revision).IsConcurrencyToken();
             entity.HasIndex(item => new { item.WorkspaceId, item.Granularity }).IsUnique();
         });
@@ -852,6 +866,7 @@ public sealed class ApplicationDbContext : DbContext
             entity.Property(item => item.ActualCostZar).HasPrecision(18, 6);
             entity.Property(item => item.EstimatedCostZar).HasPrecision(18, 6);
             entity.HasIndex(item => item.AggregateKey).IsUnique();
+            entity.HasIndex(item => new { item.OrganisationId, item.WorkspaceId, item.BucketStart });
             entity.HasIndex(item => new { item.WorkspaceId, item.EnvironmentId, item.BucketStart });
         });
     }

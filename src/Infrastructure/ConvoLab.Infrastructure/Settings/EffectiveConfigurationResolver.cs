@@ -54,7 +54,11 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
     }
 
     public async Task<ConfigurationSnapshot> CreateSnapshotAsync(
-        Guid organisationId, Guid workspaceId, Guid environmentId, CancellationToken ct = default)
+        Guid organisationId,
+        Guid workspaceId,
+        Guid environmentId,
+        CancellationToken ct = default,
+        IReadOnlyDictionary<string, string?>? executionOverrides = null)
     {
         var results = await ResolveAsync(organisationId, workspaceId, environmentId, ct);
         var env = await _db.RuntimeEnvironments.AsNoTracking()
@@ -75,19 +79,36 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
         };
         var flags = featureKeys.ToDictionary(k => k, k => Get(k));
 
-        var revisionPayload = string.Join('\n', results
-            .Where(result => !result.IsSecret)
+        static bool SnapshotSafe(EffectiveSettingResult result) =>
+            !result.IsSecret || result.Key == SettingKeys.AiSecretReference;
+
+        var validatedOverrides = (executionOverrides
+                ?? new Dictionary<string, string?>())
+            .Where(item => item.Key is "provider" or "model" or "temperature" or "maximumOutputTokens")
+            .OrderBy(item => item.Key, StringComparer.Ordinal)
+            .ToDictionary(
+                item => $"execution.override.{item.Key}",
+                item => item.Value,
+                StringComparer.Ordinal);
+        var revisionLines = results
+            .Where(SnapshotSafe)
             .OrderBy(result => result.Key, StringComparer.Ordinal)
             .Select(result => string.Join('\u001f',
                 result.Key,
-                result.EffectiveValue ?? "null")));
+                result.EffectiveValue ?? "null"))
+            .Concat(validatedOverrides.Select(item =>
+                string.Join('\u001f', item.Key, item.Value ?? "null")));
+        var revisionPayload = string.Join('\n', revisionLines);
         var revision = $"sha256:{Convert.ToHexString(
             SHA256.HashData(Encoding.UTF8.GetBytes(revisionPayload))).ToLowerInvariant()}";
 
         var snapshot = new ConfigurationSnapshot(
             revision, environmentId,
             env?.Name ?? environmentId.ToString(),
-            Get(SettingKeys.AiProvider), Get(SettingKeys.AiModel),
+            validatedOverrides.GetValueOrDefault("execution.override.provider")
+                ?? Get(SettingKeys.AiProvider),
+            validatedOverrides.GetValueOrDefault("execution.override.model")
+                ?? Get(SettingKeys.AiModel),
             GetDecimal(SettingKeys.MonthlyBudgetZar),
             GetDecimal(SettingKeys.EvalMinGroundedness), GetDecimal(SettingKeys.EvalMinRelevance),
             GetDecimal(SettingKeys.EvalMinSafety), GetDecimal(SettingKeys.EvalMinOverall),
@@ -99,22 +120,30 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
             item.OrganisationId == organisationId && item.WorkspaceId == workspaceId
             && item.EnvironmentId == environmentId && item.Revision == revision, ct))
         {
+            var values = results
+                .Where(SnapshotSafe)
+                .OrderBy(item => item.Key)
+                .ToDictionary(item => item.Key, item => item.EffectiveValue);
+            foreach (var item in validatedOverrides) values[item.Key] = item.Value;
+            var provenance = results
+                .Where(SnapshotSafe)
+                .OrderBy(item => item.Key)
+                .ToDictionary(
+                    item => item.Key,
+                    item => (object)new
+                    {
+                        scope = item.SourceScope.ToString(),
+                        sourceId = item.SourceId
+                    });
+            foreach (var item in validatedOverrides)
+                provenance[item.Key] = new { scope = "ExecutionOverride" };
+
             _db.ConfigurationSnapshots.Add(new ConfigurationSnapshotRecord
             {
                 Id = Guid.NewGuid(), OrganisationId = organisationId, WorkspaceId = workspaceId,
                 EnvironmentId = environmentId, Revision = revision,
-                ValuesJson = JsonSerializer.Serialize(results
-                    .Where(item => !item.IsSecret)
-                    .OrderBy(item => item.Key)
-                    .ToDictionary(item => item.Key, item => item.EffectiveValue)),
-                ProvenanceJson = JsonSerializer.Serialize(results
-                    .Where(item => !item.IsSecret)
-                    .OrderBy(item => item.Key)
-                    .ToDictionary(item => item.Key, item => new
-                    {
-                        scope = item.SourceScope.ToString(),
-                        sourceId = item.SourceId
-                    })),
+                ValuesJson = JsonSerializer.Serialize(values),
+                ProvenanceJson = JsonSerializer.Serialize(provenance),
                 CreatedAt = snapshot.CreatedAt
             });
             await _db.SaveChangesAsync(ct);
@@ -167,11 +196,13 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
             if (winner is not null) { scope = SettingScope.Organisation; sourceId = organisationId; isInherited = true; }
         }
 
-        // Fall back to environment-variable (bootstrap compat) or platform default
+        // Environment variables are migrated to governed setting values by the
+        // bootstrapper. Runtime resolution never lets a process variable silently
+        // override a persisted scope.
         string? effectiveValue = winner?.ValueJson;
         if (effectiveValue is null)
         {
-            effectiveValue = GetEnvVarFallback(def) ?? def.DefaultValue;
+            effectiveValue = def.DefaultValue;
             isInherited = true;
         }
         effectiveValue = CanonicalizeValue(def, effectiveValue);
@@ -231,55 +262,6 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
                     && environment.WorkspaceId == workspaceId
                     && environment.OrganisationId == organisationId, ct))
             throw NotFound("environment", environmentId.Value);
-    }
-
-    private static string? GetEnvVarFallback(SettingDefinitionRecord definition)
-    {
-        var raw = definition.Key switch
-        {
-            SettingKeys.AiModel => Environment.GetEnvironmentVariable("GEMINI_MODEL"),
-            SettingKeys.MonthlyBudgetZar => Environment.GetEnvironmentVariable("CONVOLAB_MONTHLY_AI_BUDGET_ZAR"),
-            SettingKeys.AiInputPriceZarPer1K => Environment.GetEnvironmentVariable("GEMINI_INPUT_PRICE_ZAR_PER_1K"),
-            SettingKeys.AiOutputPriceZarPer1K => Environment.GetEnvironmentVariable("GEMINI_OUTPUT_PRICE_ZAR_PER_1K"),
-            SettingKeys.EvalMinGroundedness => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_GROUNDEDNESS"),
-            SettingKeys.EvalMinRelevance => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_RELEVANCE"),
-            SettingKeys.EvalMinSafety => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_SAFETY"),
-            SettingKeys.EvalMinOverall => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_MIN_OVERALL"),
-            SettingKeys.EvalFailureAction => Environment.GetEnvironmentVariable("CONVOLAB_EVALUATION_FAILURE_ACTION"),
-            _ => null
-        };
-
-        if (string.IsNullOrWhiteSpace(raw)) return null;
-        raw = raw.Trim();
-
-        return Enum.Parse<SettingValueType>(definition.ValueType) switch
-        {
-            SettingValueType.Integer or SettingValueType.Duration
-                when long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var integer)
-                => integer.ToString(CultureInfo.InvariantCulture),
-            SettingValueType.Decimal or SettingValueType.Percentage or SettingValueType.Currency
-                when decimal.TryParse(raw, NumberStyles.Number, CultureInfo.InvariantCulture, out var number)
-                => number.ToString(CultureInfo.InvariantCulture),
-            SettingValueType.Boolean when bool.TryParse(raw, out var boolean)
-                => boolean ? "true" : "false",
-            SettingValueType.Json when IsJson(raw) => raw,
-            SettingValueType.String or SettingValueType.Enum or SettingValueType.SecretReference
-                => JsonSerializer.Serialize(raw),
-            _ => null
-        };
-    }
-
-    private static bool IsJson(string value)
-    {
-        try
-        {
-            using var _ = JsonDocument.Parse(value);
-            return true;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
     }
 
     private static string? CanonicalizeValue(SettingDefinitionRecord definition, string? value)

@@ -4,28 +4,33 @@ using ConvoLab.Domain.Intelligence.Aggregates;
 using ConvoLab.Domain.Intelligence.Enums;
 using ConvoLab.Domain.Intelligence.Interfaces;
 using ConvoLab.Domain.Intelligence.ValueObjects;
-using Microsoft.Extensions.Configuration;
+using ConvoLab.Application.Settings;
 
 namespace ConvoLab.Infrastructure.Intelligence;
 
 public sealed class GeminiIntelligenceExecutor : IIntelligenceExecutor
 {
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly IConfiguration _configuration;
+    private readonly ISecretStore _secretStore;
     public IReadOnlyCollection<ProviderKind> SupportedProviders { get; } = [ProviderKind.Gemini];
 
-    public GeminiIntelligenceExecutor(IHttpClientFactory httpClientFactory, IConfiguration configuration)
+    public GeminiIntelligenceExecutor(
+        IHttpClientFactory httpClientFactory,
+        ISecretStore secretStore)
     {
         _httpClientFactory = httpClientFactory;
-        _configuration = configuration;
+        _secretStore = secretStore;
     }
 
     public async Task<ExecutionResult> ExecuteAsync(ExecutionRequest request, string renderedPrompt, CancellationToken cancellationToken = default)
     {
-        var apiKey = Environment.GetEnvironmentVariable("GEMINI_API_KEY") ?? _configuration["Gemini:ApiKey"];
-        if (string.IsNullOrWhiteSpace(apiKey)) throw new InvalidOperationException("Gemini is not configured. Set GEMINI_API_KEY on the API host.");
+        var secretReference = ExtractMarker(renderedPrompt, "SECRET_REFERENCE") ?? "env:GEMINI_API_KEY";
+        var apiKey = _secretStore.Resolve(secretReference);
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new InvalidOperationException($"Gemini secret reference '{secretReference}' could not be resolved.");
         var model = ExtractMarker(renderedPrompt, "MODEL");
-        if (string.IsNullOrWhiteSpace(model) || model == "default") model = Environment.GetEnvironmentVariable("GEMINI_MODEL") ?? _configuration["Gemini:Model"] ?? "gemini-2.5-flash";
+        if (string.IsNullOrWhiteSpace(model) || model == "default")
+            throw new InvalidOperationException("The effective runtime configuration did not resolve a Gemini model.");
         var temperature = double.TryParse(ExtractMarker(renderedPrompt, "TEMPERATURE"), out var parsedTemperature) ? parsedTemperature : 0.2;
         var maxTokens = int.TryParse(ExtractMarker(renderedPrompt, "MAX_OUTPUT_TOKENS"), out var parsedTokens) ? parsedTokens : 400;
         var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(model)}:generateContent?key={Uri.EscapeDataString(apiKey)}";

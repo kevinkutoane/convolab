@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using ConvoLab.Api.Controllers;
+using ConvoLab.Application.Common.Errors;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 
@@ -12,24 +14,73 @@ public sealed class GovernedActivityAuditMiddleware(RequestDelegate next)
         ApplicationDbContext db,
         WorkspaceRequestContext workspace)
     {
-        await next(context);
-
-        if (context.Response.StatusCode >= 400 || !IsMutation(context.Request.Method)) return;
         var activity = GovernedActivity(context.Request.Path.Value);
-        if (activity is null || workspace.WorkspaceId is null) return;
+        try
+        {
+            await next(context);
+        }
+        catch (Exception exception) when (
+            activity?.Action == "Plugin.Activated"
+            && workspace.WorkspaceId is not null)
+        {
+            db.ChangeTracker.Clear();
+            var failedAction = exception is ConvoLabException error
+                && error.Code.Contains("compatib", StringComparison.OrdinalIgnoreCase)
+                    ? "Plugin.CompatibilityFailed"
+                    : "Plugin.ActivationFailed";
+            await RecordAsync(
+                context,
+                db,
+                workspace,
+                failedAction,
+                "Plugin",
+                "Failed");
+            throw;
+        }
 
-        db.WorkspaceAuditEvents.Add(AuthController.Audit(
+        if (context.Response.StatusCode >= 400
+            || !IsMutation(context.Request.Method)
+            || activity is null
+            || workspace.WorkspaceId is null)
+            return;
+        if (activity.Value.Action.StartsWith("Plugin.", StringComparison.Ordinal))
+            return;
+
+        await RecordAsync(
+            context,
+            db,
+            workspace,
+            activity.Value.Action,
+            activity.Value.ResourceType,
+            "Succeeded");
+    }
+
+    private static async Task RecordAsync(
+        HttpContext context,
+        ApplicationDbContext db,
+        WorkspaceRequestContext workspace,
+        string action,
+        string resourceType,
+        string outcome)
+    {
+        var audit = AuthController.Audit(
             "Workspace",
             workspace.OrganisationId,
             workspace.WorkspaceId,
             workspace.ActorType,
             workspace.UserId,
             context.User.Identity?.Name ?? context.User.FindFirstValue(ClaimTypes.Name) ?? "Authenticated actor",
-            activity.Value.Action,
-            activity.Value.ResourceType,
+            action,
+            resourceType,
             RouteResourceId(context),
-            "Succeeded",
-            context.TraceIdentifier));
+            outcome,
+            context.TraceIdentifier);
+        db.WorkspaceAuditEvents.Add(audit);
+        await AnalyticsOutboxFactory.EnqueueAuditAsync(
+            db,
+            audit,
+            workspace.EnvironmentId,
+            context.RequestAborted);
         await db.SaveChangesAsync(context.RequestAborted);
     }
 
@@ -48,8 +99,12 @@ public sealed class GovernedActivityAuditMiddleware(RequestDelegate next)
             return ("Replay.Completed", "ReplayExperiment");
         if (path.StartsWith("/api/policies/") && (path.EndsWith("/activate") || path.EndsWith("/suspend") || path.EndsWith("/retire")))
             return ("Policy.LifecycleChanged", "Policy");
-        if (path.StartsWith("/api/plugins/") && (path.EndsWith("/activate") || path.EndsWith("/deactivate") || path.EndsWith("/disable") || path.EndsWith("/deprecate")))
-            return ("Plugin.LifecycleChanged", "Plugin");
+        if (path.StartsWith("/api/plugins/") && path.EndsWith("/activate"))
+            return ("Plugin.Activated", "Plugin");
+        if (path.StartsWith("/api/plugins/") && path.EndsWith("/health"))
+            return ("Plugin.HealthChecked", "Plugin");
+        if (path.StartsWith("/api/plugins/") && (path.EndsWith("/deactivate") || path.EndsWith("/disable") || path.EndsWith("/deprecate")))
+            return ("Plugin.Deactivated", "Plugin");
         return null;
     }
 

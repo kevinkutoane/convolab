@@ -35,6 +35,7 @@ Current release candidate: `v1.0.0-alpha.14`.
 | Replay Studio | Complete and hardened |
 | Plugin Center | Complete and hardened |
 | Workspace, Identity and Access | Implemented; security and isolation acceptance in progress |
+| Platform Analytics v1 | Complete; controlled UAT candidate |
 
 ## Platform Hardening Sprint 1
 
@@ -53,6 +54,7 @@ Current release candidate: `v1.0.0-alpha.14`.
 - Identity, authorization, workspaces, memberships, service identities, and audit: Implemented; acceptance in progress
 - Persistence repositories and migrations
 - Secret management and configuration governance: Complete
+- Workspace/environment Platform Analytics: Complete; organisation-wide rollups reserved
 
 ## Phase 4 — Signature engineering products
 

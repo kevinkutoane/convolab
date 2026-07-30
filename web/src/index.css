@@ -1561,7 +1561,7 @@ kbd {
   }
 }
 
-@media (max-width: 1020px) {
+@media (max-width: 860px) {
   .studio-shell,
   .studio-shell.shell-sidebar-collapsed {
     grid-template-columns: 1fr;
@@ -3768,5 +3768,13 @@ input[type="radio"]:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@media (min-width: 861px) {
+  .mobile-menu-button.icon-button,
+  .sidebar-mobile-close.icon-button,
+  .mobile-backdrop {
+    display: none;
   }
 }

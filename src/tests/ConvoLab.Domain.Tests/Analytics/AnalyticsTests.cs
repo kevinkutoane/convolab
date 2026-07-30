@@ -60,4 +60,55 @@ public sealed class AnalyticsTests
             AnalyticsKeys.Event("SimulationRun", sourceId, "SimulationExecution"),
             AnalyticsKeys.Event("simulationrun", sourceId, "simulationexecution"));
     }
+
+    [Theory]
+    [InlineData("SimulationCompleted", true)]
+    [InlineData("SimulationFailed", true)]
+    [InlineData("ReplayCompleted", true)]
+    [InlineData("ReplayFailed", true)]
+    [InlineData("ProviderInvocationCompleted", false)]
+    [InlineData("EvaluationCompleted", false)]
+    public void Execution_count_only_uses_terminal_execution_events(
+        string eventType,
+        bool expected)
+    {
+        Assert.Equal(expected, AnalyticsSemantics.IsExecutionTerminal(eventType));
+    }
+
+    [Fact]
+    public void Event_count_and_execution_count_are_distinct_measures()
+    {
+        var events = new[]
+        {
+            "SimulationStarted",
+            "PolicyEvaluated",
+            "ProviderInvocationStarted",
+            "ProviderInvocationCompleted",
+            "EvaluationCompleted",
+            "TraceCompleted",
+            "SimulationCompleted"
+        };
+
+        Assert.Equal(7, events.Length);
+        Assert.Single(events, AnalyticsSemantics.IsExecutionTerminal);
+    }
+
+    [Fact]
+    public void Nullable_aggregate_dimensions_have_one_deterministic_key()
+    {
+        var first = AnalyticsKeys.Aggregate(
+            "day",
+            "workspace",
+            null,
+            "Simulation",
+            null);
+        var second = AnalyticsKeys.Aggregate(
+            "day",
+            "workspace",
+            null,
+            "Simulation",
+            null);
+
+        Assert.Equal(first, second);
+    }
 }

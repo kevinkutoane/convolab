@@ -13,6 +13,7 @@
 - **Functional Replay Studio:** `v1`
 - **Functional Policy Center:** `v1`
 - **Functional Plugin Center:** `v1`
+- **Platform Analytics:** `v1` UAT candidate
 - **Backend:** ASP.NET Core / .NET 8
 - **Frontend:** React 19, TypeScript, Vite
 - **Database adapter:** PostgreSQL-ready infrastructure
@@ -107,6 +108,7 @@ The API listens using the local launch profile and exposes:
 - `/api/replay/*` (sources, experiments, candidates, comparisons, completion, and archive)
 - `/api/policies/*` (versions, lifecycle, decisions, evaluation, and runtime constraints)
 - `/api/plugins/*` (registry, immutable versions, compatibility, lifecycle, and health evidence)
+- `/api/workspaces/{workspaceId}/analytics/*` (permission-filtered overview, category metrics, events, correlations, and exports)
 - Swagger in Development
 
 Configure `Bootstrap:Administrator:Email` and `Bootstrap:Administrator:Password` through user-secrets or environment variables before first login. ConvoLab never ships or logs a default password. Without a configured password, readiness reports `setupRequired` and the bootstrap identity has no active local credential.
@@ -143,6 +145,12 @@ npm run test:browser
 ```
 
 The browser smoke suite requires the Studio to be running on `http://localhost:3000` and uses an installed Edge or Chrome browser. Set `CONVOLAB_BROWSER_BASE_URL` to target another deployment.
+
+## Platform Analytics v1
+
+Open `/analytics` to inspect trusted workspace/environment usage, ZAR cost and budget, quality, governance, performance, adoption, safe events, correlations, and asynchronous exports. Analytics is produced from the same effective Settings snapshot used by execution. Events and executions are distinct measures, and prompts, customer messages, credentials, secret values, provider payloads, and trace content are excluded.
+
+Start with [Platform Analytics](docs/PlatformAnalytics.md), [permissions](docs/AnalyticsPermissions.md), and the [functional evidence report](FUNCTIONAL_PLATFORM_ANALYTICS_V1_REPORT.md).
 
 ## Platform Hardening Sprint 1
 

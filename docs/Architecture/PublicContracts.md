@@ -45,3 +45,9 @@ The first Studio-facing contract is:
 - `GET /api/platform/status` — returns platform version, environment, architecture health, and capability inventory.
 
 Future Studio endpoints must expose application DTOs, never domain entities.
+
+## Trusted runtime and Analytics
+
+Environment-aware execution accepts `X-ConvoLab-Environment-Id`, resolves and validates the environment server-side, and returns the resolved environment plus authoritative correlation headers. The scoped runtime context is the only input to effective configuration resolution.
+
+Workspace Analytics contracts live under `/api/workspaces/{workspaceId}/analytics`. They expose safe aggregate/event DTOs, UTC half-open periods, bounded filters and keyset cursors. They never expose domain entities, prompt/message content, trace payloads, credentials, or secret values. Field visibility is a server-side contract shared by dashboards, events, correlations, and exports.

@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Encodings.Web;
 using ConvoLab.Domain.WorkspaceIdentity;
+using ConvoLab.Domain.Analytics;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.AspNetCore.Authentication;
@@ -94,6 +96,37 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         var workspace = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(item => item.Id == account.WorkspaceId && item.Status == "Active");
         if (workspace is null) return AuthenticateResult.Fail("The service workspace is unavailable.");
         account.LastUsedAt = now;
+        var environmentId = await _db.RuntimeEnvironments.AsNoTracking()
+            .Where(item => item.WorkspaceId == workspace.Id
+                && item.IsDefault
+                && item.Status == "Active")
+            .Select(item => (Guid?)item.Id)
+            .SingleOrDefaultAsync(Context.RequestAborted);
+        if (environmentId.HasValue)
+        {
+            AnalyticsOutboxFactory.Enqueue(_db, new AnalyticsEventRecord
+            {
+                Id = Guid.NewGuid(),
+                EventKey = AnalyticsKeys.Aggregate(
+                    "service-account-authentication",
+                    account.Id.ToString("N"),
+                    now.ToUniversalTime().ToString("O")),
+                OrganisationId = workspace.OrganisationId,
+                WorkspaceId = workspace.Id,
+                EnvironmentId = environmentId.Value,
+                ActorId = account.Id,
+                ActorType = "ServiceAccount",
+                Capability = "Authentication",
+                EventType = "ServiceAccountAuthenticated",
+                Outcome = "Succeeded",
+                CostType = "Unavailable",
+                SourceType = "ServiceAccount",
+                SourceId = account.Id,
+                ConfigurationRevision = "not-applicable",
+                CorrelationId = Context.TraceIdentifier,
+                OccurredAt = now
+            });
+        }
         await _db.SaveChangesAsync(Context.RequestAborted);
         _workspace.WorkspaceId = workspace.Id; _workspace.OrganisationId = workspace.OrganisationId;
         _workspace.ActorType = "ServiceAccount";

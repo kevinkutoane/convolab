@@ -185,6 +185,14 @@ public interface ITraceStudioRepository
     Task CompleteAsync(Guid id, string status, DateTimeOffset completedAt, double durationMs, string? failureReason, CancellationToken cancellationToken = default);
 }
 
+public interface IAttributedTraceStudioRepository
+{
+    Task AddAttributedTraceAsync(
+        TraceState trace,
+        SimulationRun sourceRun,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ITraceStudioService
 {
     Task<TraceOverviewDto> GetOverviewAsync(CancellationToken cancellationToken = default);

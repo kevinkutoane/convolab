@@ -12,6 +12,11 @@ Alpha 14 introduces Platform Analytics v1 and closes the runtime-environment ref
 - Lazy Studio Analytics views for overview, usage, cost/budget, quality, governance, performance, adoption, events, and exports.
 - Alpha 13 PostgreSQL upgrade/backfill coverage and migration discovery without hardcoded counts.
 - Exact Node 22.22.0 Docker/CI pinning and npm-only dependency governance.
+- Effective Settings-driven provider/evaluation/policy/plugin runtime configuration with one shared immutable revision.
+- Correct event-versus-execution measures and dedicated usage, cost/budget, quality, governance, performance, and adoption metrics.
+- Full dashboard/export filter parity, event/correlation drill-down, field-level actor/cost/token redaction, and Production bypass coverage.
+- Premium restrained-glass Studio surfaces with adaptive workspaces and mobile-only hamburger/close controls.
+- Reproducible reconciliation and measured 10k/100k PostgreSQL performance evidence.
 
 ## Privacy boundary
 

@@ -3,6 +3,7 @@ using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Settings;
 using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.Analytics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -76,12 +77,10 @@ public sealed class ProviderValidationService : IProviderValidationService
             try { apiKey = _secretStore.Resolve(secretReference); }
             catch { /* treated as unresolved below */ }
         }
-        apiKey ??= Environment.GetEnvironmentVariable("GEMINI_API_KEY");
-
         if (string.IsNullOrWhiteSpace(apiKey))
             return Fail("SecretMissing",
                 string.IsNullOrWhiteSpace(secretReference)
-                    ? "No secret reference is configured (ai.secret_reference) and GEMINI_API_KEY is not set on the host."
+                    ? "No persisted secret reference is configured (ai.secret_reference)."
                     : $"The secret reference '{secretReference}' did not resolve to a value.");
 
         // ─── Probe the provider: model metadata endpoint, zero token cost ────
@@ -131,7 +130,7 @@ public sealed class ProviderValidationService : IProviderValidationService
         Guid organisationId, Guid workspaceId, Guid environmentId,
         ProviderValidationResultDto result, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct)
     {
-        _db.ConfigurationChanges.Add(new ConfigurationChangeRecord
+        var change = new ConfigurationChangeRecord
         {
             Id = Guid.NewGuid(),
             OrganisationId = organisationId,
@@ -147,7 +146,9 @@ public sealed class ProviderValidationService : IProviderValidationService
             CorrelationId = correlationId,
             Outcome = result.Outcome == "Valid" ? "Succeeded" : "Failed",
             Revision = 1
-        });
+        };
+        _db.ConfigurationChanges.Add(change);
+        await AnalyticsOutboxFactory.EnqueueConfigurationChangeAsync(_db, change, ct);
         await _db.SaveChangesAsync(ct);
     }
 }

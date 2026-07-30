@@ -9,3 +9,5 @@ The 22 July 2026 PDF remains the product backlog source, with these stabilizatio
 - Opaque sessions, local credentials, organisations, workspaces, memberships, fixed RBAC, service identities, ownership backfill, sensitive-trace audit, and protected Studio routes are implemented.
 - Environment and Secret Management follows Workspace/IAM and remains required for beta.
 - Platform Analytics v1 includes trusted runtime attribution, immutable configuration snapshots, transactional outbox delivery, restart-safe aggregation and exports, permission-filtered APIs, and the lazy-loaded Studio workspace.
+- The Analytics completion sprint now uses effective persisted Settings at runtime, separates events from executions, covers the governed execution loop, enforces field-level cost/actor/token security, provides category-specific metrics and drill-down, and includes 10k/100k PostgreSQL evidence.
+- Premium glass Studio acceptance includes roomy adaptive workspaces and desktop-only removal of the hamburger, close control, and mobile backdrop.

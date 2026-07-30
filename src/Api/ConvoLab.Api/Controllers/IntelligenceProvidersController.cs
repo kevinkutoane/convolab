@@ -1,5 +1,7 @@
 using ConvoLab.Application.Common.Errors;
+using ConvoLab.Application.Common.Interfaces;
 using ConvoLab.Application.IntelligenceStudio;
+using ConvoLab.Application.Settings;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConvoLab.Api.Controllers;
@@ -8,18 +10,18 @@ namespace ConvoLab.Api.Controllers;
 [Route("api/intelligence/providers")]
 public sealed class IntelligenceProvidersController : ControllerBase
 {
-    private readonly IConfiguration _configuration;
-    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IIntelligenceStudioConfiguration _studioConfiguration;
+    private readonly IProviderValidationService _providerValidation;
+    private readonly IRuntimeRequestContext _runtime;
 
     public IntelligenceProvidersController(
-        IConfiguration configuration,
-        IHttpClientFactory httpClientFactory,
-        IIntelligenceStudioConfiguration studioConfiguration)
+        IIntelligenceStudioConfiguration studioConfiguration,
+        IProviderValidationService providerValidation,
+        IRuntimeRequestContext runtime)
     {
-        _configuration = configuration;
-        _httpClientFactory = httpClientFactory;
         _studioConfiguration = studioConfiguration;
+        _providerValidation = providerValidation;
+        _runtime = runtime;
     }
 
     [HttpGet]
@@ -34,47 +36,19 @@ public sealed class IntelligenceProvidersController : ControllerBase
         if (!provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
             throw new ResourceNotFoundException("provider.not_found", $"Provider '{provider}' was not found.");
 
-        var apiKey = GeminiApiKey();
-        if (string.IsNullOrWhiteSpace(apiKey))
+        if (_runtime.WorkspaceId is not Guid workspaceId
+            || _runtime.EnvironmentId is not Guid environmentId)
             throw new RequestValidationException(
-                "provider.gemini.not_configured",
-                "Set GEMINI_API_KEY on the API host before testing Gemini.");
+                "runtime_environment.required",
+                "Select a runtime environment before testing a provider.");
 
-        var model = GeminiModel();
-        var client = _httpClientFactory.CreateClient("Gemini");
-        var started = DateTimeOffset.UtcNow;
-        using var response = await client.PostAsJsonAsync(
-            $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(model)}:generateContent?key={Uri.EscapeDataString(apiKey)}",
-            new { contents = new[] { new { parts = new[] { new { text = "Reply with READY" } } } } },
+        var result = await _providerValidation.ValidateAsync(
+            workspaceId,
+            environmentId,
+            _runtime.ActorId ?? Guid.Empty,
+            _runtime.ActorType,
+            _runtime.CorrelationId,
             cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-            throw new ExternalDependencyException(
-                "provider.gemini.connection_failed",
-                $"Gemini connection test failed with HTTP {(int)response.StatusCode}.");
-
-        return Ok(new
-        {
-            provider = "Gemini",
-            status = "Ready",
-            latencyMs = (DateTimeOffset.UtcNow - started).TotalMilliseconds,
-            model
-        });
-    }
-
-    private string? GeminiApiKey()
-    {
-        var environmentValue = Environment.GetEnvironmentVariable("GEMINI_API_KEY");
-        return !string.IsNullOrWhiteSpace(environmentValue)
-            ? environmentValue
-            : _configuration["Gemini:ApiKey"];
-    }
-
-    private string GeminiModel()
-    {
-        var environmentValue = Environment.GetEnvironmentVariable("GEMINI_MODEL");
-        return !string.IsNullOrWhiteSpace(environmentValue)
-            ? environmentValue
-            : _configuration["Gemini:Model"] ?? "gemini-2.5-flash";
+        return Ok(result);
     }
 }

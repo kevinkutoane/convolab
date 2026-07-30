@@ -78,7 +78,10 @@ public sealed class TraceStudioService(
             filtered = filtered.Where(item =>
                 Contains(item.OperationName, term) || Contains(item.SimulationTitle, term) || Contains(item.Provider, term) ||
                 Contains(item.Model, term) || Contains(item.Workflow, term) || Contains(item.PromptVersion, term) ||
-                Contains(item.KnowledgeCollection, term) || item.CorrelationId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase));
+                Contains(item.KnowledgeCollection, term)
+                || item.CorrelationId.ToString().Contains(term, StringComparison.OrdinalIgnoreCase)
+                || item.SourceRunId?.ToString().Contains(term, StringComparison.OrdinalIgnoreCase) == true
+                || item.ReplayedFromRunId?.ToString().Contains(term, StringComparison.OrdinalIgnoreCase) == true);
         }
         if (!string.IsNullOrWhiteSpace(query.Status))
             filtered = filtered.Where(item => item.Status.Equals(query.Status, StringComparison.OrdinalIgnoreCase));
@@ -120,6 +123,9 @@ public sealed class TraceStudioService(
         var status = run.Status.Equals("Failed", StringComparison.OrdinalIgnoreCase) ? "Failed" : "Completed";
         var provider = run.ExecutionPlan?.Provider;
         var model = run.ExecutionPlan?.Model;
+        var correlationId = Guid.TryParse(run.Configuration?.CorrelationId, out var parsedCorrelation)
+            ? parsedCorrelation
+            : run.Id;
 
         var rootAttributes = new Dictionary<string, string>
         {
@@ -127,7 +133,7 @@ public sealed class TraceStudioService(
             ["run.id"] = run.Id.ToString(),
             ["run.mode"] = run.Mode.ToString(),
             ["run.replay"] = (run.ReplayedFromRunId.HasValue).ToString(),
-            ["correlation.id"] = run.Id.ToString()
+            ["correlation.id"] = correlationId.ToString()
         };
         if (!string.IsNullOrWhiteSpace(provider)) rootAttributes["ai.provider"] = provider;
         if (!string.IsNullOrWhiteSpace(model)) rootAttributes["ai.model"] = model;
@@ -170,7 +176,7 @@ public sealed class TraceStudioService(
         var artifacts = BuildArtifacts(traceId, rootSpanId, run, responseText);
         var state = new TraceState(
             traceId,
-            run.Id,
+            correlationId,
             "ConversationSimulation.Execute",
             run.ReplayedFromRunId.HasValue ? "Replay" : "Simulation",
             status,
@@ -195,7 +201,10 @@ public sealed class TraceStudioService(
             events,
             artifacts);
 
-        await repository.AddAsync(state, cancellationToken);
+        if (repository is IAttributedTraceStudioRepository attributed)
+            await attributed.AddAttributedTraceAsync(state, run, cancellationToken);
+        else
+            await repository.AddAsync(state, cancellationToken);
         return MapDetail(await repository.GetAsync(traceId, cancellationToken) ?? state, false);
     }
 

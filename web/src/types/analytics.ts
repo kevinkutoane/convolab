@@ -18,15 +18,22 @@ export interface AnalyticsMetric {
 
 export interface AnalyticsPoint {
   bucket: string;
-  executions: number;
+  eventCount: number;
+  executionCount: number;
+  simulationCount: number;
+  evaluationCount: number;
+  replayCount: number;
+  providerInvocationCount: number;
+  providerInvocationPreventedCount: number;
+  policyEvaluationCount: number;
   succeeded: number;
   failed: number;
   denied: number;
-  inputTokens: number;
-  outputTokens: number;
-  actualCostZar: number;
-  estimatedCostZar: number;
-  unknownCostCount: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  actualCostZar?: number;
+  estimatedCostZar?: number;
+  unknownCostCount?: number;
   averageDurationMs: number;
   averageQuality?: number;
 }
@@ -37,6 +44,13 @@ export interface AnalyticsIndicator {
   title: string;
   detail: string;
   detectedAt: string;
+  rule: string;
+  threshold?: number;
+  observedValue?: number;
+  from: string;
+  to: string;
+  environmentId?: string;
+  sourceMetric: string;
 }
 
 export interface AnalyticsDashboard {
@@ -51,6 +65,7 @@ export interface AnalyticsDashboard {
 
 export interface AnalyticsEvent {
   id: string;
+  organisationId: string;
   workspaceId: string;
   environmentId: string;
   actorId?: string;
@@ -65,11 +80,22 @@ export interface AnalyticsEvent {
   outputTokens?: number;
   costZar?: number;
   costType: string;
+  pricingRevision?: string;
   durationMs?: number;
   qualityScore?: number;
+  groundedness?: number;
+  relevance?: number;
+  safety?: number;
+  overallQuality?: number;
   providerInvocationPrevented: boolean;
+  sourceExecutionId?: string;
   sourceType: string;
   sourceId?: string;
+  prompt?: string;
+  workflow?: string;
+  knowledgeCollection?: string;
+  policyOutcome?: string;
+  evaluationOutcome?: string;
   configurationRevision: string;
   correlationId: string;
   occurredAt: string;
@@ -79,6 +105,7 @@ export interface AnalyticsEventPage {
   scope: AnalyticsScope;
   items: AnalyticsEvent[];
   nextCursor?: string;
+  totalCount: number;
 }
 
 export interface AnalyticsFilterOptions {
@@ -88,8 +115,10 @@ export interface AnalyticsFilterOptions {
   outcomes: string[];
   prompts: string[];
   workflows: string[];
+  knowledgeCollections: string[];
   configurationRevisions: string[];
   eventTypes: string[];
+  costTypes: string[];
 }
 
 export interface AnalyticsExport {

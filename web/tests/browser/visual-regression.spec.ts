@@ -19,6 +19,45 @@ test.beforeEach(async ({ page }) => {
     }
     await route.continue();
   });
+  await page.route("**/api/workspaces/*/analytics/filter-options?**", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        providers: [],
+        models: [],
+        capabilities: [],
+        outcomes: [],
+        prompts: [],
+        workflows: [],
+        knowledgeCollections: [],
+        configurationRevisions: [],
+        eventTypes: [],
+        costTypes: [],
+      }),
+    }),
+  );
+  await page.route("**/api/workspaces/*/analytics/overview?**", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        category: "overview",
+        scope: {
+          workspaceId: "00000000-0000-0000-0000-000000000001",
+          from: "2026-07-01T00:00:00Z",
+          to: "2026-07-30T00:00:00Z",
+          granularity: "day",
+          filters: {},
+        },
+        metrics: [{ key: "executionCount", label: "Executions", value: 0, unit: "count" }],
+        series: [],
+        indicators: [],
+        isPartial: false,
+        generatedAt: "2026-07-30T00:00:00Z",
+      }),
+    }),
+  );
   await page.goto("/");
   await expect(page).toHaveURL(/\/$/);
 });

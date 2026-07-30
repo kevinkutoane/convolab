@@ -1,12 +1,19 @@
 using System.Text.Json;
 using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.EvaluationStudio;
+using ConvoLab.Application.Simulation;
+using ConvoLab.Domain.Analytics;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConvoLab.Infrastructure.EvaluationStudio;
 
-public sealed class EfEvaluationStudioRepository(ApplicationDbContext db) : IEvaluationStudioRepository
+public sealed class EfEvaluationStudioRepository(
+    ApplicationDbContext db,
+    WorkspaceRequestContext? runtime = null)
+    : IEvaluationStudioRepository, IAttributedEvaluationStudioRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -109,9 +116,97 @@ public sealed class EfEvaluationStudioRepository(ApplicationDbContext db) : IEva
     }
 
     public async Task AddRunAsync(EvaluationRunState run, CancellationToken cancellationToken = default)
+        => await AddRunCoreAsync(run, null, cancellationToken);
+
+    public async Task AddAttributedRunAsync(
+        EvaluationRunState evaluation,
+        SimulationRun sourceRun,
+        CancellationToken cancellationToken = default)
+        => await AddRunCoreAsync(evaluation, sourceRun, cancellationToken);
+
+    private async Task AddRunCoreAsync(
+        EvaluationRunState run,
+        SimulationRun? sourceRun,
+        CancellationToken cancellationToken)
     {
         db.EvaluationRuns.Add(MapRecord(run));
         db.EvaluationMetricResults.AddRange(run.Metrics.Select(MapRecord));
+        if (sourceRun is not null
+            && runtime?.OrganisationId is Guid organisationId
+            && runtime.WorkspaceId is Guid workspaceId
+            && runtime.EnvironmentId is Guid environmentId)
+        {
+            var configurationRevision = string.IsNullOrWhiteSpace(
+                sourceRun.Configuration?.ConfigurationRevision)
+                ? "legacy:configuration-unavailable"
+                : sourceRun.Configuration.ConfigurationRevision;
+            var correlationId = string.IsNullOrWhiteSpace(sourceRun.Configuration?.CorrelationId)
+                ? runtime.CorrelationId
+                : sourceRun.Configuration.CorrelationId;
+            db.ExecutionAttributions.Add(new ExecutionAttributionRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganisationId = organisationId,
+                WorkspaceId = workspaceId,
+                EnvironmentId = environmentId,
+                ActorId = runtime.ActorId,
+                ActorType = runtime.ActorType,
+                ActorRole = runtime.Role,
+                SourceResourceType = "EvaluationRun",
+                SourceResourceId = run.Id,
+                ConfigurationRevision = configurationRevision,
+                CorrelationId = correlationId,
+                AttributionStatus = configurationRevision.StartsWith(
+                    "legacy:",
+                    StringComparison.Ordinal)
+                    ? "ConfigurationUnavailable"
+                    : "Original",
+                CreatedAt = run.CreatedAt
+            });
+            double? Metric(string key) => run.Metrics
+                .FirstOrDefault(item => item.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+                ?.Score;
+            var analyticsEvent = new AnalyticsEventRecord
+            {
+                Id = Guid.NewGuid(),
+                EventKey = AnalyticsKeys.Event(
+                    "EvaluationRun",
+                    run.Id,
+                    run.Status == "Completed" ? "EvaluationCompleted" : "EvaluationFailed"),
+                OrganisationId = organisationId,
+                WorkspaceId = workspaceId,
+                EnvironmentId = environmentId,
+                ActorId = runtime.ActorId,
+                ActorType = runtime.ActorType,
+                ActorRole = runtime.Role,
+                Capability = "Evaluation",
+                EventType = run.Status == "Completed"
+                    ? "EvaluationCompleted"
+                    : "EvaluationFailed",
+                Outcome = run.Verdict,
+                Provider = sourceRun.Configuration?.Provider
+                    ?? sourceRun.ExecutionPlan?.Provider,
+                Model = sourceRun.Configuration?.Model
+                    ?? sourceRun.ExecutionPlan?.Model,
+                CostType = "Unavailable",
+                QualityScore = run.OverallScore,
+                Groundedness = Metric("groundedness"),
+                Relevance = Metric("relevance"),
+                Safety = Metric("safety"),
+                OverallQuality = run.OverallScore,
+                SourceExecutionId = sourceRun.Id,
+                SourceType = "EvaluationRun",
+                SourceId = run.Id,
+                PromptName = sourceRun.Configuration?.PromptVersion,
+                WorkflowName = sourceRun.Configuration?.Workflow,
+                KnowledgeCollectionName = sourceRun.Configuration?.KnowledgeCollection,
+                EvaluationOutcome = run.Verdict,
+                ConfigurationRevision = configurationRevision,
+                CorrelationId = correlationId,
+                OccurredAt = run.CreatedAt
+            };
+            AnalyticsOutboxFactory.Enqueue(db, analyticsEvent);
+        }
         try
         {
             await db.SaveChangesAsync(cancellationToken);

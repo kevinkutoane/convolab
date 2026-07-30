@@ -30,7 +30,7 @@ public static class DependencyInjection {
         services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IExecutionBudgetRepository, RuntimeExecutionBudgetRepository>();
         services.AddSingleton<ConvoLab.Domain.Intelligence.Services.ExecutionPlanner>();
         services.AddSingleton<IIntelligenceEngine, IntelligenceEngine>();
-        services.AddSingleton<IIntelligenceCatalogueBootstrapper, IntelligenceCatalogueBootstrapper>();
+        services.AddScoped<IIntelligenceCatalogueBootstrapper, IntelligenceCatalogueBootstrapper>();
         services.AddSingleton<IEvaluationEngine, EvaluationEngine>();
         services.AddScoped<PluginStudioService>();
         services.AddScoped<IPluginStudioService>(provider => provider.GetRequiredService<PluginStudioService>());

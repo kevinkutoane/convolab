@@ -1,13 +1,18 @@
 using System.Text.Json;
 using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.PluginStudio;
+using ConvoLab.Domain.Analytics;
 using ConvoLab.Domain.Plugins.Enums;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConvoLab.Infrastructure.PluginStudio;
 
-public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginStudioRepository
+public sealed class EfPluginStudioRepository(
+    ApplicationDbContext db,
+    WorkspaceRequestContext? runtime = null) : IPluginStudioRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -106,12 +111,22 @@ public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginS
                 .Select(item => item.Plugin.Id)
                 .ToHashSet();
             foreach (var update in updates.Where(item => deactivationIds.Contains(item.Plugin.Id)))
-                Apply(records[update.Plugin.Id], update.Plugin);
+            {
+                var record = records[update.Plugin.Id];
+                var previousStatus = record.Status;
+                Apply(record, update.Plugin);
+                EnqueueLifecycle(update.Plugin, previousStatus);
+            }
             if (deactivationIds.Count > 0)
                 await db.SaveChangesAsync(cancellationToken);
 
             foreach (var update in updates.Where(item => !deactivationIds.Contains(item.Plugin.Id)))
-                Apply(records[update.Plugin.Id], update.Plugin);
+            {
+                var record = records[update.Plugin.Id];
+                var previousStatus = record.Status;
+                Apply(record, update.Plugin);
+                EnqueueLifecycle(update.Plugin, previousStatus);
+            }
             if (updates.Count > deactivationIds.Count)
                 await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
@@ -144,6 +159,7 @@ public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginS
     public async Task AddHealthCheckAsync(PluginHealthCheckState healthCheck, CancellationToken cancellationToken = default)
     {
         db.PluginHealthChecks.Add(ToRecord(healthCheck));
+        EnqueueHealth(healthCheck);
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -162,6 +178,7 @@ public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginS
 
         Apply(record, update.Plugin);
         db.PluginHealthChecks.Add(ToRecord(healthCheck));
+        EnqueueHealth(healthCheck);
         try
         {
             await db.SaveChangesAsync(cancellationToken);
@@ -171,6 +188,75 @@ public sealed class EfPluginStudioRepository(ApplicationDbContext db) : IPluginS
         {
             throw new ConcurrencyConflictException("plugin", update.Plugin.Id);
         }
+    }
+
+    private void EnqueueLifecycle(PluginState plugin, string previousStatus)
+    {
+        var eventType = plugin.Status == PluginStatus.Active
+            && !previousStatus.Equals(PluginStatus.Active.ToString(), StringComparison.OrdinalIgnoreCase)
+                ? "PluginActivated"
+                : previousStatus.Equals(PluginStatus.Active.ToString(), StringComparison.OrdinalIgnoreCase)
+                  && plugin.Status != PluginStatus.Active
+                    ? "PluginDeactivated"
+                    : null;
+        if (eventType is null) return;
+        Enqueue(
+            plugin.Id,
+            eventType,
+            plugin.Status.ToString(),
+            plugin.UpdatedAt,
+            AnalyticsKeys.Aggregate(
+                "plugin",
+                plugin.Id.ToString("N"),
+                eventType,
+                plugin.UpdatedAt.ToUniversalTime().ToString("O")));
+    }
+
+    private void EnqueueHealth(PluginHealthCheckState healthCheck) =>
+        Enqueue(
+            healthCheck.PluginId,
+            "PluginHealthChecked",
+            healthCheck.Status.ToString(),
+            healthCheck.CheckedAt,
+            AnalyticsKeys.Event(
+                "PluginHealthCheck",
+                healthCheck.Id,
+                "PluginHealthChecked"),
+            healthCheck.DurationMs);
+
+    private void Enqueue(
+        Guid pluginId,
+        string eventType,
+        string outcome,
+        DateTimeOffset occurredAt,
+        string eventKey,
+        double? durationMs = null)
+    {
+        if (runtime?.OrganisationId is not Guid organisationId
+            || runtime.WorkspaceId is not Guid workspaceId
+            || runtime.EnvironmentId is not Guid environmentId)
+            return;
+        AnalyticsOutboxFactory.Enqueue(db, new AnalyticsEventRecord
+        {
+            Id = Guid.NewGuid(),
+            EventKey = eventKey,
+            OrganisationId = organisationId,
+            WorkspaceId = workspaceId,
+            EnvironmentId = environmentId,
+            ActorId = runtime.ActorId,
+            ActorType = runtime.ActorType,
+            ActorRole = runtime.Role,
+            Capability = "Plugin",
+            EventType = eventType,
+            Outcome = outcome,
+            CostType = "Unavailable",
+            DurationMs = durationMs,
+            SourceType = "Plugin",
+            SourceId = pluginId,
+            ConfigurationRevision = "not-applicable",
+            CorrelationId = runtime.CorrelationId,
+            OccurredAt = occurredAt
+        });
     }
 
 

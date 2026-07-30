@@ -243,7 +243,9 @@ public sealed class PolicyStudioService(IPolicyStudioRepository repository) : IP
 
     public async Task<PolicyExecutionGuardrails> EvaluateExecutionAsync(PolicyExecutionRequest request, CancellationToken cancellationToken = default)
     {
-        var correlationId = Guid.NewGuid().ToString("N");
+        var correlationId = string.IsNullOrWhiteSpace(request.CorrelationId)
+            ? Guid.NewGuid().ToString("N")
+            : request.CorrelationId.Trim();
         var common = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["provider"] = request.Provider,
@@ -254,7 +256,8 @@ public sealed class PolicyStudioService(IPolicyStudioRepository repository) : IP
             ["source"] = request.Source,
             ["environment"] = request.Environment,
             ["allowFallback"] = request.AllowFallback.ToString(),
-            ["allowStreaming"] = request.AllowStreaming.ToString()
+            ["allowStreaming"] = request.AllowStreaming.ToString(),
+            ["configurationRevision"] = request.ConfigurationRevision ?? "configuration-unavailable"
         };
 
         var results = new List<PolicyEvaluationResultDto>();

@@ -209,7 +209,12 @@ public interface IEffectiveConfigurationResolver
 {
     Task<IReadOnlyList<EffectiveSettingResult>> ResolveAsync(Guid organisationId, Guid workspaceId, Guid? environmentId, CancellationToken ct = default);
     Task<EffectiveSettingResult?> ResolveOneAsync(Guid organisationId, Guid workspaceId, Guid? environmentId, string key, CancellationToken ct = default);
-    Task<ConfigurationSnapshot> CreateSnapshotAsync(Guid organisationId, Guid workspaceId, Guid environmentId, CancellationToken ct = default);
+    Task<ConfigurationSnapshot> CreateSnapshotAsync(
+        Guid organisationId,
+        Guid workspaceId,
+        Guid environmentId,
+        CancellationToken ct = default,
+        IReadOnlyDictionary<string, string?>? executionOverrides = null);
 }
 
 public interface ISecretStore

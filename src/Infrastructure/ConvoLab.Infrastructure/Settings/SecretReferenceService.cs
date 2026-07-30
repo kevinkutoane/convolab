@@ -2,6 +2,7 @@ using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Settings;
 using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.Analytics;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConvoLab.Infrastructure.Settings;
@@ -53,7 +54,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
             Revision = 1
         };
         _db.SecretReferences.Add(record);
-        AddAudit(workspaceId, "SecretReference.Created", record.Id, actorId, actorDisplay, correlationId);
+        await AddAuditAsync(workspaceId, "SecretReference.Created", record.Id, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
         return ToDto(record);
     }
@@ -73,7 +74,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
         record.UpdatedBy = actorId;
         record.Revision++;
 
-        AddAudit(workspaceId, "SecretReference.Updated", record.Id, actorId, actorDisplay, correlationId);
+        await AddAuditAsync(workspaceId, "SecretReference.Updated", record.Id, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
         return ToDto(record);
     }
@@ -91,7 +92,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
         record.UpdatedBy = actorId;
         record.Revision++;
 
-        AddAudit(workspaceId, "SecretReference.Validated", record.Id, actorId, actorDisplay, correlationId);
+        await AddAuditAsync(workspaceId, "SecretReference.Validated", record.Id, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
         return ToDto(record);
     }
@@ -103,19 +104,35 @@ public sealed class SecretReferenceService : ISecretReferenceService
         if (record.Revision != expectedRevision) throw new ResourceConflictException("revision.conflict", "The resource changed. Refresh and retry.");
 
         record.IsDisabled = true; record.UpdatedAt = DateTimeOffset.UtcNow; record.UpdatedBy = actorId; record.Revision++;
-        AddAudit(workspaceId, "SecretReference.Disabled", record.Id, actorId, actorDisplay, correlationId);
+        await AddAuditAsync(workspaceId, "SecretReference.Disabled", record.Id, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
         return ToDto(record);
     }
 
-    private void AddAudit(Guid workspaceId, string action, Guid resourceId, Guid actorId, string actorDisplay, string correlationId) =>
-        _db.WorkspaceAuditEvents.Add(new WorkspaceIdentity.AuditEventRecord
+    private async Task AddAuditAsync(
+        Guid workspaceId,
+        string action,
+        Guid resourceId,
+        Guid actorId,
+        string actorDisplay,
+        string correlationId,
+        CancellationToken ct)
+    {
+        var organisationId = await _db.Workspaces.AsNoTracking()
+            .Where(item => item.Id == workspaceId)
+            .Select(item => (Guid?)item.OrganisationId)
+            .SingleOrDefaultAsync(ct);
+        var audit = new WorkspaceIdentity.AuditEventRecord
         {
-            Id = Guid.NewGuid(), Scope = "Workspace", WorkspaceId = workspaceId,
+            Id = Guid.NewGuid(), Scope = "Workspace", OrganisationId = organisationId,
+            WorkspaceId = workspaceId,
             ActorType = "User", ActorId = actorId, ActorDisplay = actorDisplay,
             Action = action, ResourceType = "SecretReference", ResourceId = resourceId.ToString(),
             Outcome = "Succeeded", DetailJson = "{}", CorrelationId = correlationId, OccurredAt = DateTimeOffset.UtcNow
-        });
+        };
+        _db.WorkspaceAuditEvents.Add(audit);
+        await AnalyticsOutboxFactory.EnqueueAuditAsync(_db, audit, cancellationToken: ct);
+    }
 
     private static SecretReferenceDto ToDto(SecretReferenceRecord r) =>
         new(r.Id, r.WorkspaceId, r.DisplayName, r.Reference, r.Provider,

@@ -4,6 +4,7 @@ using System.Security.Claims;
 using ConvoLab.Domain.WorkspaceIdentity;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
+using ConvoLab.Infrastructure.Analytics;
 
 namespace ConvoLab.Api.Controllers;
 
@@ -41,7 +42,13 @@ public sealed class TraceStudioController(ITraceStudioService traces, Applicatio
         var result = await traces.GetAsync(id, includeSensitive, cancellationToken);
         if (includeSensitive)
         {
-            db.WorkspaceAuditEvents.Add(AuthController.Audit("Workspace", workspace.OrganisationId, workspace.WorkspaceId, workspace.ActorType, workspace.UserId, User.Identity?.Name ?? "Authenticated actor", "Trace.SensitiveContentRevealed", "Trace", id.ToString(), "Succeeded", HttpContext.TraceIdentifier));
+            var audit = AuthController.Audit("Workspace", workspace.OrganisationId, workspace.WorkspaceId, workspace.ActorType, workspace.UserId, User.Identity?.Name ?? "Authenticated actor", "Trace.SensitiveContentRevealed", "Trace", id.ToString(), "Succeeded", HttpContext.TraceIdentifier);
+            db.WorkspaceAuditEvents.Add(audit);
+            await AnalyticsOutboxFactory.EnqueueAuditAsync(
+                db,
+                audit,
+                workspace.EnvironmentId,
+                cancellationToken);
             await db.SaveChangesAsync(cancellationToken);
         }
         return Ok(result);

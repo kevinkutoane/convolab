@@ -1,13 +1,19 @@
 using System.Text.Json;
 using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.PolicyStudio;
+using ConvoLab.Domain.Analytics;
 using ConvoLab.Domain.Policy.Enums;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConvoLab.Infrastructure.PolicyStudio;
 
-public sealed class EfPolicyStudioRepository(ApplicationDbContext db) : IPolicyStudioRepository
+public sealed class EfPolicyStudioRepository(
+    ApplicationDbContext db,
+    WorkspaceRequestContext? runtime = null)
+    : IPolicyStudioRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -148,6 +154,67 @@ public sealed class EfPolicyStudioRepository(ApplicationDbContext db) : IPolicyS
     public async Task AddDecisionAsync(PolicyDecisionState decision, CancellationToken cancellationToken = default)
     {
         db.PolicyDecisions.Add(MapRecord(decision));
+        if (runtime?.OrganisationId is Guid organisationId
+            && runtime.WorkspaceId is Guid workspaceId
+            && runtime.EnvironmentId is Guid environmentId)
+        {
+            var revision = decision.Context.GetValueOrDefault(
+                "configurationRevision",
+                "configuration-unavailable");
+            var outcome = decision.Effect switch
+            {
+                PolicyEffect.Deny => "Denied",
+                PolicyEffect.AllowWithConstraints => "Warning",
+                _ => "Allowed"
+            };
+            db.ExecutionAttributions.Add(new ExecutionAttributionRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganisationId = organisationId,
+                WorkspaceId = workspaceId,
+                EnvironmentId = environmentId,
+                ActorId = runtime.ActorId,
+                ActorType = runtime.ActorType,
+                ActorRole = runtime.Role,
+                SourceResourceType = "PolicyDecision",
+                SourceResourceId = decision.Id,
+                ConfigurationRevision = revision,
+                CorrelationId = decision.CorrelationId,
+                AttributionStatus = revision.Contains(
+                    "unavailable",
+                    StringComparison.OrdinalIgnoreCase)
+                    ? "ConfigurationUnavailable"
+                    : "Original",
+                CreatedAt = decision.CreatedAt
+            });
+            AnalyticsOutboxFactory.Enqueue(db, new AnalyticsEventRecord
+            {
+                Id = Guid.NewGuid(),
+                EventKey = AnalyticsKeys.Event(
+                    "PolicyDecision",
+                    decision.Id,
+                    "PolicyEvaluated"),
+                OrganisationId = organisationId,
+                WorkspaceId = workspaceId,
+                EnvironmentId = environmentId,
+                ActorId = runtime.ActorId,
+                ActorType = runtime.ActorType,
+                ActorRole = runtime.Role,
+                Capability = "Policy",
+                EventType = "PolicyEvaluated",
+                Outcome = outcome,
+                Provider = decision.Context.GetValueOrDefault("provider"),
+                Model = decision.Context.GetValueOrDefault("model"),
+                CostType = "Unavailable",
+                SourceExecutionId = decision.RunId,
+                SourceType = "PolicyDecision",
+                SourceId = decision.Id,
+                PolicyOutcome = outcome,
+                ConfigurationRevision = revision,
+                CorrelationId = decision.CorrelationId,
+                OccurredAt = decision.CreatedAt
+            });
+        }
         await db.SaveChangesAsync(cancellationToken);
     }
 

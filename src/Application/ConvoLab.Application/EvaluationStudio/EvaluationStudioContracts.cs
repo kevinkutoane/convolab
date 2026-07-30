@@ -281,6 +281,14 @@ public interface IEvaluationStudioRepository
     Task AddBatchAsync(EvaluationBatchState batch, CancellationToken cancellationToken = default);
 }
 
+public interface IAttributedEvaluationStudioRepository
+{
+    Task AddAttributedRunAsync(
+        EvaluationRunState evaluation,
+        SimulationRun sourceRun,
+        CancellationToken cancellationToken = default);
+}
+
 public interface IEvaluationStudioService
 {
     Task<EvaluationOverviewDto> GetOverviewAsync(CancellationToken cancellationToken = default);

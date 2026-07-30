@@ -1,12 +1,19 @@
 using System.Text.Json;
 using ConvoLab.Application.Common.Errors;
+using ConvoLab.Application.Simulation;
 using ConvoLab.Application.TraceStudio;
+using ConvoLab.Domain.Analytics;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 
 namespace ConvoLab.Infrastructure.TraceStudio;
 
-public sealed class EfTraceStudioRepository(ApplicationDbContext db) : ITraceStudioRepository
+public sealed class EfTraceStudioRepository(
+    ApplicationDbContext db,
+    WorkspaceRequestContext? runtime = null)
+    : ITraceStudioRepository, IAttributedTraceStudioRepository
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -32,11 +39,90 @@ public sealed class EfTraceStudioRepository(ApplicationDbContext db) : ITraceStu
     }
 
     public async Task AddAsync(TraceState trace, CancellationToken cancellationToken = default)
+        => await AddCoreAsync(trace, null, cancellationToken);
+
+    public async Task AddAttributedTraceAsync(
+        TraceState trace,
+        SimulationRun sourceRun,
+        CancellationToken cancellationToken = default)
+        => await AddCoreAsync(trace, sourceRun, cancellationToken);
+
+    private async Task AddCoreAsync(
+        TraceState trace,
+        SimulationRun? sourceRun,
+        CancellationToken cancellationToken)
     {
         db.Traces.Add(MapRecord(trace));
         db.TraceSpans.AddRange(trace.Spans.Select(MapRecord));
         db.TraceEvents.AddRange(trace.Events.Select(MapRecord));
         db.TraceArtifacts.AddRange(trace.Artifacts.Select(MapRecord));
+        if (sourceRun is not null
+            && runtime?.OrganisationId is Guid organisationId
+            && runtime.WorkspaceId is Guid workspaceId
+            && runtime.EnvironmentId is Guid environmentId)
+        {
+            var configurationRevision = string.IsNullOrWhiteSpace(
+                sourceRun.Configuration?.ConfigurationRevision)
+                ? "legacy:configuration-unavailable"
+                : sourceRun.Configuration.ConfigurationRevision;
+            var correlationId = string.IsNullOrWhiteSpace(sourceRun.Configuration?.CorrelationId)
+                ? runtime.CorrelationId
+                : sourceRun.Configuration.CorrelationId;
+            db.ExecutionAttributions.Add(new ExecutionAttributionRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganisationId = organisationId,
+                WorkspaceId = workspaceId,
+                EnvironmentId = environmentId,
+                ActorId = runtime.ActorId,
+                ActorType = runtime.ActorType,
+                ActorRole = runtime.Role,
+                SourceResourceType = "Trace",
+                SourceResourceId = trace.Id,
+                ConfigurationRevision = configurationRevision,
+                CorrelationId = correlationId,
+                AttributionStatus = configurationRevision.StartsWith(
+                    "legacy:",
+                    StringComparison.Ordinal)
+                    ? "ConfigurationUnavailable"
+                    : "Original",
+                CreatedAt = trace.StartedAt
+            });
+            AnalyticsOutboxFactory.Enqueue(db, new AnalyticsEventRecord
+            {
+                Id = Guid.NewGuid(),
+                EventKey = AnalyticsKeys.Event("Trace", trace.Id, "TraceCompleted"),
+                OrganisationId = organisationId,
+                WorkspaceId = workspaceId,
+                EnvironmentId = environmentId,
+                ActorId = runtime.ActorId,
+                ActorType = runtime.ActorType,
+                ActorRole = runtime.Role,
+                Capability = "Trace",
+                EventType = "TraceCompleted",
+                Outcome = trace.Status,
+                Provider = sourceRun.Configuration?.Provider
+                    ?? sourceRun.ExecutionPlan?.Provider,
+                Model = sourceRun.Configuration?.Model
+                    ?? sourceRun.ExecutionPlan?.Model,
+                CostType = "Unavailable",
+                DurationMs = trace.DurationMs,
+                QualityScore = (
+                    sourceRun.Evaluation.Groundedness
+                    + sourceRun.Evaluation.Relevance
+                    + sourceRun.Evaluation.Safety) / 3,
+                SourceExecutionId = sourceRun.Id,
+                SourceType = "Trace",
+                SourceId = trace.Id,
+                PromptName = sourceRun.Configuration?.PromptVersion,
+                WorkflowName = sourceRun.Configuration?.Workflow,
+                KnowledgeCollectionName = sourceRun.Configuration?.KnowledgeCollection,
+                EvaluationOutcome = sourceRun.Evaluation.Verdict,
+                ConfigurationRevision = configurationRevision,
+                CorrelationId = correlationId,
+                OccurredAt = trace.StartedAt
+            });
+        }
         try
         {
             await db.SaveChangesAsync(cancellationToken);

@@ -87,10 +87,12 @@ public sealed class MigrationTests
             "202607220005_PluginStudioV1",
             "202607220006_WorkspaceIdentityAccessV1",
             "202607230001_EnvironmentSettingsManagementV1",
-            "202607240001_PlatformAnalyticsV1"
+            "202607240001_PlatformAnalyticsV1",
+            "202607250001_PlatformAnalyticsCompletionV1"
         ], migrations);
 
         await db.Database.MigrateAsync();
+        Assert.Empty(await db.Database.GetPendingMigrationsAsync());
 
         foreach (var table in RequiredTables)
         {

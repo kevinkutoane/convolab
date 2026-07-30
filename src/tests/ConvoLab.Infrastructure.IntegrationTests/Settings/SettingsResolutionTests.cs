@@ -409,6 +409,52 @@ public sealed class SettingsResolutionTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Configuration_snapshot_includes_validated_execution_overrides_in_revision()
+    {
+        var environment = await CreateEnvironmentAsync("Override Revision Env");
+        var first = await _resolver.CreateSnapshotAsync(
+            OrganisationId,
+            WorkspaceId,
+            environment.Id,
+            executionOverrides: new Dictionary<string, string?>
+            {
+                ["provider"] = "Deterministic",
+                ["model"] = "convolab-deterministic-primary",
+                ["temperature"] = "0.2",
+                ["maximumOutputTokens"] = "400"
+            });
+        var same = await _resolver.CreateSnapshotAsync(
+            OrganisationId,
+            WorkspaceId,
+            environment.Id,
+            executionOverrides: new Dictionary<string, string?>
+            {
+                ["maximumOutputTokens"] = "400",
+                ["temperature"] = "0.2",
+                ["model"] = "convolab-deterministic-primary",
+                ["provider"] = "Deterministic"
+            });
+        var changed = await _resolver.CreateSnapshotAsync(
+            OrganisationId,
+            WorkspaceId,
+            environment.Id,
+            executionOverrides: new Dictionary<string, string?>
+            {
+                ["provider"] = "Deterministic",
+                ["model"] = "convolab-deterministic-primary",
+                ["temperature"] = "0.4",
+                ["maximumOutputTokens"] = "400"
+            });
+
+        Assert.Equal(first.ConfigurationRevision, same.ConfigurationRevision);
+        Assert.NotEqual(first.ConfigurationRevision, changed.ConfigurationRevision);
+        Assert.Equal(
+            1,
+            await _db.ConfigurationSnapshots.CountAsync(item =>
+                item.Revision == first.ConfigurationRevision));
+    }
+
+    [Fact]
     public async Task Effective_numeric_values_use_json_number_representation()
     {
         var environment = await CreateEnvironmentAsync("Typed Values Env");

@@ -66,3 +66,17 @@ The server enforces fixed role permissions. Viewers receive aggregated overview 
 The Analytics route is lazy-loaded and adds no chart library to the initial graph. Charts are accessible SVG with textual descriptions and tabular alternatives. Environment changes are validated server-side, then old environment queries are cancelled and cleared before the new selection becomes active, preventing stale data and the former refresh requirement.
 
 Operational indicators are deterministic rules, not statistical anomaly detection, and are labelled accordingly.
+
+## Completion references
+
+- [Event and execution model](AnalyticsEventModel.md)
+- [Trusted execution context](ExecutionContext.md)
+- [Aggregation and recovery](AnalyticsAggregation.md)
+- [Cost and budget model](AnalyticsCostModel.md)
+- [Security and privacy](AnalyticsSecurity.md)
+- [Permissions](AnalyticsPermissions.md)
+- [Exports](AnalyticsExports.md)
+- [Reconciliation](AnalyticsReconciliation.md)
+- [Functional completion evidence](../FUNCTIONAL_PLATFORM_ANALYTICS_V1_REPORT.md)
+
+Alpha 14 category responses are intentionally distinct: Overview combines trusted summary measures; Usage counts capability/source activity; Cost & Budget classifies tokens, ZAR and monthly limits; Quality exposes all score dimensions and gates; Governance covers policy/configuration/plugin/sensitive activity; Performance exposes latency and failure measures; Adoption uses authentication/audit actors rather than page views. Event details and correlation timelines preserve the same permission-filtered field visibility as their parent dashboard.
