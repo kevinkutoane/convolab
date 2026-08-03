@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, Hexagon, X } from "lucide-react";
 import { NavLink } from "react-router";
 import { navigationItems } from "../data/platform";
 import { StatusPill } from "./StatusPill";
+import { useAuth } from "../contexts/useAuth";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -16,6 +17,9 @@ export function Sidebar({
   onToggle,
   onCloseMobile,
 }: SidebarProps) {
+  const { session } = useAuth();
+  const visibleItems = navigationItems.filter(item =>
+    item.path !== "/operations" || session?.isPlatformAdministrator);
   return (
     <>
       {mobileOpen && (
@@ -52,7 +56,7 @@ export function Sidebar({
 
         <nav className="sidebar-nav" aria-label="Studio navigation">
           <span className="sidebar-section-label">{collapsed ? "" : "Workspace"}</span>
-          {navigationItems.map(item => {
+          {visibleItems.map(item => {
             const Icon = item.icon;
             return (
               <NavLink

@@ -7,7 +7,7 @@ public sealed class CapabilityPermissionMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext context)
     {
         var path = context.Request.Path.Value?.ToLowerInvariant() ?? "";
-        if (!path.StartsWith("/api/", StringComparison.Ordinal) || path.StartsWith("/api/auth") || path.StartsWith("/api/workspaces") || path.StartsWith("/api/organisations") || path.StartsWith("/api/platform"))
+        if (!path.StartsWith("/api/", StringComparison.Ordinal) || path.StartsWith("/api/auth") || path.StartsWith("/api/workspaces") || path.StartsWith("/api/organisations") || path.StartsWith("/api/platform") || path.StartsWith("/api/operations"))
         { await next(context); return; }
         var required = RequiredPermission(context.Request.Method, path);
         if (required is not null && !context.User.HasClaim("permission", required))

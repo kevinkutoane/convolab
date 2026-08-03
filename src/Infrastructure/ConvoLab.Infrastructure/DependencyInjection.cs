@@ -26,6 +26,8 @@ using ConvoLab.Infrastructure.PluginStudio;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 using ConvoLab.Application.Settings;
 using ConvoLab.Infrastructure.Settings;
+using ConvoLab.Application.Operations;
+using ConvoLab.Infrastructure.Operations;
 using ConvoLab.Application.Analytics;
 using ConvoLab.Infrastructure.Analytics;
 using Microsoft.EntityFrameworkCore;
@@ -106,7 +108,21 @@ public static class DependencyInjection
         services.AddScoped<IEffectiveConfigurationResolver, EffectiveConfigurationResolver>();
         services.AddScoped<IRuntimeConfigurationResolver, RuntimeConfigurationResolver>();
         services.AddScoped<IProviderValidationService, ProviderValidationService>();
-        services.AddSingleton<ISecretStore, EnvironmentSecretStore>();
+        services.AddMemoryCache(options => options.SizeLimit = 1024);
+        services.AddSingleton<SecretProviderEvidenceRegistry>();
+        services.AddSingleton<ISecretProviderEvidenceSource>(provider =>
+            provider.GetRequiredService<SecretProviderEvidenceRegistry>());
+        services.AddSingleton<ISecretProvider, EnvironmentSecretProvider>();
+        services.AddSingleton<ISecretProvider, DockerSecretProvider>();
+        services.AddSingleton<ISecretProvider, AzureKeyVaultSecretProvider>();
+        services.AddSingleton<ISecretStore, CompositeSecretStore>();
+        services.AddSingleton<PlatformOperationalStateService>();
+        services.AddSingleton<IPlatformOperationalState>(provider =>
+            provider.GetRequiredService<PlatformOperationalStateService>());
+        services.AddSingleton<IPlatformOperationalAdministration>(provider =>
+            provider.GetRequiredService<PlatformOperationalStateService>());
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<IOperationalWorkerLease, OperationalWorkerLease>();
         services.AddScoped<SettingsBootstrapper>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddHostedService<AnalyticsMaintenanceWorker>();

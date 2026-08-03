@@ -4,6 +4,7 @@ using ConvoLab.Domain.Tracing.Aggregates;
 using ConvoLab.Domain.Tracing.Entities;
 using ConvoLab.Domain.Tracing.Enums;
 using ConvoLab.Domain.Tracing.ValueObjects;
+using ConvoLab.Application.Operations;
 
 namespace ConvoLab.Infrastructure.TraceStudio;
 
@@ -11,6 +12,7 @@ public sealed class PersistentTraceEngine(ITraceStudioRepository repository) : I
 {
     public async Task<TraceId> StartTraceAsync(string operationName, CancellationToken cancellationToken = default)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("trace.persist.start");
         var trace = Trace.Start(operationName, Guid.NewGuid());
         var now = DateTimeOffset.UtcNow;
         await repository.AddAsync(new TraceState(
@@ -28,6 +30,7 @@ public sealed class PersistentTraceEngine(ITraceStudioRepository repository) : I
         Dictionary<string, string>? attributes = null,
         CancellationToken cancellationToken = default)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("trace.persist.span");
         var trace = await repository.GetAsync(traceId.Value, cancellationToken)
             ?? throw new InvalidOperationException($"Trace '{traceId.Value}' was not found.");
         var now = DateTimeOffset.UtcNow;

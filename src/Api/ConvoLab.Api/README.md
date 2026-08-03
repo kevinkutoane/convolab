@@ -139,11 +139,10 @@ async Task<IResult> CreateUser(CreateUserRequest request, IMediator mediator, Ht
   "ConnectionStrings": {
     "DefaultConnection": "Data Source=convolab.db"
   },
-  "Jwt": {
-    "SecretKey": "your-secret-key-here",
-    "ExpirationMinutes": 60
+  "Authentication": {
+    "Mode": "Local"
   },
-  "AllowedHosts": "*"
+  "AllowedHosts": "localhost;127.0.0.1"
 }
 ```
 

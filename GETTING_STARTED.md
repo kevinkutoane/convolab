@@ -71,7 +71,7 @@ npm run dev
 ## Project Structure
 
 ```
-convolab/
+convolab-main/
 ├── src/                          # Backend .NET solution
 │   ├── Api/                      # ASP.NET Core API
 │   ├── Application/              # Application layer (CQRS)

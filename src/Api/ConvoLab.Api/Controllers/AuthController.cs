@@ -10,18 +10,23 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
+using ConvoLab.Application.Operations;
 
 namespace ConvoLab.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<IdentityUserRecord> passwordHasher) : ControllerBase
+public sealed class AuthController(
+    ApplicationDbContext db,
+    IPasswordHasher<IdentityUserRecord> passwordHasher,
+    SessionCookieService sessionCookies) : ControllerBase
 {
     [AllowAnonymous]
     [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<ActionResult<AuthSessionResponse>> Login(LoginRequest request, CancellationToken ct)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("authentication.login");
         var email = request.Email?.Trim().ToUpperInvariant() ?? string.Empty;
         var user = await db.IdentityUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == email, ct);
         var credential = user is null ? null : await db.LocalCredentials.SingleOrDefaultAsync(item => item.UserId == user.Id, ct);
@@ -30,6 +35,8 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
             && passwordHasher.VerifyHashedPassword(user, credential.PasswordHash, request.Password ?? string.Empty) != PasswordVerificationResult.Failed;
         if (!valid)
         {
+            ConvoLabTelemetry.AuthenticationFailures.Add(1);
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, "invalid_credentials");
             if (credential is not null)
             {
                 credential.FailedAttempts++;
@@ -56,6 +63,8 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
         db.WorkspaceAuditEvents.Add(loginAudit);
         await AnalyticsOutboxFactory.EnqueueAuditAsync(db, loginAudit, cancellationToken: ct);
         await db.SaveChangesAsync(ct);
+        ConvoLabTelemetry.AuthenticationLogins.Add(1);
+        ConvoLabTelemetry.ActiveSessions.Add(1);
         WriteSessionCookie(token, session.ExpiresAt);
         return Ok(await DescribeAsync(user, session, ct));
     }
@@ -65,6 +74,7 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
     public ActionResult Antiforgery([FromServices] IAntiforgery antiforgery)
     {
         var tokens = antiforgery.GetAndStoreTokens(HttpContext);
+        Response.Headers.CacheControl = "no-store";
         return Ok(new { token = tokens.RequestToken, headerName = ConvoLabAuthentication.AntiforgeryHeader });
     }
 
@@ -127,8 +137,9 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
                 logoutAudit,
                 cancellationToken: ct);
             await db.SaveChangesAsync(ct);
+            ConvoLabTelemetry.ActiveSessions.Add(-1);
         }
-        Response.Cookies.Delete(ConvoLabAuthentication.SessionCookie);
+        sessionCookies.Delete(Response);
         return NoContent();
     }
 
@@ -146,14 +157,17 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
         var userId = ClaimGuid(ClaimTypes.NameIdentifier) ?? throw new ResourceNotFoundException("auth.user_not_found", "The user was not found.");
         var session = await db.AuthenticationSessions.SingleOrDefaultAsync(item => item.Id == sessionId && item.UserId == userId, ct)
             ?? throw new ResourceNotFoundException("auth.session_not_found", "The session was not found.");
+        var wasActive = !session.RevokedAt.HasValue;
         session.RevokedAt ??= DateTimeOffset.UtcNow; await db.SaveChangesAsync(ct);
-        if (ClaimGuid("session_id") == sessionId) Response.Cookies.Delete(ConvoLabAuthentication.SessionCookie);
+        if (wasActive) ConvoLabTelemetry.ActiveSessions.Add(-1);
+        if (ClaimGuid("session_id") == sessionId) sessionCookies.Delete(Response);
         return NoContent();
     }
 
     [HttpPost("workspace")]
     public async Task<ActionResult<AuthSessionResponse>> SwitchWorkspace(SwitchWorkspaceRequest request, CancellationToken ct)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("workspace.selection");
         var sessionId = ClaimGuid("session_id") ?? throw new ResourceNotFoundException("auth.session_not_found", "The session was not found.");
         var userId = ClaimGuid(ClaimTypes.NameIdentifier)!.Value;
         var membership = await db.WorkspaceMemberships.AsNoTracking().SingleOrDefaultAsync(item => item.UserId == userId && item.WorkspaceId == request.WorkspaceId && item.Status == "Active", ct)
@@ -206,7 +220,8 @@ public sealed class AuthController(ApplicationDbContext db, IPasswordHasher<Iden
         return new AuthSessionResponse(user.Id, user.Email, user.DisplayName, user.IsPlatformAdministrator, session.ExpiresAt, session.ActiveWorkspaceId, choices);
     }
 
-    private void WriteSessionCookie(string token, DateTimeOffset expires) => Response.Cookies.Append(ConvoLabAuthentication.SessionCookie, token, new CookieOptions { HttpOnly = true, Secure = Request.IsHttps, SameSite = SameSiteMode.Strict, Expires = expires, Path = "/" });
+    private void WriteSessionCookie(string token, DateTimeOffset expires) =>
+        sessionCookies.Write(Response, token, expires);
     private Guid? ClaimGuid(string type) => Guid.TryParse(User.FindFirstValue(type), out var id) ? id : null;
     private ObjectResult UnauthorizedProblem(string code, string detail)
     {

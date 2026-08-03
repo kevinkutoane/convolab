@@ -48,7 +48,12 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         Assert.Equal("admin@convolab.test", payload.RootElement.GetProperty("email").GetString());
         Assert.Equal("Default Workspace", payload.RootElement.GetProperty("workspaces")[0].GetProperty("name").GetString());
         Assert.NotEqual(Guid.Empty, payload.RootElement.GetProperty("activeWorkspaceId").GetGuid());
-        var antiforgery = await ReadJsonAsync(await _client.GetAsync("/api/auth/antiforgery"));
+        var antiforgeryResponse = await _client.GetAsync("/api/auth/antiforgery");
+        Assert.True(antiforgeryResponse.Headers.CacheControl?.NoStore);
+        Assert.Contains(antiforgeryResponse.Headers.GetValues("Set-Cookie"), value =>
+            value.Contains(ConvoLabAuthentication.AntiforgeryCookie, StringComparison.Ordinal)
+            && value.Contains("httponly", StringComparison.OrdinalIgnoreCase));
+        var antiforgery = await ReadJsonAsync(antiforgeryResponse);
         using var refresh = new HttpRequestMessage(HttpMethod.Post, "/api/auth/refresh");
         refresh.Headers.Add("X-XSRF-TOKEN", antiforgery.RootElement.GetProperty("token").GetString());
         var refreshed = await _client.SendAsync(refresh);
@@ -726,6 +731,120 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             if (denyPolicyId != Guid.Empty)
                 await _client.PostAsync($"/api/policies/{denyPolicyId}/retire", null);
         }
+    }
+
+    [Fact]
+    public async Task Operations_polling_is_not_audited_but_readiness_and_safe_mode_mutations_are()
+    {
+        var login = await _client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "admin@convolab.test",
+            password = "Ephemeral-Alpha12!"
+        });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        long Baseline(string action)
+        {
+            using var scope = _factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            return db.WorkspaceAuditEvents.LongCount(item => item.Action == action);
+        }
+
+        var readinessBefore = Baseline("Operations.ReadinessEvidenceViewed");
+        for (var index = 0; index < 3; index++)
+        {
+            var statusResponse = await _client.GetAsync("/api/operations/status");
+            Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
+            var status = await ReadJsonAsync(statusResponse);
+            Assert.Equal("1.0.0-alpha.14", status.RootElement.GetProperty("version").GetString());
+            Assert.Equal("alpha.15-operational-foundation", status.RootElement.GetProperty("workstream").GetString());
+        }
+        Assert.Equal(readinessBefore, Baseline("Operations.ReadinessEvidenceViewed"));
+
+        var readinessResponse = await _client.GetAsync("/api/operations/readiness");
+        Assert.Equal(HttpStatusCode.OK, readinessResponse.StatusCode);
+        var readiness = await ReadJsonAsync(readinessResponse);
+        var componentStates = readiness.RootElement.GetProperty("components")
+            .EnumerateArray()
+            .ToDictionary(
+                item => item.GetProperty("component").GetString()!,
+                item => item.GetProperty("state").GetString()!);
+        Assert.Equal("Configured", componentStates["production-configuration"]);
+        Assert.Equal("StubValidated", componentStates["providers"]);
+        Assert.Equal("LiveValidated", componentStates["database"]);
+        Assert.Equal(readinessBefore + 1, Baseline("Operations.ReadinessEvidenceViewed"));
+
+        var current = await ReadJsonAsync(await _client.GetAsync("/api/operations/status"));
+        var safeMode = current.RootElement.GetProperty("safeMode");
+        var revision = safeMode.GetProperty("revision").GetInt64();
+        var antiforgery = await ReadJsonAsync(await _client.GetAsync("/api/auth/antiforgery"));
+        var token = antiforgery.RootElement.GetProperty("token").GetString();
+        var mutationBefore = Baseline("SafeMode.Activated");
+        using var activate = new HttpRequestMessage(HttpMethod.Post, "/api/operations/safe-mode")
+        {
+            Content = JsonContent.Create(new
+            {
+                enabled = true,
+                expectedRevision = revision,
+                reason = "Operations acceptance test",
+                confirmation = "ACTIVATE SAFE MODE"
+            })
+        };
+        activate.Headers.Add("X-XSRF-TOKEN", token);
+        var activatedResponse = await _client.SendAsync(activate);
+        Assert.Equal(HttpStatusCode.OK, activatedResponse.StatusCode);
+        var activated = await ReadJsonAsync(activatedResponse);
+        Assert.Equal(mutationBefore + 1, Baseline("SafeMode.Activated"));
+
+        Guid environmentId;
+        long validationAuditBefore;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            environmentId = db.RuntimeEnvironments.AsNoTracking()
+                .Where(item => item.WorkspaceId == WorkspaceIdentityDefaults.WorkspaceId
+                               && item.IsDefault
+                               && item.Status == "Active")
+                .Select(item => item.Id)
+                .Single();
+            validationAuditBefore = db.ConfigurationChanges.LongCount(
+                item => item.SettingKey == "ai.provider_validation");
+        }
+        var blockedToken = await ReadJsonAsync(await _client.GetAsync("/api/auth/antiforgery"));
+        using var blockedValidation = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/environments/{environmentId}/settings/provider/validate");
+        blockedValidation.Headers.Add(
+            "X-XSRF-TOKEN",
+            blockedToken.RootElement.GetProperty("token").GetString());
+        var blockedResponse = await _client.SendAsync(blockedValidation);
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, blockedResponse.StatusCode);
+        var blockedProblem = await ReadJsonAsync(blockedResponse);
+        Assert.Equal(
+            "operations.safe_mode_active",
+            blockedProblem.RootElement.GetProperty("code").GetString());
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            Assert.Equal(
+                validationAuditBefore + 1,
+                db.ConfigurationChanges.LongCount(
+                    item => item.SettingKey == "ai.provider_validation"));
+        }
+
+        var deactivateToken = await ReadJsonAsync(await _client.GetAsync("/api/auth/antiforgery"));
+        using var deactivate = new HttpRequestMessage(HttpMethod.Post, "/api/operations/safe-mode")
+        {
+            Content = JsonContent.Create(new
+            {
+                enabled = false,
+                expectedRevision = activated.RootElement.GetProperty("revision").GetInt64(),
+                reason = "Operations acceptance test complete",
+                confirmation = "DEACTIVATE SAFE MODE"
+            })
+        };
+        deactivate.Headers.Add("X-XSRF-TOKEN", deactivateToken.RootElement.GetProperty("token").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(deactivate)).StatusCode);
     }
 
     [Fact]

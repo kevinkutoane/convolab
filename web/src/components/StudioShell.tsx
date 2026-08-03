@@ -52,6 +52,11 @@ export function StudioShell({
           onOpenMobile={() => setMobileOpen(true)}
           status={status}
         />
+        {status?.safeMode && (
+          <div className="safe-mode-banner" role="alert">
+            Platform safe mode is active. External execution and plugin activation are blocked.
+          </div>
+        )}
         <main className="studio-content">
           <Outlet />
         </main>

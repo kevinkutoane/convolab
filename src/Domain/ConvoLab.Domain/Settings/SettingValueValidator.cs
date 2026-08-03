@@ -147,9 +147,9 @@ public static partial class SettingValueValidator
         try
         {
             var (provider, _) = SecretReference.ParseReference(raw.Trim().Trim('"'));
-            return provider is "env" or "vault" or "aws" or "azure"
+            return provider is "env" or "docker-secret" or "azure-key-vault"
                 ? SettingValidationResult.Valid()
-                : SettingValidationResult.Warning($"Secret provider '{provider}' is not natively supported. Supported providers: env, vault, aws, azure.");
+                : SettingValidationResult.Warning($"Secret provider '{provider}' is not natively supported. Supported providers: env, docker-secret, azure-key-vault.");
         }
         catch (ArgumentException ex)
         {

@@ -20,7 +20,9 @@ public sealed class DatabaseReadinessHealthCheck(IServiceScopeFactory scopeFacto
         ("WorkflowVersions", "SELECT 1 FROM \"WorkflowVersions\" WHERE 1 = 0;"),
         ("WorkflowNodes", "SELECT 1 FROM \"WorkflowNodes\" WHERE 1 = 0;"),
         ("WorkflowTransitions", "SELECT 1 FROM \"WorkflowTransitions\" WHERE 1 = 0;"),
-        ("WorkflowAudit", "SELECT 1 FROM \"WorkflowAudit\" WHERE 1 = 0;")
+        ("WorkflowAudit", "SELECT 1 FROM \"WorkflowAudit\" WHERE 1 = 0;"),
+        ("PlatformOperationalSettings", "SELECT 1 FROM \"PlatformOperationalSettings\" WHERE 1 = 0;"),
+        ("OperationalWorkerHeartbeats", "SELECT 1 FROM \"OperationalWorkerHeartbeats\" WHERE 1 = 0;")
     ];
 
     public async Task<HealthCheckResult> CheckHealthAsync(

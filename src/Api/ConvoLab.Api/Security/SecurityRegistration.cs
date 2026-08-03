@@ -8,7 +8,9 @@ namespace ConvoLab.Api.Security;
 
 public static class SecurityRegistration
 {
-    public static IServiceCollection AddConvoLabSecurity(this IServiceCollection services)
+    public static IServiceCollection AddConvoLabSecurity(
+        this IServiceCollection services,
+        IHostEnvironment environment)
     {
         services.AddAuthentication(ConvoLabAuthentication.Scheme)
             .AddScheme<AuthenticationSchemeOptions, ConvoLabAuthenticationHandler>(ConvoLabAuthentication.Scheme, _ => { });
@@ -20,11 +22,16 @@ public static class SecurityRegistration
             options.AddPolicy("PlatformAdministrator", policy => policy.RequireClaim("platform_administrator", "true"));
         });
         services.AddScoped<IPasswordHasher<IdentityUserRecord>, PasswordHasher<IdentityUserRecord>>();
+        services.AddSingleton<SessionCookieService>();
         services.AddAntiforgery(options =>
         {
             options.Cookie.Name = ConvoLabAuthentication.AntiforgeryCookie;
-            options.Cookie.HttpOnly = false;
+            options.Cookie.HttpOnly = true;
             options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.SecurePolicy = environment.IsProduction()
+                ? CookieSecurePolicy.Always
+                : CookieSecurePolicy.SameAsRequest;
+            options.Cookie.IsEssential = true;
             options.HeaderName = ConvoLabAuthentication.AntiforgeryHeader;
         });
         return services;

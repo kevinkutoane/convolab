@@ -10,6 +10,7 @@ using ConvoLab.Infrastructure.Analytics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using ConvoLab.Application.Operations;
 
 namespace ConvoLab.Infrastructure.Settings;
 
@@ -33,6 +34,7 @@ public sealed class EffectiveConfigurationResolver : IEffectiveConfigurationReso
     public async Task<IReadOnlyList<EffectiveSettingResult>> ResolveAsync(
         Guid organisationId, Guid workspaceId, Guid? environmentId, CancellationToken ct = default)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("configuration.resolve");
         await RequireScopeAsync(organisationId, workspaceId, environmentId, ct);
         var definitions = await _db.SettingDefinitions.AsNoTracking().ToListAsync(ct);
         var scopedValues = await LoadScopedValuesAsync(organisationId, workspaceId, environmentId, ct);

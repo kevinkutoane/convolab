@@ -1,16 +1,94 @@
 using ConvoLab.Application.Simulation;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.EvaluationStudio;
+using ConvoLab.Infrastructure.Operations;
 using ConvoLab.Infrastructure.Simulation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace ConvoLab.Infrastructure.IntegrationTests.Data;
 
 public sealed class PostgresMigrationTests
 {
+    [Fact]
+    public async Task Worker_lease_uses_Postgres_time_and_preserves_single_ownership()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        if (!database.Available) return;
+
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.ConnectionString)
+            .Options;
+        await using (var migration = new ApplicationDbContext(options))
+            await migration.Database.MigrateAsync();
+
+        await using var fastServices = BuildLeaseServices(
+            database.ConnectionString!,
+            new OffsetTimeProvider(TimeSpan.FromDays(3650)));
+        await using var slowServices = BuildLeaseServices(
+            database.ConnectionString!,
+            new OffsetTimeProvider(TimeSpan.FromDays(-3650)));
+        var previousInstanceId = Environment.GetEnvironmentVariable("CONVOLAB_INSTANCE_ID");
+        OperationalWorkerLease fastLease;
+        OperationalWorkerLease slowLease;
+        try
+        {
+            Environment.SetEnvironmentVariable("CONVOLAB_INSTANCE_ID", "postgres-lease-fast-clock");
+            fastLease = new OperationalWorkerLease(
+                fastServices.GetRequiredService<IServiceScopeFactory>(),
+                fastServices.GetRequiredService<TimeProvider>());
+            Environment.SetEnvironmentVariable("CONVOLAB_INSTANCE_ID", "postgres-lease-slow-clock");
+            slowLease = new OperationalWorkerLease(
+                slowServices.GetRequiredService<IServiceScopeFactory>(),
+                slowServices.GetRequiredService<TimeProvider>());
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONVOLAB_INSTANCE_ID", previousInstanceId);
+        }
+
+        const string workerName = "postgres-live-lease-test";
+        Assert.True(await fastLease.AcquireOrRenewAsync(workerName));
+        Assert.False(await slowLease.AcquireOrRenewAsync(workerName));
+
+        await using (var evidence = new ApplicationDbContext(options))
+        {
+            var remainingSeconds = await RemainingLeaseSecondsAsync(evidence, workerName);
+            Assert.InRange(remainingSeconds, 110, 120);
+            Assert.Equal(fastLease.InstanceId, (await evidence.OperationalWorkerHeartbeats
+                .AsNoTracking().SingleAsync(item => item.WorkerName == workerName)).InstanceId);
+
+            // Simulate a crashed owner whose server-derived lease has expired.
+            await evidence.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE "OperationalWorkerHeartbeats"
+                SET "LeaseExpiresAt" = clock_timestamp() - interval '1 second'
+                WHERE "WorkerName" = {workerName};
+                """);
+        }
+
+        Assert.True(await slowLease.AcquireOrRenewAsync(workerName));
+        await fastLease.RecordSuccessAsync(workerName, 100);
+        await slowLease.RecordSuccessAsync(workerName, 1);
+
+        await using (var takeoverEvidence = new ApplicationDbContext(options))
+        {
+            var record = await takeoverEvidence.OperationalWorkerHeartbeats
+                .AsNoTracking().SingleAsync(item => item.WorkerName == workerName);
+            Assert.Equal(slowLease.InstanceId, record.InstanceId);
+            Assert.Equal(1, record.ProcessedCount);
+            Assert.InRange(await RemainingLeaseSecondsAsync(takeoverEvidence, workerName), 110, 120);
+        }
+
+        const string contentionWorker = "postgres-live-contention-test";
+        var attempts = await Task.WhenAll(
+            fastLease.AcquireOrRenewAsync(contentionWorker),
+            slowLease.AcquireOrRenewAsync(contentionWorker));
+        Assert.Single(attempts, acquired => acquired);
+    }
+
     [Fact]
     public async Task Fresh_Postgres_database_migrates_and_persists_after_reconnect()
     {
@@ -259,5 +337,36 @@ public sealed class PostgresMigrationTests
             await using var drop = new NpgsqlCommand($"DROP DATABASE IF EXISTS \"{databaseName}\"", connection);
             await drop.ExecuteNonQueryAsync();
         }
+    }
+
+    private static ServiceProvider BuildLeaseServices(string connectionString, TimeProvider timeProvider)
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(timeProvider);
+        services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(connectionString));
+        return services.BuildServiceProvider();
+    }
+
+    private static async Task<double> RemainingLeaseSecondsAsync(
+        ApplicationDbContext db,
+        string workerName)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            SELECT EXTRACT(EPOCH FROM ("LeaseExpiresAt" - clock_timestamp()))
+            FROM "OperationalWorkerHeartbeats"
+            WHERE "WorkerName" = @workerName;
+            """;
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "workerName";
+        parameter.Value = workerName;
+        command.Parameters.Add(parameter);
+        await db.Database.OpenConnectionAsync();
+        return Convert.ToDouble(await command.ExecuteScalarAsync());
+    }
+
+    private sealed class OffsetTimeProvider(TimeSpan offset) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => DateTimeOffset.UtcNow.Add(offset);
     }
 }

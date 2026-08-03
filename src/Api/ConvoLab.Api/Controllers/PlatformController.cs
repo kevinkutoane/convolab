@@ -1,21 +1,26 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using System.Reflection;
+using ConvoLab.Application.Operations;
 
 namespace ConvoLab.Api.Controllers;
 
 [ApiController]
 [AllowAnonymous]
 [Route("api/platform")]
-public sealed class PlatformController : ControllerBase
+public sealed class PlatformController(IPlatformOperationalState operationalState) : ControllerBase
 {
     [HttpGet("status")]
     [ProducesResponseType<PlatformStatusResponse>(StatusCodes.Status200OK)]
-    public ActionResult<PlatformStatusResponse> GetStatus()
+    public async Task<ActionResult<PlatformStatusResponse>> GetStatus(CancellationToken ct)
     {
+        var safeMode = await operationalState.GetAsync(ct);
         var response = new PlatformStatusResponse(
             PlatformName: "ConvoLab Platform",
             ProductName: "ConvoLab Studio",
-            Version: "1.0.0-alpha.14",
+            Version: Version(),
+            Workstream: "alpha.15-operational-foundation",
+            SafeMode: safeMode.EffectiveSafeModeEnabled,
             Environment: HttpContext.RequestServices
                 .GetRequiredService<IHostEnvironment>()
                 .EnvironmentName,
@@ -42,12 +47,18 @@ public sealed class PlatformController : ControllerBase
 
         return Ok(response);
     }
+
+    private static string Version() =>
+        (typeof(PlatformController).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+         ?? "1.0.0-alpha.14").Split('+', 2)[0];
 }
 
 public sealed record PlatformStatusResponse(
     string PlatformName,
     string ProductName,
     string Version,
+    string Workstream,
+    bool SafeMode,
     string Environment,
     string ArchitectureHealth,
     string ApiHealth,

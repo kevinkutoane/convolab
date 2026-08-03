@@ -4,6 +4,7 @@ using ConvoLab.Application.Settings;
 using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.Analytics;
+using ConvoLab.Application.Operations;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -22,16 +23,19 @@ public sealed class ProviderValidationService : IProviderValidationService
     private readonly ISecretStore _secretStore;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<ProviderValidationService> _logger;
+    private readonly IPlatformOperationalState _operationalState;
 
     public ProviderValidationService(
         ApplicationDbContext db,
         IEffectiveConfigurationResolver resolver,
         ISecretStore secretStore,
         IHttpClientFactory httpClientFactory,
-        ILogger<ProviderValidationService> logger)
+        ILogger<ProviderValidationService> logger,
+        IPlatformOperationalState operationalState)
     {
         _db = db; _resolver = resolver; _secretStore = secretStore;
         _httpClientFactory = httpClientFactory; _logger = logger;
+        _operationalState = operationalState;
     }
 
     public async Task<ProviderValidationResultDto> ValidateAsync(
@@ -41,6 +45,30 @@ public sealed class ProviderValidationService : IProviderValidationService
             ?? throw new ResourceNotFoundException("workspace.not_found", $"Workspace '{workspaceId}' was not found.");
         _ = await _db.RuntimeEnvironments.AsNoTracking().SingleOrDefaultAsync(e => e.Id == environmentId && e.WorkspaceId == workspaceId, ct)
             ?? throw new ResourceNotFoundException("environment.not_found", $"Environment '{environmentId}' was not found.");
+        try
+        {
+            await _operationalState.EnsureExternalExecutionAllowedAsync(ct);
+        }
+        catch (CapabilityUnavailableException)
+        {
+            await RecordAuditAsync(
+                ws.OrganisationId,
+                workspaceId,
+                environmentId,
+                new ProviderValidationResultDto(
+                    "BlockedSafeMode",
+                    "Provider validation was blocked by platform safe mode.",
+                    false,
+                    false,
+                    false,
+                    false,
+                    0),
+                actorId,
+                actorDisplay,
+                correlationId,
+                ct);
+            throw;
+        }
 
         var stopwatch = Stopwatch.StartNew();
         var effective = await _resolver.ResolveAsync(ws.OrganisationId, workspaceId, environmentId, ct);
@@ -74,24 +102,27 @@ public sealed class ProviderValidationService : IProviderValidationService
         string? apiKey = null;
         if (!string.IsNullOrWhiteSpace(secretReference))
         {
-            try { apiKey = _secretStore.Resolve(secretReference); }
+            try { apiKey = (await _secretStore.ResolveAsync(secretReference, ct)).RevealValue(); }
             catch { /* treated as unresolved below */ }
         }
         if (string.IsNullOrWhiteSpace(apiKey))
             return Fail("SecretMissing",
                 string.IsNullOrWhiteSpace(secretReference)
                     ? "No persisted secret reference is configured (ai.secret_reference)."
-                    : $"The secret reference '{secretReference}' did not resolve to a value.");
+                    : "The configured secret reference did not resolve to a value.");
 
         // ─── Probe the provider: model metadata endpoint, zero token cost ────
-        var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(model)}?key={Uri.EscapeDataString(apiKey)}";
+        var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(model)}";
         var httpClient = _httpClientFactory.CreateClient("Gemini");
 
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-            using var response = await httpClient.GetAsync(endpoint, cts.Token);
+            using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+            request.Options.Set(SensitiveTelemetryHttpRequestOptions.SuppressAutomaticInstrumentation, true);
+            request.Headers.TryAddWithoutValidation("x-goog-api-key", apiKey);
+            using var response = await httpClient.SendAsync(request, cts.Token);
             stopwatch.Stop();
 
             return (int)response.StatusCode switch
@@ -121,7 +152,9 @@ public sealed class ProviderValidationService : IProviderValidationService
         catch (HttpRequestException ex)
         {
             stopwatch.Stop();
-            _logger.LogWarning(ex, "Provider validation could not reach the provider.");
+            _logger.LogWarning(
+                "Provider validation could not reach the provider {ExceptionType}",
+                ex.GetType().Name);
             return Fail("ProviderUnavailable", "The provider endpoint could not be reached. Check network egress from the API host.", secretResolved: true);
         }
     }

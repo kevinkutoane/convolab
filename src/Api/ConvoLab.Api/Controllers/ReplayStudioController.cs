@@ -1,5 +1,6 @@
 using ConvoLab.Application.ReplayStudio;
 using Microsoft.AspNetCore.Mvc;
+using ConvoLab.Application.Operations;
 
 namespace ConvoLab.Api.Controllers;
 
@@ -33,6 +34,7 @@ public sealed class ReplayStudioController(IReplayStudioService replay) : Contro
         [FromBody] CreateReplayExperimentCommand command,
         CancellationToken cancellationToken)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("replay.create");
         var created = await replay.CreateExperimentAsync(command, cancellationToken);
         return CreatedAtAction(nameof(GetExperiment), new { experimentId = created.Summary.Id }, created);
     }
@@ -43,7 +45,10 @@ public sealed class ReplayStudioController(IReplayStudioService replay) : Contro
         Guid experimentId,
         [FromBody] AddReplayCandidateCommand command,
         CancellationToken cancellationToken)
-        => Ok(await replay.AddCandidateAsync(experimentId, command, cancellationToken));
+    {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("replay.execute");
+        return Ok(await replay.AddCandidateAsync(experimentId, command, cancellationToken));
+    }
 
     [HttpPost("experiments/{experimentId:guid}/complete")]
     [ProducesResponseType<ReplayExperimentDetailDto>(StatusCodes.Status200OK)]

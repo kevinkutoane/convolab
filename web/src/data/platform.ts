@@ -9,6 +9,7 @@ import {
   Database,
   FileKey2,
   GitBranch,
+  Gauge,
   LayoutDashboard,
   MessageSquareText,
   PlugZap,
@@ -29,6 +30,8 @@ export const designTimePlatformStatus: PlatformStatus = {
   platformName: "ConvoLab Platform",
   productName: "ConvoLab Studio",
   version: "1.0.0-alpha.14",
+  workstream: "alpha.15-operational-foundation",
+  safeMode: false,
   environment: "Development",
   architectureHealth: "Healthy",
   apiHealth: "Unknown",
@@ -238,6 +241,13 @@ export const navigationItems: NavigationItem[] = [
     path: "/settings",
     icon: Settings,
     description: "Workspace and environment configuration",
+  },
+  {
+    label: "Operations",
+    path: "/operations",
+    icon: Gauge,
+    description: "Inspect readiness, workers, telemetry, and safe mode",
+    status: "foundation",
   },
 ];
 

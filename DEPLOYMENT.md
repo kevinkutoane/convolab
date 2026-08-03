@@ -176,7 +176,15 @@ Set environment variables on the production server:
 ```bash
 export ASPNETCORE_ENVIRONMENT=Production
 export ConnectionStrings__DefaultConnection="Server=prod-db.example.com;Database=convolab;User Id=convolab_user;Password=secure_password;"
-export Jwt__SecretKey="your-production-secret-key"
+export Database__Provider=PostgreSql
+export Authentication__Mode=Local
+export Authentication__Local__ProductionAllowed=true
+export AllowedHosts=api.convolab.com
+export SafeMode__BlockAnalyticsExports=true
+export DataProtection__Provider=SharedFileSystem
+export DataProtection__KeyRingPath=/var/lib/convolab/data-protection
+export DataProtection__CertificatePemPath=/run/secrets/data-protection-cert.pem
+export DataProtection__PrivateKeyPemPath=/run/secrets/data-protection-key.pem
 ```
 
 #### 3. Run Application
@@ -286,15 +294,22 @@ ASPNETCORE_URLS=http://+:5000
 # Database
 ConnectionStrings__DefaultConnection=Server=prod-db.example.com;Database=convolab;User Id=convolab_user;Password=secure_password;
 
-# Security
-Jwt__SecretKey=your-production-secret-key-change-this
-Jwt__ExpirationMinutes=60
+# Authentication and emergency controls
+Authentication__Mode=Local
+Authentication__Local__ProductionAllowed=true
+SafeMode__BlockAnalyticsExports=true
+
+# Shared, certificate-protected data protection
+DataProtection__Provider=SharedFileSystem
+DataProtection__KeyRingPath=/var/lib/convolab/data-protection
+DataProtection__CertificatePemPath=/run/secrets/data-protection-cert.pem
+DataProtection__PrivateKeyPemPath=/run/secrets/data-protection-key.pem
 
 # Logging
 Serilog__MinimumLevel=Warning
 
-# CORS
-AllowedHosts=api.convolab.com,*.convolab.com
+# Host filtering
+AllowedHosts=api.convolab.com
 ```
 
 ### Secrets Management

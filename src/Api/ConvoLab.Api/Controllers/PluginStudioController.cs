@@ -1,11 +1,14 @@
 using ConvoLab.Application.PluginStudio;
+using ConvoLab.Application.Operations;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ConvoLab.Api.Controllers;
 
 [ApiController]
 [Route("api/plugins")]
-public sealed class PluginStudioController(IPluginStudioService plugins) : ControllerBase
+public sealed class PluginStudioController(
+    IPluginStudioService plugins,
+    IPlatformOperationalState operationalState) : ControllerBase
 {
     [HttpGet("overview")]
     [ProducesResponseType<PluginOverviewDto>(StatusCodes.Status200OK)]
@@ -64,5 +67,9 @@ public sealed class PluginStudioController(IPluginStudioService plugins) : Contr
         Guid pluginId,
         string lifecycleAction,
         CancellationToken cancellationToken)
-        => Ok(await plugins.TransitionAsync(pluginId, lifecycleAction, cancellationToken));
+    {
+        if (lifecycleAction.Equals("activate", StringComparison.OrdinalIgnoreCase))
+            await operationalState.EnsureExternalExecutionAllowedAsync(cancellationToken);
+        return Ok(await plugins.TransitionAsync(pluginId, lifecycleAction, cancellationToken));
+    }
 }

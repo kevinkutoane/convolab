@@ -66,6 +66,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
         if (record.Revision != request.ExpectedRevision) throw new ResourceConflictException("revision.conflict", "The resource changed. Refresh and retry.");
 
         SecretReference.ParseReference(request.Reference);
+        var previousReference = record.Reference;
         record.DisplayName = request.DisplayName.Trim();
         record.Reference = request.Reference.Trim();
         record.Provider = SecretReference.ParseReference(request.Reference).provider;
@@ -76,6 +77,8 @@ public sealed class SecretReferenceService : ISecretReferenceService
 
         await AddAuditAsync(workspaceId, "SecretReference.Updated", record.Id, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
+        _secretStore.Invalidate(previousReference);
+        _secretStore.Invalidate(record.Reference);
         return ToDto(record);
     }
 
@@ -84,8 +87,9 @@ public sealed class SecretReferenceService : ISecretReferenceService
         var record = await _db.SecretReferences.SingleOrDefaultAsync(r => r.Id == referenceId && r.WorkspaceId == workspaceId, ct)
             ?? throw NotFound("secret_reference", referenceId);
 
-        var resolved = _secretStore.Validate(record.Reference);
-        record.Status = resolved ? "Valid" : "Missing";
+        var validation = await _secretStore.ValidateAsync(record.Reference, ct);
+        var resolved = validation.IsValid;
+        record.Status = resolved ? "Valid" : validation.Status.ToString();
         record.LastValidatedAt = DateTimeOffset.UtcNow;
         record.LastValidationOutcome = resolved ? "Secret resolved successfully." : "Secret not found at reference location.";
         record.UpdatedAt = DateTimeOffset.UtcNow;
@@ -94,6 +98,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
 
         await AddAuditAsync(workspaceId, "SecretReference.Validated", record.Id, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
+        _secretStore.Invalidate(record.Reference);
         return ToDto(record);
     }
 
@@ -106,6 +111,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
         record.IsDisabled = true; record.UpdatedAt = DateTimeOffset.UtcNow; record.UpdatedBy = actorId; record.Revision++;
         await AddAuditAsync(workspaceId, "SecretReference.Disabled", record.Id, actorId, actorDisplay, correlationId, ct);
         await _db.SaveChangesAsync(ct);
+        _secretStore.Invalidate(record.Reference);
         return ToDto(record);
     }
 

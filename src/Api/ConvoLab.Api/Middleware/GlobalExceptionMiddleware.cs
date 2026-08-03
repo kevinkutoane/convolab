@@ -21,9 +21,15 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
         {
             var problem = Map(exception, context.TraceIdentifier);
             if (problem.Status >= 500)
-                logger.LogError(exception, "Unhandled request failure {ErrorCode}", problem.Extensions["code"]);
+                logger.LogError(
+                    "Unhandled request failure {ErrorCode} {ExceptionType}",
+                    problem.Extensions["code"],
+                    exception.GetType().Name);
             else
-                logger.LogWarning(exception, "Request rejected {ErrorCode}", problem.Extensions["code"]);
+                logger.LogWarning(
+                    "Request rejected {ErrorCode} {ExceptionType}",
+                    problem.Extensions["code"],
+                    exception.GetType().Name);
 
             context.Response.StatusCode = problem.Status ?? StatusCodes.Status500InternalServerError;
             await context.Response.WriteAsJsonAsync(
@@ -102,13 +108,13 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
             ArgumentException argument => (
                 StatusCodes.Status400BadRequest,
                 "Invalid request",
-                argument.Message,
+                "One or more request values are invalid.",
                 "request.invalid",
                 EmptyErrors()),
             InvalidOperationException operation => (
                 StatusCodes.Status422UnprocessableEntity,
                 "Operation rejected",
-                operation.Message,
+                "The requested operation is not valid in the current state.",
                 "operation.rejected",
                 EmptyErrors()),
             _ => (

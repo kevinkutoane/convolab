@@ -253,10 +253,10 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 ### Examples
 
 ```
-feat(auth): Add JWT token refresh mechanism
+feat(auth): Add session refresh rotation
 
-Implement automatic token refresh to improve user experience.
-The token is refreshed 5 minutes before expiration.
+Rotate the opaque session credential during an explicit refresh.
+Revoke the predecessor session transactionally.
 
 Closes #123
 ```

@@ -173,7 +173,12 @@ public sealed class WorkspacesController(ApplicationDbContext db) : ControllerBa
     public async Task<ActionResult> Audit(Guid workspaceId, [FromQuery] int take = 100, CancellationToken ct = default)
     {
         await CurrentWorkspace(workspaceId, false, ct); take = Math.Clamp(take, 1, 500);
-        return Ok(await db.WorkspaceAuditEvents.AsNoTracking().Where(item => item.WorkspaceId == workspaceId).OrderByDescending(item => item.OccurredAt).Take(take).ToListAsync(ct));
+        var query = db.WorkspaceAuditEvents.AsNoTracking().Where(item => item.WorkspaceId == workspaceId);
+        if (!db.Database.IsSqlite())
+            return Ok(await query.OrderByDescending(item => item.OccurredAt).Take(take).ToListAsync(ct));
+
+        var sqliteRecords = await query.ToListAsync(ct);
+        return Ok(sqliteRecords.OrderByDescending(item => item.OccurredAt).Take(take));
     }
 
     private async Task<WorkspaceRecord> CurrentWorkspace(Guid id, bool tracking, CancellationToken ct)

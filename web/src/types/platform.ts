@@ -15,6 +15,8 @@ export interface PlatformStatus {
   platformName: string;
   productName: string;
   version: string;
+  workstream: string;
+  safeMode: boolean;
   environment: string;
   architectureHealth: "Healthy" | "Attention" | "Unknown";
   apiHealth: "Healthy" | "Offline" | "Unknown";

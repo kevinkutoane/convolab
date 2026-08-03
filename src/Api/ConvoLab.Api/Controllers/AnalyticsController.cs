@@ -3,6 +3,7 @@ using ConvoLab.Application.Analytics;
 using ConvoLab.Domain.WorkspaceIdentity;
 using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Application.Operations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,7 +13,10 @@ namespace ConvoLab.Api.Controllers;
 [ApiController]
 [Authorize(Policy = WorkspacePermissions.ViewWorkspaceAnalytics)]
 [Route("api/workspaces/{workspaceId:guid}/analytics")]
-public sealed class AnalyticsController(IAnalyticsService analytics, ApplicationDbContext db) : ControllerBase
+public sealed class AnalyticsController(
+    IAnalyticsService analytics,
+    ApplicationDbContext db,
+    IPlatformOperationalState operationalState) : ControllerBase
 {
     [Authorize(Policy = WorkspacePermissions.ViewEnvironmentAnalytics)]
     [HttpGet("filter-options")]
@@ -133,6 +137,8 @@ public sealed class AnalyticsController(IAnalyticsService analytics, Application
         CreateAnalyticsExportRequest request,
         CancellationToken ct)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("analytics.export.create");
+        await operationalState.EnsureAnalyticsExportAllowedAsync(ct);
         var visibility = await VisibilityAsync(workspaceId, request.EnvironmentId, ct);
         var result = await analytics.CreateExportAsync(
             workspaceId,

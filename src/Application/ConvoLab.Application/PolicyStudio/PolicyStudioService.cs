@@ -4,6 +4,8 @@ using ConvoLab.Domain.Policy.Aggregates;
 using ConvoLab.Domain.Policy.Enums;
 using ConvoLab.Domain.Policy.ValueObjects;
 
+using ConvoLab.Application.Operations;
+
 namespace ConvoLab.Application.PolicyStudio;
 
 public sealed class PolicyStudioService(IPolicyStudioRepository repository) : IPolicyStudioService
@@ -186,6 +188,8 @@ public sealed class PolicyStudioService(IPolicyStudioRepository repository) : IP
 
     public async Task<PolicyEvaluationResultDto> EvaluateAsync(EvaluatePolicyCommand command, CancellationToken cancellationToken = default)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("policy.evaluate");
+        ConvoLabTelemetry.PolicyDecisions.Add(1);
         await EnsureDefaultsAsync(cancellationToken);
         var attributes = command.Attributes ?? new Dictionary<string, string>();
         var environment = GetValue(attributes, "environment") ?? "Development";
@@ -243,6 +247,7 @@ public sealed class PolicyStudioService(IPolicyStudioRepository repository) : IP
 
     public async Task<PolicyExecutionGuardrails> EvaluateExecutionAsync(PolicyExecutionRequest request, CancellationToken cancellationToken = default)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("policy.execution.evaluate");
         var correlationId = string.IsNullOrWhiteSpace(request.CorrelationId)
             ? Guid.NewGuid().ToString("N")
             : request.CorrelationId.Trim();

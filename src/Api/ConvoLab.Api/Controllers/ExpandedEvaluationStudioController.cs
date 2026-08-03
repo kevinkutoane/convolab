@@ -1,5 +1,6 @@
 using ConvoLab.Application.EvaluationStudio;
 using Microsoft.AspNetCore.Mvc;
+using ConvoLab.Application.Operations;
 
 namespace ConvoLab.Api.Controllers;
 
@@ -52,7 +53,10 @@ public sealed class EvaluationStudioController(IEvaluationStudioService evaluati
     public async Task<ActionResult<EvaluationRunDto>> EvaluateRun(
         [FromBody] EvaluateSimulationRunCommand command,
         CancellationToken cancellationToken)
-        => Ok(await evaluations.EvaluateRunAsync(command, cancellationToken));
+    {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("evaluation.run");
+        return Ok(await evaluations.EvaluateRunAsync(command, cancellationToken));
+    }
 
     [HttpPost("runs/{id:guid}/review")]
     [ProducesResponseType<EvaluationRunDto>(StatusCodes.Status200OK)]

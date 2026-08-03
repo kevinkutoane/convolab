@@ -129,7 +129,9 @@ public sealed class SettingsBootstrapper
             var valueJson = FormatValueJson(settingKey, rawValue);
             if (valueJson is null)
             {
-                _logger.LogWarning("SettingsBootstrapper: invalid value '{Value}' for '{EnvVar}' / '{Key}'. Skipping.", rawValue, envVar, settingKey);
+                _logger.LogWarning(
+                    "SettingsBootstrapper: invalid external setting value for {SettingKey}. Skipping.",
+                    settingKey);
                 continue;
             }
 
@@ -148,7 +150,10 @@ public sealed class SettingsBootstrapper
                 Revision = 1
             });
 
-            _logger.LogInformation("SettingsBootstrapper: migrated {EnvVar} → {Key} for workspace {WorkspaceId}.", envVar, settingKey, workspaceId);
+            _logger.LogInformation(
+                "SettingsBootstrapper: migrated an external setting for {SettingKey} in workspace {WorkspaceId}.",
+                settingKey,
+                workspaceId);
         }
     }
 

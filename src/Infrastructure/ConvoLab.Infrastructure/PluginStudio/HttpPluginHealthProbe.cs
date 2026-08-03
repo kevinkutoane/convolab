@@ -2,10 +2,13 @@ using System.Diagnostics;
 using System.Net;
 using ConvoLab.Application.PluginStudio;
 using ConvoLab.Domain.Plugins.Enums;
+using ConvoLab.Application.Operations;
 
 namespace ConvoLab.Infrastructure.PluginStudio;
 
-public sealed class HttpPluginHealthProbe(IHttpClientFactory httpClientFactory) : IPluginHealthProbe
+public sealed class HttpPluginHealthProbe(
+    IHttpClientFactory httpClientFactory,
+    IPlatformOperationalState? operationalState = null) : IPluginHealthProbe
 {
     private static readonly IReadOnlyDictionary<string, string> BuiltInManifests =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -18,6 +21,7 @@ public sealed class HttpPluginHealthProbe(IHttpClientFactory httpClientFactory) 
 
     public async Task<PluginProbeResult> ProbeAsync(PluginProbeRequest request, CancellationToken cancellationToken = default)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("plugin.probe");
         var stopwatch = Stopwatch.StartNew();
         if (request.ManifestUrl.StartsWith("builtin://", StringComparison.OrdinalIgnoreCase))
         {
@@ -49,7 +53,13 @@ public sealed class HttpPluginHealthProbe(IHttpClientFactory httpClientFactory) 
                 "Manifest");
         }
 
-        if (!string.IsNullOrWhiteSpace(uri.UserInfo) || IsUnsafeHostName(uri.Host))
+        if (operationalState is not null)
+            await operationalState.EnsureExternalExecutionAllowedAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(uri.UserInfo)
+            || !string.IsNullOrWhiteSpace(uri.Query)
+            || !string.IsNullOrWhiteSpace(uri.Fragment)
+            || IsUnsafeHostName(uri.Host))
         {
             stopwatch.Stop();
             return new PluginProbeResult(
@@ -75,6 +85,7 @@ public sealed class HttpPluginHealthProbe(IHttpClientFactory httpClientFactory) 
             }
             var client = httpClientFactory.CreateClient("PluginHealth");
             using var requestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
+            requestMessage.Options.Set(SensitiveTelemetryHttpRequestOptions.SuppressAutomaticInstrumentation, true);
             requestMessage.Headers.UserAgent.ParseAdd("ConvoLab-Plugin-Health/1.0");
             using var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             stopwatch.Stop();
@@ -83,7 +94,7 @@ public sealed class HttpPluginHealthProbe(IHttpClientFactory httpClientFactory) 
                     $"Manifest endpoint responded with {(int)response.StatusCode}.",
                     (int)stopwatch.ElapsedMilliseconds, "Http");
             return new PluginProbeResult(PluginHealthStatus.Unhealthy,
-                $"Manifest endpoint responded with {(int)response.StatusCode} {response.ReasonPhrase}.",
+                $"Manifest endpoint responded with HTTP {(int)response.StatusCode}.",
                 (int)stopwatch.ElapsedMilliseconds, "Http");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
@@ -97,7 +108,7 @@ public sealed class HttpPluginHealthProbe(IHttpClientFactory httpClientFactory) 
         {
             stopwatch.Stop();
             return new PluginProbeResult(PluginHealthStatus.Unhealthy,
-                $"Manifest health check failed: {exception.Message}",
+                $"Manifest health check failed ({exception.GetType().Name}).",
                 (int)stopwatch.ElapsedMilliseconds, "Http");
         }
     }

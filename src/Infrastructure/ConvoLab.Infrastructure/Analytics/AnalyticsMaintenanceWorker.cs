@@ -9,14 +9,19 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ConvoLab.Application.Operations;
+using ConvoLab.Infrastructure.Operations;
+using System.Diagnostics;
 
 namespace ConvoLab.Infrastructure.Analytics;
 
 public sealed class AnalyticsMaintenanceWorker(
     IServiceScopeFactory scopeFactory,
-    ILogger<AnalyticsMaintenanceWorker> logger) : BackgroundService
+    ILogger<AnalyticsMaintenanceWorker> logger,
+    IOperationalWorkerLease lease) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private const string WorkerName = "analytics-maintenance";
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -24,17 +29,43 @@ public sealed class AnalyticsMaintenanceWorker(
         {
             try
             {
+                if (!await lease.AcquireOrRenewAsync(WorkerName, stoppingToken))
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
+                    continue;
+                }
+                using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("analytics.worker.iteration");
+                var stopwatch = Stopwatch.StartNew();
                 await using var scope = scopeFactory.CreateAsyncScope();
                 var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 await DispatchOutboxAsync(db, stoppingToken);
+                if (!await lease.AcquireOrRenewAsync(WorkerName, stoppingToken)) continue;
                 await BuildExportsAsync(db, stoppingToken);
+                if (!await lease.AcquireOrRenewAsync(WorkerName, stoppingToken)) continue;
                 await RebuildAggregatesAsync(db, stoppingToken);
+                if (!await lease.AcquireOrRenewAsync(WorkerName, stoppingToken)) continue;
                 await ApplyRetentionAsync(db, stoppingToken);
+                stopwatch.Stop();
+                ConvoLabTelemetry.AnalyticsWorkerDuration.Record(stopwatch.Elapsed.TotalMilliseconds);
+                await lease.RecordSuccessAsync(WorkerName, 1, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
             catch (Exception exception)
             {
-                logger.LogError(exception, "Analytics maintenance iteration failed");
+                ConvoLabTelemetry.AnalyticsWorkerFailures.Add(1);
+                logger.LogError(
+                    "Analytics maintenance iteration failed {ExceptionType}",
+                    exception.GetType().Name);
+                try
+                {
+                    await lease.RecordFailureAsync(WorkerName, exception.GetType().Name, stoppingToken);
+                }
+                catch (Exception heartbeatException)
+                {
+                    logger.LogWarning(
+                        "Analytics worker failure heartbeat could not be persisted {ExceptionType}",
+                        heartbeatException.GetType().Name);
+                }
             }
             await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
         }
@@ -102,6 +133,7 @@ public sealed class AnalyticsMaintenanceWorker(
                     }
                 }
                 item.Status = "Processed";
+                ConvoLabTelemetry.AnalyticsOutboxProcessed.Add(1);
                 item.ProcessedAt = now;
                 item.LastError = null;
             }
@@ -350,6 +382,7 @@ public sealed class AnalyticsMaintenanceWorker(
                 checkpoint.FailureReason = null;
                 checkpoint.UpdatedAt = DateTimeOffset.UtcNow;
                 checkpoint.Revision++;
+                ConvoLabTelemetry.AnalyticsAggregationRuns.Add(1);
                 await db.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
             }

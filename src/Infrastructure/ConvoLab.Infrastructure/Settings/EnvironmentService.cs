@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Settings;
+using ConvoLab.Application.Operations;
 using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.Analytics;
@@ -150,6 +151,7 @@ public sealed class EnvironmentService : IEnvironmentService
         string correlationId,
         CancellationToken ct = default)
     {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("environment.selection");
         var record = await _db.RuntimeEnvironments.AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == environmentId && item.WorkspaceId == workspaceId, ct)
             ?? throw NotFound("environment", environmentId);

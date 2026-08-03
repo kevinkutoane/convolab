@@ -6,6 +6,7 @@ import { designTimePlatformStatus, studioPages } from "./data/platform";
 import { useTheme } from "./hooks/useTheme";
 import type { PlatformStatus } from "./types/platform";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { PlatformAdministratorRoute } from "./components/PlatformAdministratorRoute";
 
 const CapabilityPage = lazy(() => import("./pages/CapabilityPage").then(module => ({ default: module.CapabilityPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then(module => ({ default: module.DashboardPage })));
@@ -26,19 +27,27 @@ const LoginPage = lazy(() => import("./pages/LoginPage").then(module => ({ defau
 const WorkspacePage = lazy(() => import("./pages/WorkspacePage").then(module => ({ default: module.WorkspacePage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(module => ({ default: module.SettingsPage })));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage").then(module => ({ default: module.AnalyticsPage })));
+const OperationsPage = lazy(() => import("./pages/OperationsPage").then(module => ({ default: module.OperationsPage })));
 
 function StudioRoutes() {
   const { theme, toggleTheme } = useTheme();
   const [platformStatus, setPlatformStatus] = useState<PlatformStatus>(designTimePlatformStatus);
   const [isFetchingStatus, setIsFetchingStatus] = useState(true);
   useEffect(() => {
-    const controller = new AbortController();
-    fetch("/api/platform/status", { signal: controller.signal })
-      .then(response => response.ok ? response.json() as Promise<PlatformStatus> : Promise.reject(new Error(`Platform status failed (${response.status}).`)))
-      .then(setPlatformStatus)
-      .catch(error => { if (error instanceof Error && error.name !== "AbortError") setPlatformStatus(designTimePlatformStatus); })
-      .finally(() => setIsFetchingStatus(false));
-    return () => controller.abort();
+    let controller = new AbortController();
+    const load = () => {
+      controller.abort();
+      controller = new AbortController();
+      setIsFetchingStatus(true);
+      fetch("/api/platform/status", { signal: controller.signal })
+        .then(response => response.ok ? response.json() as Promise<PlatformStatus> : Promise.reject(new Error(`Platform status failed (${response.status}).`)))
+        .then(setPlatformStatus)
+        .catch(error => { if (error instanceof Error && error.name !== "AbortError") setPlatformStatus(designTimePlatformStatus); })
+        .finally(() => setIsFetchingStatus(false));
+    };
+    load();
+    window.addEventListener("convolab:platform-status", load);
+    return () => { controller.abort(); window.removeEventListener("convolab:platform-status", load); };
   }, []);
 
   return (
@@ -73,6 +82,9 @@ function StudioRoutes() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/:section" element={<SettingsPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route element={<PlatformAdministratorRoute />}>
+            <Route path="operations" element={<OperationsPage />} />
+          </Route>
           <Route path="workspace" element={<WorkspacePage />} />
           <Route path="workspace/select" element={<WorkspacePage selectionOnly />} />
           <Route path="documentation/:topic?" element={<DocumentationPage />} />

@@ -217,8 +217,72 @@ public interface IEffectiveConfigurationResolver
         IReadOnlyDictionary<string, string?>? executionOverrides = null);
 }
 
+public enum SecretResolutionStatus
+{
+    Resolved,
+    Missing,
+    Invalid,
+    Unavailable,
+    TimedOut
+}
+
+[System.Diagnostics.DebuggerDisplay("{DebuggerDisplay,nq}")]
+public sealed class SecretResolutionResult
+{
+    [System.Diagnostics.DebuggerBrowsable(System.Diagnostics.DebuggerBrowsableState.Never)]
+    private readonly string? _value;
+    public string Provider { get; }
+    public SecretResolutionStatus Status { get; }
+    public string? ErrorCode { get; }
+    public bool IsResolved => Status == SecretResolutionStatus.Resolved
+        && !string.IsNullOrWhiteSpace(_value);
+
+    private SecretResolutionResult(
+        string provider,
+        SecretResolutionStatus status,
+        string? value,
+        string? errorCode)
+    {
+        Provider = provider;
+        Status = status;
+        _value = value;
+        ErrorCode = errorCode;
+    }
+
+    public string? RevealValue() => _value;
+
+    public static SecretResolutionResult Resolved(string provider, string value) =>
+        new(provider, SecretResolutionStatus.Resolved, value, null);
+
+    public static SecretResolutionResult Failed(
+        string provider,
+        SecretResolutionStatus status,
+        string errorCode) =>
+        new(provider, status, null, errorCode);
+
+    public override string ToString() =>
+        $"SecretResolutionResult {{ Provider = {Provider}, Status = {Status}, Value = [REDACTED], ErrorCode = {ErrorCode} }}";
+
+    private string DebuggerDisplay => ToString();
+}
+
+public sealed record SecretValidationResult(
+    string Provider,
+    SecretResolutionStatus Status,
+    string? ErrorCode = null)
+{
+    public bool IsValid => Status == SecretResolutionStatus.Resolved;
+}
+
 public interface ISecretStore
 {
-    string? Resolve(string reference);
-    bool Validate(string reference);
+    Task<SecretResolutionResult> ResolveAsync(
+        string reference,
+        CancellationToken ct = default);
+
+    Task<SecretValidationResult> ValidateAsync(
+        string reference,
+        CancellationToken ct = default);
+
+    void Invalidate(string reference);
 }

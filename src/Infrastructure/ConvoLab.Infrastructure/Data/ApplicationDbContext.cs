@@ -10,6 +10,7 @@ using ConvoLab.Infrastructure.PluginStudio;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 using ConvoLab.Infrastructure.Settings;
 using ConvoLab.Infrastructure.Analytics;
+using ConvoLab.Infrastructure.Operations;
 using ConvoLab.Domain.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
 
@@ -81,6 +82,8 @@ public sealed class ApplicationDbContext : DbContext
     public DbSet<AnalyticsDailyAggregateRecord> AnalyticsDailyAggregates => Set<AnalyticsDailyAggregateRecord>();
     public DbSet<AnalyticsAggregationCheckpointRecord> AnalyticsAggregationCheckpoints => Set<AnalyticsAggregationCheckpointRecord>();
     public DbSet<AnalyticsExportRecord> AnalyticsExports => Set<AnalyticsExportRecord>();
+    public DbSet<PlatformOperationalSettingRecord> PlatformOperationalSettings => Set<PlatformOperationalSettingRecord>();
+    public DbSet<OperationalWorkerHeartbeatRecord> OperationalWorkerHeartbeats => Set<OperationalWorkerHeartbeatRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -89,6 +92,7 @@ public sealed class ApplicationDbContext : DbContext
         ConfigureWorkspaceIdentity(modelBuilder);
         ConfigureSettings(modelBuilder);
         ConfigureAnalytics(modelBuilder);
+        ConfigureOperations(modelBuilder);
 
         modelBuilder.Entity<KnowledgeCollectionRecord>(entity =>
         {
@@ -868,6 +872,29 @@ public sealed class ApplicationDbContext : DbContext
             entity.HasIndex(item => item.AggregateKey).IsUnique();
             entity.HasIndex(item => new { item.OrganisationId, item.WorkspaceId, item.BucketStart });
             entity.HasIndex(item => new { item.WorkspaceId, item.EnvironmentId, item.BucketStart });
+        });
+    }
+
+    private static void ConfigureOperations(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PlatformOperationalSettingRecord>(entity =>
+        {
+            entity.ToTable("PlatformOperationalSettings");
+            entity.HasKey(item => item.Key);
+            entity.Property(item => item.Key).HasMaxLength(80);
+            entity.Property(item => item.SafeModeReason).HasMaxLength(2000);
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+        });
+        modelBuilder.Entity<OperationalWorkerHeartbeatRecord>(entity =>
+        {
+            entity.ToTable("OperationalWorkerHeartbeats");
+            entity.HasKey(item => item.WorkerName);
+            entity.Property(item => item.WorkerName).HasMaxLength(120);
+            entity.Property(item => item.InstanceId).HasMaxLength(160);
+            entity.Property(item => item.LastFailureSummary).HasMaxLength(1000);
+            entity.Property(item => item.CurrentStatus).HasMaxLength(40);
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasIndex(item => item.LeaseExpiresAt);
         });
     }
 }

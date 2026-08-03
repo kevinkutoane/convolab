@@ -59,7 +59,9 @@ public sealed class MigrationTests
         "AnalyticsHourlyAggregates",
         "AnalyticsDailyAggregates",
         "AnalyticsAggregationCheckpoints",
-        "AnalyticsExports"
+        "AnalyticsExports",
+        "PlatformOperationalSettings",
+        "OperationalWorkerHeartbeats"
     ];
 
     [Fact]
@@ -88,7 +90,8 @@ public sealed class MigrationTests
             "202607220006_WorkspaceIdentityAccessV1",
             "202607230001_EnvironmentSettingsManagementV1",
             "202607240001_PlatformAnalyticsV1",
-            "202607250001_PlatformAnalyticsCompletionV1"
+            "202607250001_PlatformAnalyticsCompletionV1",
+            "202608030001_OperationalFoundationV1"
         ], migrations);
 
         await db.Database.MigrateAsync();
