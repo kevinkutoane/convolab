@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.Identity;
 using Xunit.Abstractions;
 
 namespace ConvoLab.Api.IntegrationTests;
@@ -757,7 +758,9 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
             var status = await ReadJsonAsync(statusResponse);
             Assert.Equal("1.0.0-alpha.14", status.RootElement.GetProperty("version").GetString());
-            Assert.Equal("alpha.15-operational-foundation", status.RootElement.GetProperty("workstream").GetString());
+        Assert.Equal(
+            "alpha.15 Operational Foundation — Final Sign-Off",
+            status.RootElement.GetProperty("workstream").GetString());
         }
         Assert.Equal(readinessBefore, Baseline("Operations.ReadinessEvidenceViewed"));
 
@@ -773,6 +776,19 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         Assert.Equal("StubValidated", componentStates["providers"]);
         Assert.Equal("LiveValidated", componentStates["database"]);
         Assert.Equal(readinessBefore + 1, Baseline("Operations.ReadinessEvidenceViewed"));
+
+        var summarizedReadiness = await ReadJsonAsync(
+            await _client.GetAsync("/api/operations/status"));
+        Assert.Equal(
+            readiness.RootElement.GetProperty("status").GetString(),
+            summarizedReadiness.RootElement
+                .GetProperty("readiness")
+                .GetProperty("status")
+                .GetString());
+        if (readiness.RootElement.GetProperty("status").GetString() != "Healthy")
+            Assert.NotEqual(
+                "Healthy",
+                summarizedReadiness.RootElement.GetProperty("status").GetString());
 
         var current = await ReadJsonAsync(await _client.GetAsync("/api/operations/status"));
         var safeMode = current.RootElement.GetProperty("safeMode");
@@ -845,6 +861,70 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         };
         deactivate.Headers.Add("X-XSRF-TOKEN", deactivateToken.RootElement.GetProperty("token").GetString());
         Assert.Equal(HttpStatusCode.OK, (await _client.SendAsync(deactivate)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Operations_endpoints_reject_every_non_platform_workspace_role()
+    {
+        foreach (var role in new[] { "Administrator", "Engineer", "Reviewer", "Operator", "Viewer" })
+        {
+            var userId = Guid.NewGuid();
+            var email = $"{role.ToLowerInvariant()}-{userId:N}@convolab.test";
+            const string password = "Operations-Role-Test-42!";
+            await using (var scope = _factory.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var now = DateTimeOffset.UtcNow;
+                var user = new IdentityUserRecord
+                {
+                    Id = userId,
+                    Email = email,
+                    NormalizedEmail = email.ToUpperInvariant(),
+                    DisplayName = $"Operations {role}",
+                    Status = "Active",
+                    IsPlatformAdministrator = false,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                db.IdentityUsers.Add(user);
+                db.WorkspaceMemberships.Add(new WorkspaceMembershipRecord
+                {
+                    Id = Guid.NewGuid(),
+                    WorkspaceId = WorkspaceIdentityDefaults.WorkspaceId,
+                    UserId = userId,
+                    Role = role,
+                    Status = "Active",
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+                db.LocalCredentials.Add(new LocalCredentialRecord
+                {
+                    UserId = userId,
+                    PasswordHash = new PasswordHasher<IdentityUserRecord>()
+                        .HashPassword(user, password),
+                    UpdatedAt = now
+                });
+                await db.SaveChangesAsync();
+            }
+
+            using var client = _factory.CreateClient();
+            Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync(
+                "/api/auth/login",
+                new { email, password })).StatusCode);
+            foreach (var route in new[]
+            {
+                "/api/operations/status",
+                "/api/operations/readiness",
+                "/api/operations/workers",
+                "/api/operations/analytics-pipeline",
+                "/api/operations/authentication",
+                "/api/operations/secret-providers",
+                "/api/operations/backups",
+                "/api/operations/build",
+                "/api/operations/telemetry"
+            })
+                Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync(route)).StatusCode);
+        }
     }
 
     [Fact]

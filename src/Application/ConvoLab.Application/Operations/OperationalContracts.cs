@@ -3,6 +3,12 @@ using System.Diagnostics.Metrics;
 
 namespace ConvoLab.Application.Operations;
 
+public static class OperationalWorkstream
+{
+    public const string Label = "alpha.15 Operational Foundation — Final Sign-Off";
+    public const string Marker = "alpha.15-operational-foundation-final-sign-off";
+}
+
 public enum OperationalDependencyState
 {
     NotConfigured,
@@ -37,6 +43,61 @@ public sealed record SecretProviderEvidence(
 public interface ISecretProviderEvidenceSource
 {
     IReadOnlyList<SecretProviderEvidence> Snapshot();
+}
+
+public sealed record RequiredSecretEvidence(
+    Guid EnvironmentId,
+    string EnvironmentName,
+    string Provider,
+    string? SecretProviderScheme,
+    bool Required,
+    OperationalDependencyState DependencyState,
+    string? FailureCode,
+    DateTimeOffset? LastValidatedAt);
+
+public sealed record RequiredSecretReadinessSnapshot(
+    IReadOnlyList<RequiredSecretEvidence> Environments,
+    IReadOnlyList<string> ScopeFailureCodes);
+
+public interface IRequiredSecretReadinessEvaluator
+{
+    Task<RequiredSecretReadinessSnapshot> EvaluateAsync(
+        CancellationToken ct = default);
+}
+
+public sealed record TelemetryDependencyEvidence(
+    OperationalDependencyState State,
+    bool EndpointConfigured,
+    bool TraceExportEnabled,
+    bool MetricExportEnabled,
+    string ServiceName,
+    DateTimeOffset? LastLiveValidatedAt,
+    string? LastFailureCode);
+
+public interface ITelemetryDependencyEvidenceSource
+{
+    TelemetryDependencyEvidence Snapshot();
+}
+
+public sealed record AnalyticsMaintenanceResult(
+    int OutboxProcessed,
+    int OutboxFailed,
+    int ExportsCompleted,
+    int ExportsFailed,
+    int AggregateBucketsCompleted,
+    int AggregateBucketsFailed,
+    int RetentionRowsRemoved,
+    bool PartialFailure,
+    IReadOnlyCollection<string> FailureCodes)
+{
+    public long TotalProcessed =>
+        (long)OutboxProcessed
+        + ExportsCompleted
+        + AggregateBucketsCompleted
+        + RetentionRowsRemoved;
+
+    public static AnalyticsMaintenanceResult Empty { get; } = new(
+        0, 0, 0, 0, 0, 0, 0, false, []);
 }
 
 public sealed record PlatformOperationalState(
@@ -79,6 +140,7 @@ public static class ConvoLabTelemetry
 {
     public const string SourceName = "ConvoLab.OperationalFoundation";
     public const string MeterName = "ConvoLab.OperationalFoundation";
+    public const string DatabaseMeterName = "ConvoLab.OperationalFoundation.DatabaseState";
     public static readonly ActivitySource ActivitySource = new(SourceName);
     public static readonly Meter Meter = new(MeterName);
 
@@ -114,8 +176,6 @@ public static class ConvoLabTelemetry
         Meter.CreateCounter<long>("convolab.safe_mode.blocked.total");
     public static readonly Counter<long> SafeModeChanges =
         Meter.CreateCounter<long>("convolab.safe_mode.change.total");
-    public static readonly UpDownCounter<long> ActiveSessions =
-        Meter.CreateUpDownCounter<long>("convolab.auth.session.active");
     public static readonly Counter<long> OperationalStatusReads =
         Meter.CreateCounter<long>("convolab.operations.status.read.total");
 }
@@ -124,4 +184,20 @@ public static class SensitiveTelemetryHttpRequestOptions
 {
     public static readonly HttpRequestOptionsKey<bool> SuppressAutomaticInstrumentation =
         new("ConvoLab.SuppressAutomaticHttpInstrumentation");
+
+    public static bool ShouldInstrument(HttpRequestMessage request)
+    {
+        if (request.Options.TryGetValue(
+                SuppressAutomaticInstrumentation,
+                out var suppress) && suppress)
+            return false;
+
+        var host = request.RequestUri?.Host ?? string.Empty;
+        return !host.Equals(
+                   "generativelanguage.googleapis.com",
+                   StringComparison.OrdinalIgnoreCase)
+               && !host.EndsWith(
+                   ".vault.azure.net",
+                   StringComparison.OrdinalIgnoreCase);
+    }
 }

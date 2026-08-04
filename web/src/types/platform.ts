@@ -19,7 +19,7 @@ export interface PlatformStatus {
   safeMode: boolean;
   environment: string;
   architectureHealth: "Healthy" | "Attention" | "Unknown";
-  apiHealth: "Healthy" | "Offline" | "Unknown";
+  apiHealth: "Responding" | "Healthy" | "Offline" | "Unknown";
   capabilities: PlatformCapability[];
   generatedAt: string;
   source: "api" | "design-time snapshot";

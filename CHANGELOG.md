@@ -1,5 +1,17 @@
 # Changelog
 
+## In progress — alpha.15 Operational Foundation — Final Sign-Off
+
+Active version metadata remains `1.0.0-alpha.14`; this is not an alpha.15 release declaration.
+
+- Corrected Analytics readiness so fresh pending work stays Healthy while aged pending, failed outbox work, failed checkpoints, aggregation lag, and partial worker failures affect status through shared typed thresholds.
+- Replaced raw required-secret scanning with active-scope effective-configuration validation and sanitized dependency evidence.
+- Added continuous PostgreSQL-server-time lease renewal, fencing tokens, stale-owner rejection, and atomic retryable Analytics export claims.
+- Persisted component-specific iteration results and removed the synthetic processed-per-iteration count.
+- Added database-backed operational gauges, bounded provider-cost evidence, truthful OTLP dependency states, Telemetry Operations evidence, and cross-session safe-mode refresh.
+- Expanded PostgreSQL, secret-store, safe-mode, Operations authorization, and Playwright acceptance while preserving alpha.14 Analytics reconciliation, isolation, and policy-denial guarantees.
+- Entra, backup/restore, deployment promotion, supply-chain controls, and the final readiness report remain required later workstreams.
+
 ## 1.0.0-alpha.14 — 2026-07-28
 
 - Completed effective Settings-driven runtime configuration and shared immutable snapshot attribution across simulation, policy, provider, evaluation, trace, and replay.

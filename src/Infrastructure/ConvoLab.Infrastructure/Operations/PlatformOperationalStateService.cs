@@ -5,15 +5,15 @@ using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ConvoLab.Infrastructure.Operations;
 
 public sealed class PlatformOperationalStateService(
     IServiceScopeFactory scopeFactory,
-    IConfiguration configuration,
+    IOptions<SafeModeOptions> options,
     ILogger<PlatformOperationalStateService> logger)
     : IPlatformOperationalState, IPlatformOperationalAdministration
 {
@@ -32,8 +32,8 @@ public sealed class PlatformOperationalStateService(
             persisted,
             overrideEnabled,
             persisted || overrideEnabled,
-            configuration.GetValue("SafeMode:AllowDeterministicVerification", false),
-            configuration.GetValue<bool?>("SafeMode:BlockAnalyticsExports"),
+            options.Value.AllowDeterministicVerification,
+            options.Value.BlockAnalyticsExports,
             record?.SafeModeReason,
             record?.Revision ?? 1,
             record?.ChangedAt ?? DateTimeOffset.MinValue);

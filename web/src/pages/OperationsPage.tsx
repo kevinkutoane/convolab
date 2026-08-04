@@ -12,6 +12,7 @@ import {
   getOperationsStatus,
   getReadiness,
   getSecretProviders,
+  getTelemetryEvidence,
   getWorkers,
   updateSafeMode,
   type DependencyState,
@@ -27,11 +28,12 @@ const details = [
   ["secrets", "Secret providers", getSecretProviders],
   ["backups", "Backups", getBackups],
   ["build", "Build and deployment", getBuildEvidence],
+  ["telemetry", "Telemetry", getTelemetryEvidence],
 ] as const;
 
 export function OperationsPage() {
   const queryClient = useQueryClient();
-  const statusQuery = useQuery({ queryKey: ["operations-status"], queryFn: getOperationsStatus, refetchInterval: 30_000 });
+  const statusQuery = useQuery({ queryKey: ["operations", "status"], queryFn: getOperationsStatus, refetchInterval: 30_000 });
   const [opened, setOpened] = useState<string>();
   const [reason, setReason] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -42,13 +44,17 @@ export function OperationsPage() {
   const secrets = useQuery({ queryKey: ["operations", "secrets"], queryFn: getSecretProviders, enabled: opened === "secrets", staleTime: 0 });
   const backups = useQuery({ queryKey: ["operations", "backups"], queryFn: getBackups, enabled: opened === "backups", staleTime: 0 });
   const build = useQuery({ queryKey: ["operations", "build"], queryFn: getBuildEvidence, enabled: opened === "build", staleTime: 0 });
-  const detailQueries = { readiness, workers, analytics, authentication, secrets, backups, build };
+  const telemetry = useQuery({ queryKey: ["operations", "telemetry"], queryFn: getTelemetryEvidence, enabled: opened === "telemetry", staleTime: 0 });
+  const detailQueries = { readiness, workers, analytics, authentication, secrets, backups, build, telemetry };
   const mutation = useMutation({
     mutationFn: updateSafeMode,
     onSuccess: async () => {
       setReason(""); setConfirmation("");
-      await queryClient.invalidateQueries({ queryKey: ["operations-status"] });
+      await queryClient.invalidateQueries({ queryKey: ["platform-status"] });
       window.dispatchEvent(new Event("convolab:platform-status"));
+    },
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["operations"] });
     },
   });
 
@@ -61,14 +67,14 @@ export function OperationsPage() {
 
   return <div className="operations-page">
     <header className="studio-page-header operations-header">
-      <div><span className="page-eyebrow">alpha.15 operational foundation · in progress</span><h1>Operations Center</h1><p>Sanitized readiness, worker, Analytics, secret-provider, telemetry, and safe-mode evidence for platform administrators.</p></div>
+      <div><span className="page-eyebrow">alpha.15 Operational Foundation — Final Sign-Off</span><h1>Operations Center</h1><p>Sanitized readiness, worker, Analytics, secret-provider, telemetry, and safe-mode evidence for platform administrators.</p></div>
       <button className="secondary-button" onClick={() => void statusQuery.refetch()} disabled={statusQuery.isFetching}><RefreshCw size={16} className={statusQuery.isFetching ? "spin" : ""} /> Refresh summary</button>
     </header>
 
     <section className="metric-grid operations-metrics">
-      <MetricCard icon={Gauge} label="Overall" value={status.status} detail={`${status.version} · ${status.environment}`} tone={status.status === "Healthy" ? "positive" : "warning"} />
+      <MetricCard icon={Gauge} label="Overall" value={status.status} detail={`${status.version} · ${status.environment} · readiness ${status.readiness.status}`} tone={status.status === "Healthy" ? "positive" : "warning"} />
       <MetricCard icon={ServerCog} label="Worker" value={status.worker.state} detail={`Stale after ${status.worker.staleAfterSeconds}s`} />
-      <MetricCard icon={Activity} label="OTLP" value={status.telemetry} detail="Collector availability never blocks startup" />
+      <MetricCard icon={Activity} label="OTLP" value={status.telemetry} detail="Reachability evidence never blocks startup" />
       <MetricCard icon={ShieldAlert} label="Safe mode" value={safe.effectiveSafeModeEnabled ? "Active" : "Inactive"} detail={safe.environmentOverrideEnabled ? "Environment override active" : `Revision ${safe.revision}`} tone={safe.effectiveSafeModeEnabled ? "warning" : "positive"} />
     </section>
 
@@ -108,8 +114,38 @@ function Evidence({ value }: { value: unknown }) {
   if (typeof value !== "object" || value === null) return <p>No evidence returned.</p>;
   const record = value as Record<string, unknown>;
   if (Array.isArray(record.components)) return <div className="dependency-list">{(record.components as Array<Record<string, unknown>>).map(component => <div key={String(component.component)}><strong>{String(component.component)}</strong><State value={String(component.state) as DependencyState} /><span>{Number(component.durationMs).toFixed(0)} ms</span></div>)}</div>;
+  if ("pendingCount" in record) return <dl className="operations-facts">
+    <Fact label="Current status" value={String(record.status)} />
+    <Fact label="Pending records" value={String(record.pendingCount)} />
+    <Fact label="Failed records" value={String(record.failedCount)} />
+    <Fact label="Oldest pending age" value={Seconds(record.oldestPendingAgeSeconds)} />
+    <Fact label="Oldest failed age" value={Seconds(record.oldestFailedAgeSeconds)} />
+    <Fact label="Aggregation dirty checkpoints" value={String(record.aggregationDirtyCheckpointCount)} />
+    <Fact label="Aggregation failed checkpoints" value={String(record.aggregationFailedCheckpointCount)} />
+    <Fact label="Aggregation lag" value={Seconds(record.maximumAggregationLagSeconds)} />
+    <Fact label="Last successful dispatch" value={Timestamp(record.lastSuccessfulOutboxDispatchAt)} />
+    <Fact label="Last successful aggregation" value={Timestamp(record.lastSuccessfulAggregationAt)} />
+    <Fact label="Applied thresholds" value={JSON.stringify(record.thresholds)} />
+  </dl>;
+  if ("otlpDependencyState" in record) return <dl className="operations-facts">
+    <div><dt>OTLP dependency state</dt><dd><State value={String(record.otlpDependencyState) as DependencyState} /></dd></div>
+    <Fact label="Endpoint configured" value={String(record.endpointConfigured)} />
+    <Fact label="Trace export enabled" value={String(record.traceExportEnabled)} />
+    <Fact label="Metric export enabled" value={String(record.metricExportEnabled)} />
+    <Fact label="Service name" value={String(record.serviceName)} />
+    <Fact label="Release version" value={String(record.releaseVersion)} />
+    <Fact label="Last live validation" value={Timestamp(record.lastLiveValidatedAt)} />
+    <Fact label="Last failure code" value={String(record.lastFailureCode ?? "None")} />
+  </dl>;
+  if (Array.isArray(record.providers)) return <div className="dependency-list">
+    {(record.providers as Array<Record<string, unknown>>).map(provider => <div key={String(provider.provider)} data-dependency={String(provider.provider)}><strong>{String(provider.provider)}</strong><State value={String(provider.state) as DependencyState} /><span>{String(provider.lastErrorCode ?? "No failure")}</span></div>)}
+    {(record.requiredEnvironments as Array<Record<string, unknown>> | undefined)?.map(environment => <div key={String(environment.environmentId)}><strong>{String(environment.environmentName)} · {String(environment.provider)}</strong><State value={String(environment.dependencyState) as DependencyState} /><span>{environment.required ? "Required" : "Not required"} · {String(environment.secretProviderScheme ?? "No secret provider")}</span></div>)}
+  </div>;
   if (String(record.state) === "NotConfigured") return <div className="not-configured"><DatabaseBackup size={18} /><strong>NotConfigured</strong><p>{String(record.message || "No backend is configured.")}</p></div>;
   return <pre className="operations-json">{JSON.stringify(value, null, 2)}</pre>;
 }
 
 function State({ value }: { value: DependencyState }) { return <span className={`dependency-state state-${value.toLowerCase()}`}>{value}</span>; }
+function Fact({ label, value }: { label: string; value: string }) { return <div><dt>{label}</dt><dd>{value}</dd></div>; }
+function Seconds(value: unknown) { return value === null || value === undefined ? "None" : `${Number(value).toFixed(0)} seconds`; }
+function Timestamp(value: unknown) { return value ? new Date(String(value)).toLocaleString() : "No successful run recorded"; }

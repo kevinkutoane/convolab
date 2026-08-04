@@ -49,6 +49,8 @@ api.interceptors.response.use(
   (error: unknown) => {
     if (axios.isAxiosError(error)) {
       const problem = normalizeProblemDetails(error.response?.data, error.message);
+      if (problem.code === "operations.safe_mode_active")
+        window.dispatchEvent(new Event("convolab:platform-status"));
       return Promise.reject(new PlatformApiError(problem, error.response?.status));
     }
     return Promise.reject(error);

@@ -91,7 +91,8 @@ public sealed class MigrationTests
             "202607230001_EnvironmentSettingsManagementV1",
             "202607240001_PlatformAnalyticsV1",
             "202607250001_PlatformAnalyticsCompletionV1",
-            "202608030001_OperationalFoundationV1"
+            "202608030001_OperationalFoundationV1",
+            "202608030002_OperationalFoundationCorrectionsV1"
         ], migrations);
 
         await db.Database.MigrateAsync();

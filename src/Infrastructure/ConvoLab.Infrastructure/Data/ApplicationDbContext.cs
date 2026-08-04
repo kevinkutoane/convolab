@@ -851,8 +851,10 @@ public sealed class ApplicationDbContext : DbContext
             entity.Property(item => item.FiltersJson).IsRequired();
             entity.Property(item => item.Checksum).HasMaxLength(80);
             entity.Property(item => item.FailureReason).HasMaxLength(2000);
+            entity.Property(item => item.ProcessingOwner).HasMaxLength(160);
             entity.HasIndex(item => new { item.WorkspaceId, item.CreatedAt });
             entity.HasIndex(item => new { item.Status, item.CreatedAt });
+            entity.HasIndex(item => new { item.Status, item.ProcessingStartedAt });
         });
     }
 
@@ -891,6 +893,7 @@ public sealed class ApplicationDbContext : DbContext
             entity.HasKey(item => item.WorkerName);
             entity.Property(item => item.WorkerName).HasMaxLength(120);
             entity.Property(item => item.InstanceId).HasMaxLength(160);
+            entity.Property(item => item.LastFailureCode).HasMaxLength(160);
             entity.Property(item => item.LastFailureSummary).HasMaxLength(1000);
             entity.Property(item => item.CurrentStatus).HasMaxLength(40);
             entity.Property(item => item.Revision).IsConcurrencyToken();

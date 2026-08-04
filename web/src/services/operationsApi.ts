@@ -19,10 +19,11 @@ export interface OperationsStatus {
   workstream: string;
   releaseStatus: string;
   environment: string;
+  readiness: { status: string; lastEvaluatedAt?: string | null };
   safeMode: SafeModeState;
   telemetry: DependencyState;
   worker: { state: DependencyState; staleAfterSeconds: number };
-  analytics: { pendingOutbox: number };
+  analytics: { pendingCount: number; failedCount: number; status: string };
   correlationId: string;
 }
 
@@ -42,6 +43,7 @@ export async function getAuthenticationEvidence() { return (await api.get("/api/
 export async function getSecretProviders() { return (await api.get("/api/operations/secret-providers")).data; }
 export async function getBackups() { return (await api.get("/api/operations/backups")).data; }
 export async function getBuildEvidence() { return (await api.get("/api/operations/build")).data; }
+export async function getTelemetryEvidence() { return (await api.get("/api/operations/telemetry")).data; }
 export async function updateSafeMode(input: { enabled: boolean; expectedRevision: number; reason: string; confirmation: string }) {
   return (await api.post<SafeModeState>("/api/operations/safe-mode", input)).data;
 }

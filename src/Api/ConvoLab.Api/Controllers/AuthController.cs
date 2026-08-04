@@ -64,7 +64,6 @@ public sealed class AuthController(
         await AnalyticsOutboxFactory.EnqueueAuditAsync(db, loginAudit, cancellationToken: ct);
         await db.SaveChangesAsync(ct);
         ConvoLabTelemetry.AuthenticationLogins.Add(1);
-        ConvoLabTelemetry.ActiveSessions.Add(1);
         WriteSessionCookie(token, session.ExpiresAt);
         return Ok(await DescribeAsync(user, session, ct));
     }
@@ -137,7 +136,6 @@ public sealed class AuthController(
                 logoutAudit,
                 cancellationToken: ct);
             await db.SaveChangesAsync(ct);
-            ConvoLabTelemetry.ActiveSessions.Add(-1);
         }
         sessionCookies.Delete(Response);
         return NoContent();
@@ -157,9 +155,7 @@ public sealed class AuthController(
         var userId = ClaimGuid(ClaimTypes.NameIdentifier) ?? throw new ResourceNotFoundException("auth.user_not_found", "The user was not found.");
         var session = await db.AuthenticationSessions.SingleOrDefaultAsync(item => item.Id == sessionId && item.UserId == userId, ct)
             ?? throw new ResourceNotFoundException("auth.session_not_found", "The session was not found.");
-        var wasActive = !session.RevokedAt.HasValue;
         session.RevokedAt ??= DateTimeOffset.UtcNow; await db.SaveChangesAsync(ct);
-        if (wasActive) ConvoLabTelemetry.ActiveSessions.Add(-1);
         if (ClaimGuid("session_id") == sessionId) sessionCookies.Delete(Response);
         return NoContent();
     }

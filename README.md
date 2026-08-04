@@ -7,6 +7,7 @@
 ## Current milestone
 
 - **Platform Core / Studio:** `v1.0.0-alpha.14`
+- **Current workstream:** `alpha.15 Operational Foundation — Final Sign-Off` (release metadata remains alpha.14)
 - **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
@@ -18,6 +19,8 @@
 - **Frontend:** React 19, TypeScript, Vite
 - **Database adapter:** PostgreSQL-ready infrastructure
 - **Architecture:** Clean Architecture and Domain-Driven Design
+
+The current correction sprint makes Analytics readiness, effective required-secret validation, fenced worker ownership, worker evidence, operational gauges, safe-mode freshness, and Operations Center evidence operationally truthful. Entra/OIDC, backup and restore, deployment promotion, supply-chain controls, and the final readiness report remain deferred alpha.15 workstreams.
 
 ## Platform capabilities
 

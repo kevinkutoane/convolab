@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Security.Claims;
+using ConvoLab.Api.Health;
 using ConvoLab.Application.Operations;
 using ConvoLab.Domain.Analytics;
 using ConvoLab.Infrastructure.Data;
@@ -8,6 +9,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 namespace ConvoLab.Api.Controllers;
 
@@ -19,8 +21,14 @@ public sealed class OperationsController(
     IPlatformOperationalState operationalState,
     IPlatformOperationalAdministration administration,
     ISecretProviderEvidenceSource secretEvidence,
+    IRequiredSecretReadinessEvaluator requiredSecrets,
+    ITelemetryDependencyEvidenceSource telemetryEvidence,
+    IAnalyticsOperationalEvidenceReader analyticsEvidence,
+    OperationalReadinessSummary readinessSummary,
     HealthCheckService healthChecks,
     IConfiguration configuration,
+    IOptions<OperationsThresholdOptions> thresholdOptions,
+    IOptions<BuildOptions> buildOptions,
     IHostEnvironment environment,
     ILogger<OperationsController> logger) : ControllerBase
 {
@@ -30,28 +38,52 @@ public sealed class OperationsController(
         ConvoLabTelemetry.OperationalStatusReads.Add(1);
         using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("operations.status.read");
         var safeMode = await operationalState.GetAsync(ct);
-        var workerRows = await db.OperationalWorkerHeartbeats.AsNoTracking()
+        var worker = await db.OperationalWorkerHeartbeats.AsNoTracking()
+            .Where(item => item.WorkerName == "analytics-maintenance")
             .Select(item => new { item.LastHeartbeatAt, item.CurrentStatus })
-            .ToListAsync(ct);
-        var worker = workerRows.OrderByDescending(item => item.LastHeartbeatAt).FirstOrDefault();
-        var pendingOutbox = await db.AnalyticsOutbox.AsNoTracking()
-            .CountAsync(item => item.Status == "Pending", ct);
+            .SingleOrDefaultAsync(ct);
+        var pipeline = await analyticsEvidence.ReadAsync(ct);
+        var pipelineStatus = AnalyticsPipelineStatusEvaluator.Evaluate(
+            pipeline,
+            thresholdOptions.Value,
+            worker?.CurrentStatus == "Degraded");
+        var readiness = readinessSummary.Snapshot();
         var workerAge = worker is null ? (double?)null : (DateTimeOffset.UtcNow - worker.LastHeartbeatAt).TotalSeconds;
-        var overall = workerAge > 60 ? "Unhealthy"
-            : pendingOutbox > 0 || worker is null || worker.CurrentStatus == "Degraded" ? "Degraded"
-            : "Healthy";
+        var overall = readiness.Status == "Unhealthy"
+                      || workerAge >= thresholdOptions.Value.WorkerUnhealthySeconds
+                      || worker?.CurrentStatus is "Failed" or "LeaseLost"
+                      || pipelineStatus == OperationalStatusLevel.Unhealthy
+            ? "Unhealthy"
+            : readiness.Status is "Degraded" or "Unknown"
+              || worker is null
+              || workerAge >= thresholdOptions.Value.WorkerWarningSeconds
+              || worker.CurrentStatus == "Degraded"
+              || pipelineStatus == OperationalStatusLevel.Degraded
+                ? "Degraded"
+                : "Healthy";
         logger.LogInformation("Operational summary read {EventName} {Outcome}", "Operations.StatusRead", overall);
         return Ok(new
         {
             status = overall,
             version = Version(),
-            workstream = "alpha.15-operational-foundation",
+            workstream = OperationalWorkstream.Label,
             releaseStatus = "in-progress",
             environment = environment.EnvironmentName,
+            readiness,
             safeMode,
-            telemetry = TelemetryState(),
-            worker = new { state = WorkerState(worker, workerAge), staleAfterSeconds = 60 },
-            analytics = new { pendingOutbox },
+            telemetry = telemetryEvidence.Snapshot().State,
+            worker = new
+            {
+                state = WorkerState(worker, workerAge, thresholdOptions.Value),
+                warningAfterSeconds = thresholdOptions.Value.WorkerWarningSeconds,
+                staleAfterSeconds = thresholdOptions.Value.WorkerUnhealthySeconds
+            },
+            analytics = new
+            {
+                pipeline.PendingCount,
+                pipeline.FailedCount,
+                status = pipelineStatus.ToString()
+            },
             correlationId = HttpContext.TraceIdentifier
         });
     }
@@ -62,6 +94,7 @@ public sealed class OperationsController(
         using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("operations.readiness.open");
         var report = await healthChecks.CheckHealthAsync(
             registration => registration.Tags.Contains("ready"), ct);
+        readinessSummary.Record(report.Status);
         var audit = AuthController.Audit(
             "Platform", null, null, User.FindFirstValue("actor_type") ?? "User", ActorId(),
             User.Identity?.Name ?? "Platform administrator", "Operations.ReadinessEvidenceViewed",
@@ -72,14 +105,7 @@ public sealed class OperationsController(
         {
             status = report.Status.ToString(),
             version = Version(),
-            thresholds = new
-            {
-                workerStaleSeconds = 60,
-                outboxWarningSeconds = 60,
-                outboxUnhealthySeconds = 300,
-                aggregationWarningSeconds = 120,
-                aggregationUnhealthySeconds = 600
-            },
+            thresholds = thresholdOptions.Value,
             components = report.Entries.Select(entry => new
             {
                 component = entry.Key,
@@ -99,53 +125,63 @@ public sealed class OperationsController(
             .OrderBy(item => item.WorkerName)
             .Select(item => new
             {
-                item.WorkerName, item.InstanceId, item.StartedAt, item.LastHeartbeatAt,
-                item.LastSuccessfulIterationAt, item.LastFailureAt, item.LastFailureSummary,
-                item.CurrentStatus, item.ProcessedCount, item.LeaseExpiresAt, item.Revision
+                item.WorkerName,
+                leaseOwner = item.InstanceId,
+                leaseToken = item.LeaseToken,
+                item.StartedAt,
+                item.LastHeartbeatAt,
+                item.LastIterationStartedAt,
+                item.LastIterationCompletedAt,
+                item.LastSuccessfulIterationAt,
+                item.LastDegradedIterationAt,
+                item.LastFailureAt,
+                item.LastFailureCode,
+                item.LastFailureSummary,
+                item.CurrentStatus,
+                item.LastOutboxProcessed,
+                item.LastOutboxFailed,
+                item.LastExportsCompleted,
+                item.LastExportsFailed,
+                item.LastAggregateBucketsCompleted,
+                item.LastAggregateBucketsFailed,
+                item.LastRetentionRowsRemoved,
+                item.CumulativeProcessedCount,
+                item.LeaseExpiresAt,
+                item.Revision
             }).ToListAsync(ct);
-        return Ok(new { workers, staleAfterSeconds = 60, correlationId = HttpContext.TraceIdentifier });
+        return Ok(new
+        {
+            workers,
+            warningAfterSeconds = thresholdOptions.Value.WorkerWarningSeconds,
+            staleAfterSeconds = thresholdOptions.Value.WorkerUnhealthySeconds,
+            correlationId = HttpContext.TraceIdentifier
+        });
     }
 
     [HttpGet("analytics-pipeline")]
     public async Task<ActionResult> AnalyticsPipeline(CancellationToken ct)
     {
         using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("operations.analytics_pipeline.read");
-        var now = DateTimeOffset.UtcNow;
-        List<OutboxStatusSummary> outbox;
-        if (db.Database.IsSqlite())
-        {
-            var rows = await db.AnalyticsOutbox.AsNoTracking()
-                .Select(item => new { item.Status, item.CreatedAt })
-                .ToListAsync(ct);
-            outbox = rows.GroupBy(item => item.Status)
-                .Select(group => new OutboxStatusSummary(
-                    group.Key, group.Count(), group.Min(item => item.CreatedAt)))
-                .ToList();
-        }
-        else
-        {
-            outbox = await db.AnalyticsOutbox.AsNoTracking()
-                .GroupBy(item => item.Status)
-                .Select(group => new OutboxStatusSummary(
-                    group.Key, group.Count(), group.Min(item => item.CreatedAt)))
-                .ToListAsync(ct);
-        }
-        var checkpoints = await db.AnalyticsAggregationCheckpoints.AsNoTracking()
-            .Select(item => new
-            {
-                item.Granularity, item.Status, item.HighWatermarkUtc, item.DirtyFromUtc,
-                item.LastSuccessfulRunAt, item.UpdatedAt
-            }).ToListAsync(ct);
+        var evidence = await analyticsEvidence.ReadAsync(ct);
+        var partialWorkerFailure = await db.OperationalWorkerHeartbeats.AsNoTracking()
+            .AnyAsync(item => item.WorkerName == "analytics-maintenance"
+                && item.CurrentStatus == "Degraded", ct);
         return Ok(new
         {
-            outbox = outbox.Select(item => new
-            {
-                status = item.Status,
-                count = item.Count,
-                oldestAgeSeconds = Math.Max(0, (now - item.Oldest).TotalSeconds)
-            }),
-            checkpoints,
-            thresholds = new { outboxWarningSeconds = 60, outboxUnhealthySeconds = 300, aggregationWarningSeconds = 120, aggregationUnhealthySeconds = 600 },
+            evidence.PendingCount,
+            evidence.FailedCount,
+            evidence.OldestPendingAgeSeconds,
+            evidence.OldestFailedAgeSeconds,
+            evidence.AggregationDirtyCheckpointCount,
+            evidence.AggregationFailedCheckpointCount,
+            evidence.MaximumAggregationLagSeconds,
+            evidence.LastSuccessfulOutboxDispatchAt,
+            evidence.LastSuccessfulAggregationAt,
+            status = AnalyticsPipelineStatusEvaluator.Evaluate(
+                evidence,
+                thresholdOptions.Value,
+                partialWorkerFailure).ToString(),
+            thresholds = thresholdOptions.Value,
             correlationId = HttpContext.TraceIdentifier
         });
     }
@@ -169,11 +205,17 @@ public sealed class OperationsController(
     }
 
     [HttpGet("secret-providers")]
-    public ActionResult SecretProviders() => Ok(new
+    public async Task<ActionResult> SecretProviders(CancellationToken ct)
     {
-        providers = secretEvidence.Snapshot(),
-        correlationId = HttpContext.TraceIdentifier
-    });
+        var required = await requiredSecrets.EvaluateAsync(ct);
+        return Ok(new
+        {
+            providers = secretEvidence.Snapshot(),
+            requiredEnvironments = required.Environments,
+            scopeFailureCodes = required.ScopeFailureCodes,
+            correlationId = HttpContext.TraceIdentifier
+        });
+    }
 
     [HttpGet("backups")]
     public ActionResult Backups() => Ok(new
@@ -183,15 +225,36 @@ public sealed class OperationsController(
         correlationId = HttpContext.TraceIdentifier
     });
 
+    [HttpGet("telemetry")]
+    public ActionResult Telemetry()
+    {
+        var evidence = telemetryEvidence.Snapshot();
+        return Ok(new
+        {
+            otlpDependencyState = evidence.State,
+            evidence.EndpointConfigured,
+            evidence.TraceExportEnabled,
+            evidence.MetricExportEnabled,
+            evidence.ServiceName,
+            releaseVersion = Version(),
+            evidence.LastLiveValidatedAt,
+            evidence.LastFailureCode,
+            validationMethod = evidence.State == OperationalDependencyState.LiveValidated
+                ? "Collector TCP connection succeeded; exporter delivery callbacks are not available."
+                : "Configuration and explicit collector reachability probe only.",
+            correlationId = HttpContext.TraceIdentifier
+        });
+    }
+
     [HttpGet("build")]
     public ActionResult Build() => Ok(new
     {
         version = Version(),
-        workstream = "alpha.15-operational-foundation",
+        workstream = OperationalWorkstream.Label,
         releaseStatus = "in-progress",
-        commit = configuration["Build:Commit"],
-        buildTime = configuration.GetValue<DateTimeOffset?>("Build:Time"),
-        digests = configuration.GetSection("Build:Digests").Get<Dictionary<string, string>>() ?? [],
+        commit = buildOptions.Value.Commit,
+        buildTime = buildOptions.Value.Time,
+        digests = buildOptions.Value.Digests,
         correlationId = HttpContext.TraceIdentifier
     });
 
@@ -209,32 +272,13 @@ public sealed class OperationsController(
         return Ok(result);
     }
 
-    private string TelemetryState()
-    {
-        var endpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
-                       ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
-        var traces = configuration["OTEL_TRACES_EXPORTER"]
-                     ?? Environment.GetEnvironmentVariable("OTEL_TRACES_EXPORTER");
-        var metrics = configuration["OTEL_METRICS_EXPORTER"]
-                      ?? Environment.GetEnvironmentVariable("OTEL_METRICS_EXPORTER");
-        var tracesEnabled = IncludesOtlp(traces)
-                            || (string.IsNullOrWhiteSpace(traces)
-                                && !string.IsNullOrWhiteSpace(endpoint));
-        var metricsEnabled = IncludesOtlp(metrics)
-                             || (string.IsNullOrWhiteSpace(metrics)
-                                 && !string.IsNullOrWhiteSpace(endpoint));
-        return tracesEnabled || metricsEnabled
-            ? OperationalDependencyState.Configured.ToString()
-            : OperationalDependencyState.NotConfigured.ToString();
-    }
-
-    private static bool IncludesOtlp(string? value) =>
-        value?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Any(item => item.Equals("otlp", StringComparison.OrdinalIgnoreCase)) == true;
-
-    private static OperationalDependencyState WorkerState(object? worker, double? age) =>
+    private static OperationalDependencyState WorkerState(
+        object? worker,
+        double? age,
+        OperationsThresholdOptions thresholds) =>
         worker is null ? OperationalDependencyState.Configured
-        : age > 60 ? OperationalDependencyState.Unavailable
+        : age >= thresholds.WorkerUnhealthySeconds ? OperationalDependencyState.Unavailable
+        : age >= thresholds.WorkerWarningSeconds ? OperationalDependencyState.Degraded
         : OperationalDependencyState.LiveValidated;
 
     private static OperationalDependencyState State(string component, HealthReportEntry entry)
@@ -246,7 +290,7 @@ public sealed class OperationsController(
         if (component == "production-configuration")
             return OperationalDependencyState.Configured;
         if (component == "required-secrets"
-            && entry.Data.TryGetValue("configuredReferences", out var count)
+            && entry.Data.TryGetValue("scopedEnvironments", out var count)
             && Convert.ToInt32(count) == 0)
             return OperationalDependencyState.NotConfigured;
         return OperationalDependencyState.LiveValidated;
@@ -263,10 +307,6 @@ public sealed class OperationsController(
          ?? typeof(OperationsController).Assembly.GetName().Version?.ToString()
          ?? "unknown").Split('+', 2)[0];
 
-    private sealed record OutboxStatusSummary(
-        string Status,
-        int Count,
-        DateTimeOffset Oldest);
 }
 
 public sealed record SafeModeRequest(

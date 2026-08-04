@@ -12,16 +12,19 @@ using Microsoft.Extensions.Logging;
 using ConvoLab.Application.Operations;
 using ConvoLab.Infrastructure.Operations;
 using System.Diagnostics;
+using Microsoft.Extensions.Options;
 
 namespace ConvoLab.Infrastructure.Analytics;
 
 public sealed class AnalyticsMaintenanceWorker(
     IServiceScopeFactory scopeFactory,
     ILogger<AnalyticsMaintenanceWorker> logger,
-    IOperationalWorkerLease lease) : BackgroundService
+    IOperationalWorkerLease lease,
+    IOptions<AnalyticsWorkerOptions> workerOptions) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private const string WorkerName = "analytics-maintenance";
+    private readonly AnalyticsWorkerOptions _options = workerOptions.Value;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -29,25 +32,15 @@ public sealed class AnalyticsMaintenanceWorker(
         {
             try
             {
-                if (!await lease.AcquireOrRenewAsync(WorkerName, stoppingToken))
+                var acquired = await lease.TryAcquireAsync(WorkerName, stoppingToken);
+                if (acquired is null)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
+                    await Task.Delay(
+                        TimeSpan.FromSeconds(_options.PollIntervalSeconds),
+                        stoppingToken);
                     continue;
                 }
-                using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("analytics.worker.iteration");
-                var stopwatch = Stopwatch.StartNew();
-                await using var scope = scopeFactory.CreateAsyncScope();
-                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                await DispatchOutboxAsync(db, stoppingToken);
-                if (!await lease.AcquireOrRenewAsync(WorkerName, stoppingToken)) continue;
-                await BuildExportsAsync(db, stoppingToken);
-                if (!await lease.AcquireOrRenewAsync(WorkerName, stoppingToken)) continue;
-                await RebuildAggregatesAsync(db, stoppingToken);
-                if (!await lease.AcquireOrRenewAsync(WorkerName, stoppingToken)) continue;
-                await ApplyRetentionAsync(db, stoppingToken);
-                stopwatch.Stop();
-                ConvoLabTelemetry.AnalyticsWorkerDuration.Record(stopwatch.Elapsed.TotalMilliseconds);
-                await lease.RecordSuccessAsync(WorkerName, 1, stoppingToken);
+                await RunOwnedIterationAsync(acquired, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
             catch (Exception exception)
@@ -56,24 +49,150 @@ public sealed class AnalyticsMaintenanceWorker(
                 logger.LogError(
                     "Analytics maintenance iteration failed {ExceptionType}",
                     exception.GetType().Name);
-                try
-                {
-                    await lease.RecordFailureAsync(WorkerName, exception.GetType().Name, stoppingToken);
-                }
-                catch (Exception heartbeatException)
-                {
-                    logger.LogWarning(
-                        "Analytics worker failure heartbeat could not be persisted {ExceptionType}",
-                        heartbeatException.GetType().Name);
-                }
             }
-            await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken);
+            await Task.Delay(
+                TimeSpan.FromSeconds(_options.PollIntervalSeconds),
+                stoppingToken);
         }
     }
 
-    private static async Task DispatchOutboxAsync(ApplicationDbContext db, CancellationToken ct)
+    private async Task RunOwnedIterationAsync(
+        WorkerLeaseHandle acquired,
+        CancellationToken stoppingToken)
+    {
+        if (!await lease.RecordIterationStartedAsync(acquired, stoppingToken)) return;
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("analytics.worker.iteration");
+        activity?.SetTag("worker.name", WorkerName);
+        var stopwatch = Stopwatch.StartNew();
+        using var renewalCancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        var renewalState = new LeaseRenewalState();
+        var renewalTask = RenewLeaseAsync(
+            acquired,
+            renewalState,
+            renewalCancellation.Token);
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var outbox = await DispatchOutboxAsync(
+                db,
+                _options.MaximumBatchSize,
+                stoppingToken);
+            var exports = await BuildExportsAsync(
+                db,
+                acquired,
+                Math.Min(25, _options.MaximumBatchSize),
+                stoppingToken);
+            var aggregates = await RebuildAggregatesAsync(db, stoppingToken);
+            var retained = await ApplyRetentionAsync(db, stoppingToken);
+            var failureCodes = outbox.FailureCodes
+                .Concat(exports.FailureCodes)
+                .Concat(aggregates.FailureCodes)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var result = new AnalyticsMaintenanceResult(
+                outbox.Completed,
+                outbox.Failed,
+                exports.Completed,
+                exports.Failed,
+                aggregates.Completed,
+                aggregates.Failed,
+                retained,
+                failureCodes.Length > 0,
+                failureCodes);
+
+            renewalCancellation.Cancel();
+            await AwaitRenewalAsync(renewalTask, stoppingToken);
+            if (renewalState.OwnershipLost
+                || !await lease.IsOwnedAsync(acquired, stoppingToken)
+                || !await lease.RecordResultAsync(acquired, result, stoppingToken))
+            {
+                await lease.RecordFailureAsync(
+                    acquired,
+                    "analytics.worker.lease_lost",
+                    "LeaseLost",
+                    stoppingToken);
+                ConvoLabTelemetry.AnalyticsWorkerFailures.Add(1);
+                return;
+            }
+
+            activity?.SetTag("worker.outcome", result.PartialFailure ? "degraded" : "healthy");
+            activity?.SetTag("worker.processed", result.TotalProcessed);
+        }
+        catch
+        {
+            renewalCancellation.Cancel();
+            await AwaitRenewalAsync(renewalTask, stoppingToken);
+            if (!renewalState.OwnershipLost)
+                await lease.RecordFailureAsync(
+                    acquired,
+                    "analytics.worker.iteration_failed",
+                    ct: stoppingToken);
+            throw;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            ConvoLabTelemetry.AnalyticsWorkerDuration.Record(stopwatch.Elapsed.TotalMilliseconds);
+        }
+    }
+
+    private async Task RenewLeaseAsync(
+        WorkerLeaseHandle acquired,
+        LeaseRenewalState state,
+        CancellationToken ct)
+    {
+        var transientFailures = 0;
+        while (!ct.IsCancellationRequested)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(_options.LeaseRenewalSeconds), ct);
+            try
+            {
+                if (!await lease.RenewAsync(acquired, ct))
+                {
+                    state.OwnershipLost = true;
+                    return;
+                }
+                transientFailures = 0;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                transientFailures++;
+                logger.LogWarning(
+                    "Analytics worker lease renewal failed {FailureNumber} {ExceptionType}",
+                    transientFailures,
+                    exception.GetType().Name);
+                if (transientFailures > _options.RenewalFailureTolerance)
+                {
+                    state.OwnershipLost = true;
+                    return;
+                }
+            }
+        }
+    }
+
+    private static async Task AwaitRenewalAsync(Task renewalTask, CancellationToken stoppingToken)
+    {
+        try
+        {
+            await renewalTask;
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        catch (OperationCanceledException) { }
+    }
+
+    private static async Task<ComponentResult> DispatchOutboxAsync(
+        ApplicationDbContext db,
+        int maximumBatchSize,
+        CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
+        var completed = 0;
+        var failed = 0;
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var pending = db.Database.IsNpgsql()
             ? await db.AnalyticsOutbox.FromSqlInterpolated($"""
@@ -81,14 +200,14 @@ public sealed class AnalyticsMaintenanceWorker(
                 WHERE "Status" = 'Pending' AND "AvailableAt" <= {now}
                 ORDER BY "CreatedAt"
                 FOR UPDATE SKIP LOCKED
-                LIMIT 100
+                LIMIT {maximumBatchSize}
                 """).ToListAsync(ct)
             : (await db.AnalyticsOutbox
                     .Where(item => item.Status == "Pending")
                     .ToListAsync(ct))
                 .Where(item => item.AvailableAt <= now)
                 .OrderBy(item => item.CreatedAt)
-                .Take(100)
+                .Take(maximumBatchSize)
                 .ToList();
         foreach (var item in pending)
         {
@@ -136,23 +255,39 @@ public sealed class AnalyticsMaintenanceWorker(
                 ConvoLabTelemetry.AnalyticsOutboxProcessed.Add(1);
                 item.ProcessedAt = now;
                 item.LastError = null;
+                completed++;
             }
-            catch (Exception exception)
+            catch (Exception)
             {
+                failed++;
                 item.Attempts++;
                 item.Status = item.Attempts >= 10 ? "Failed" : "Pending";
-                item.LastError = exception.Message[..Math.Min(exception.Message.Length, 2000)];
+                item.LastError = "analytics.outbox.dispatch_failed";
                 item.AvailableAt = now.AddSeconds(Math.Min(300, Math.Pow(2, item.Attempts)));
             }
         }
         if (pending.Count > 0) await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
+        return new(
+            completed,
+            failed,
+            failed == 0 ? [] : ["analytics.outbox.dispatch_failed"]);
     }
 
-    private static async Task BuildExportsAsync(ApplicationDbContext db, CancellationToken ct)
+    private async Task<ComponentResult> BuildExportsAsync(
+        ApplicationDbContext db,
+        WorkerLeaseHandle workerLease,
+        int maximumBatchSize,
+        CancellationToken ct)
     {
-        var exports = await db.AnalyticsExports.Where(item => item.Status == "Pending")
-            .OrderBy(item => item.CreatedAt).Take(5).ToListAsync(ct);
+        var exports = await ClaimExportsAsync(
+            db,
+            workerLease,
+            maximumBatchSize,
+            ct);
+        var completed = 0;
+        var failed = 0;
+        var failureCodes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var export in exports)
         {
             try
@@ -238,21 +373,171 @@ public sealed class AnalyticsMaintenanceWorker(
                 }
                 var bytes = Encoding.UTF8.GetBytes(csv.ToString());
                 if (bytes.Length > 25 * 1024 * 1024) throw new InvalidOperationException("Export exceeds the 25 MB limit.");
-                export.Content = bytes;
-                export.RowCount = events.Count;
-                export.SizeBytes = bytes.Length;
-                export.Checksum = $"sha256:{Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()}";
-                export.Status = "Completed";
-                export.CompletedAt = DateTimeOffset.UtcNow;
+                var checksum = $"sha256:{Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()}";
+                if (await CompleteExportAsync(
+                        db,
+                        workerLease,
+                        export.Id,
+                        bytes,
+                        events.Count,
+                        checksum,
+                        ct))
+                    completed++;
+                else
+                {
+                    failed++;
+                    failureCodes.Add("analytics.export.claim_lost");
+                }
             }
-            catch (Exception exception)
+            catch (Exception)
             {
-                export.Status = "Failed";
-                export.FailureReason = exception.Message[..Math.Min(exception.Message.Length, 2000)];
-                export.CompletedAt = DateTimeOffset.UtcNow;
+                failed++;
+                failureCodes.Add("analytics.export.processing_failed");
+                await FailExportAsync(
+                    db,
+                    workerLease,
+                    export.Id,
+                    "analytics.export.processing_failed",
+                    ct);
             }
         }
-        if (exports.Count > 0) await db.SaveChangesAsync(ct);
+        return new(completed, failed, failureCodes.ToArray());
+    }
+
+    private async Task<List<AnalyticsExportRecord>> ClaimExportsAsync(
+        ApplicationDbContext db,
+        WorkerLeaseHandle workerLease,
+        int maximumBatchSize,
+        CancellationToken ct)
+    {
+        if (db.Database.IsNpgsql())
+            return await AnalyticsExportClaims.ClaimAsync(
+                db,
+                workerLease,
+                _options.LeaseDurationSeconds,
+                maximumBatchSize,
+                ct);
+
+        var now = DateTimeOffset.UtcNow;
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
+        var claimed = await db.AnalyticsExports
+            .Where(item => item.Status == "Pending"
+                || item.Status == "Processing"
+                && item.ProcessingStartedAt <= now.AddSeconds(-_options.LeaseDurationSeconds))
+            .OrderBy(item => item.CreatedAt)
+            .Take(maximumBatchSize)
+            .ToListAsync(ct);
+        foreach (var export in claimed)
+        {
+            export.Status = "Processing";
+            export.ProcessingOwner = workerLease.Owner;
+            export.ProcessingLeaseToken = workerLease.Token;
+            export.ProcessingStartedAt = now;
+            export.AttemptCount++;
+            export.FailureReason = null;
+        }
+        await db.SaveChangesAsync(ct);
+        await transaction.CommitAsync(ct);
+        foreach (var export in claimed) db.Entry(export).State = EntityState.Detached;
+        return claimed;
+    }
+
+    private async Task<bool> CompleteExportAsync(
+        ApplicationDbContext db,
+        WorkerLeaseHandle workerLease,
+        Guid exportId,
+        byte[] content,
+        long rowCount,
+        string checksum,
+        CancellationToken ct)
+    {
+        if (db.Database.IsNpgsql())
+            return await db.Database.ExecuteSqlInterpolatedAsync($"""
+                WITH server_time AS MATERIALIZED (
+                    SELECT clock_timestamp() AS now
+                )
+                UPDATE "AnalyticsExports" AS export
+                SET "Content" = {content},
+                    "RowCount" = {rowCount},
+                    "SizeBytes" = {content.LongLength},
+                    "Checksum" = {checksum},
+                    "Status" = 'Completed',
+                    "CompletedAt" = server_time.now,
+                    "FailureReason" = NULL
+                FROM server_time
+                WHERE export."Id" = {exportId}
+                  AND export."Status" = 'Processing'
+                  AND export."ProcessingOwner" = {workerLease.Owner}
+                  AND export."ProcessingLeaseToken" = {workerLease.Token}
+                  AND EXISTS (
+                      SELECT 1 FROM "OperationalWorkerHeartbeats" AS worker
+                      WHERE worker."WorkerName" = {workerLease.WorkerName}
+                        AND worker."InstanceId" = {workerLease.Owner}
+                        AND worker."LeaseToken" = {workerLease.Token}
+                        AND worker."LeaseExpiresAt" > server_time.now
+                  )
+                """, ct) == 1;
+
+        if (!await lease.IsOwnedAsync(workerLease, ct)) return false;
+        var export = await db.AnalyticsExports.SingleOrDefaultAsync(item =>
+            item.Id == exportId
+            && item.Status == "Processing"
+            && item.ProcessingOwner == workerLease.Owner
+            && item.ProcessingLeaseToken == workerLease.Token, ct);
+        if (export is null) return false;
+        export.Content = content;
+        export.RowCount = rowCount;
+        export.SizeBytes = content.LongLength;
+        export.Checksum = checksum;
+        export.Status = "Completed";
+        export.CompletedAt = DateTimeOffset.UtcNow;
+        export.FailureReason = null;
+        await db.SaveChangesAsync(ct);
+        return true;
+    }
+
+    private async Task<bool> FailExportAsync(
+        ApplicationDbContext db,
+        WorkerLeaseHandle workerLease,
+        Guid exportId,
+        string failureCode,
+        CancellationToken ct)
+    {
+        if (db.Database.IsNpgsql())
+            return await db.Database.ExecuteSqlInterpolatedAsync($"""
+                WITH server_time AS MATERIALIZED (
+                    SELECT clock_timestamp() AS now
+                )
+                UPDATE "AnalyticsExports" AS export
+                SET "Status" = 'Failed',
+                    "FailureReason" = {failureCode},
+                    "CompletedAt" = server_time.now
+                FROM server_time
+                WHERE export."Id" = {exportId}
+                  AND export."Status" = 'Processing'
+                  AND export."ProcessingOwner" = {workerLease.Owner}
+                  AND export."ProcessingLeaseToken" = {workerLease.Token}
+                  AND EXISTS (
+                      SELECT 1 FROM "OperationalWorkerHeartbeats" AS worker
+                      WHERE worker."WorkerName" = {workerLease.WorkerName}
+                        AND worker."InstanceId" = {workerLease.Owner}
+                        AND worker."LeaseToken" = {workerLease.Token}
+                        AND worker."LeaseExpiresAt" > server_time.now
+                  )
+                """, ct) == 1;
+
+        if (!await lease.IsOwnedAsync(workerLease, ct)) return false;
+        var export = await db.AnalyticsExports.SingleOrDefaultAsync(item =>
+            item.Id == exportId
+            && item.Status == "Processing"
+            && item.ProcessingOwner == workerLease.Owner
+            && item.ProcessingLeaseToken == workerLease.Token, ct);
+        if (export is null) return false;
+        export.Status = "Failed";
+        export.FailureReason = failureCode;
+        export.CompletedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(ct);
+        return true;
     }
 
     private static string? Invariant<T>(T? value) where T : struct, IFormattable =>
@@ -265,8 +550,12 @@ public sealed class AnalyticsMaintenanceWorker(
         return $"\"{value.Replace("\"", "\"\"")}\"";
     }
 
-    private static async Task RebuildAggregatesAsync(ApplicationDbContext db, CancellationToken ct)
+    private static async Task<ComponentResult> RebuildAggregatesAsync(
+        ApplicationDbContext db,
+        CancellationToken ct)
     {
+        var completed = 0;
+        var failed = 0;
         var checkpoints = await db.AnalyticsAggregationCheckpoints.ToListAsync(ct);
         var ranges = await db.AnalyticsEvents.AsNoTracking()
             .GroupBy(item => item.WorkspaceId)
@@ -385,17 +674,21 @@ public sealed class AnalyticsMaintenanceWorker(
                 ConvoLabTelemetry.AnalyticsAggregationRuns.Add(1);
                 await db.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
+                completed++;
             }
-            catch (Exception exception)
+            catch (Exception)
             {
+                failed++;
                 checkpoint.Status = "Failed";
-                checkpoint.FailureReason = exception.Message[..Math.Min(
-                    exception.Message.Length,
-                    2000)];
+                checkpoint.FailureReason = "analytics.aggregation.rebuild_failed";
                 checkpoint.UpdatedAt = DateTimeOffset.UtcNow;
                 await db.SaveChangesAsync(ct);
             }
         }
+        return new(
+            completed,
+            failed,
+            failed == 0 ? [] : ["analytics.aggregation.rebuild_failed"]);
     }
 
     private static void AddAggregates(ApplicationDbContext db, IReadOnlyList<AnalyticsEventRecord> events, bool hourly)
@@ -475,9 +768,10 @@ public sealed class AnalyticsMaintenanceWorker(
             : new DateTimeOffset(utc.Year, utc.Month, utc.Day, 0, 0, 0, TimeSpan.Zero);
     }
 
-    private static async Task ApplyRetentionAsync(ApplicationDbContext db, CancellationToken ct)
+    private static async Task<int> ApplyRetentionAsync(ApplicationDbContext db, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
+        var removed = 0;
         var environments = await db.RuntimeEnvironments.AsNoTracking()
             .Select(item => new { item.WorkspaceId, EnvironmentId = item.Id }).ToListAsync(ct);
         foreach (var environment in environments)
@@ -485,13 +779,14 @@ public sealed class AnalyticsMaintenanceWorker(
             var eventDays = await RetentionDaysAsync(db, SettingKeys.AnalyticsEventRetentionDays, environment.WorkspaceId, environment.EnvironmentId, 90, ct);
             var hourlyDays = await RetentionDaysAsync(db, SettingKeys.AnalyticsHourlyRetentionDays, environment.WorkspaceId, environment.EnvironmentId, 90, ct);
             var dailyDays = await RetentionDaysAsync(db, SettingKeys.AnalyticsDailyRetentionDays, environment.WorkspaceId, environment.EnvironmentId, 730, ct);
-            await db.AnalyticsEvents.Where(item => item.EnvironmentId == environment.EnvironmentId && item.OccurredAt < now.AddDays(-eventDays)).ExecuteDeleteAsync(ct);
-            await db.AnalyticsHourlyAggregates.Where(item => item.EnvironmentId == environment.EnvironmentId && item.BucketStart < now.AddDays(-hourlyDays)).ExecuteDeleteAsync(ct);
-            await db.AnalyticsDailyAggregates.Where(item => item.EnvironmentId == environment.EnvironmentId && item.BucketStart < now.AddDays(-dailyDays)).ExecuteDeleteAsync(ct);
+            removed += await db.AnalyticsEvents.Where(item => item.EnvironmentId == environment.EnvironmentId && item.OccurredAt < now.AddDays(-eventDays)).ExecuteDeleteAsync(ct);
+            removed += await db.AnalyticsHourlyAggregates.Where(item => item.EnvironmentId == environment.EnvironmentId && item.BucketStart < now.AddDays(-hourlyDays)).ExecuteDeleteAsync(ct);
+            removed += await db.AnalyticsDailyAggregates.Where(item => item.EnvironmentId == environment.EnvironmentId && item.BucketStart < now.AddDays(-dailyDays)).ExecuteDeleteAsync(ct);
         }
-        await db.AnalyticsExports
+        removed += await db.AnalyticsExports
             .Where(item => item.ExpiresAt <= now)
             .ExecuteDeleteAsync(ct);
+        return removed;
     }
 
     private static async Task<int> RetentionDaysAsync(
@@ -511,5 +806,15 @@ public sealed class AnalyticsMaintenanceWorker(
         var raw = selected?.ValueJson
             ?? await db.SettingDefinitions.AsNoTracking().Where(item => item.Key == key).Select(item => item.DefaultValue).SingleOrDefaultAsync(ct);
         return int.TryParse(raw?.Trim('"'), out var days) ? Math.Clamp(days, 1, 3650) : fallback;
+    }
+
+    private sealed record ComponentResult(
+        int Completed,
+        int Failed,
+        IReadOnlyCollection<string> FailureCodes);
+
+    private sealed class LeaseRenewalState
+    {
+        public volatile bool OwnershipLost;
     }
 }

@@ -1,4 +1,5 @@
 using ConvoLab.Domain.Settings;
+using ConvoLab.Application.Operations;
 
 namespace ConvoLab.Application.Settings;
 
@@ -269,7 +270,8 @@ public sealed class SecretResolutionResult
 public sealed record SecretValidationResult(
     string Provider,
     SecretResolutionStatus Status,
-    string? ErrorCode = null)
+    string? ErrorCode = null,
+    OperationalDependencyState DependencyState = OperationalDependencyState.LiveValidated)
 {
     public bool IsValid => Status == SecretResolutionStatus.Resolved;
 }

@@ -1,5 +1,7 @@
 using ConvoLab.Application.Simulation;
+using ConvoLab.Application.Operations;
 using ConvoLab.Infrastructure.Data;
+using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.EvaluationStudio;
 using ConvoLab.Infrastructure.Operations;
 using ConvoLab.Infrastructure.Simulation;
@@ -7,11 +9,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Npgsql;
+using Xunit.Abstractions;
 
 namespace ConvoLab.Infrastructure.IntegrationTests.Data;
 
-public sealed class PostgresMigrationTests
+public sealed class PostgresMigrationTests(ITestOutputHelper output)
 {
     [Fact]
     public async Task Worker_lease_uses_Postgres_time_and_preserves_single_ownership()
@@ -87,6 +91,198 @@ public sealed class PostgresMigrationTests
             fastLease.AcquireOrRenewAsync(contentionWorker),
             slowLease.AcquireOrRenewAsync(contentionWorker));
         Assert.Single(attempts, acquired => acquired);
+    }
+
+    [Fact]
+    public async Task Worker_lease_renews_long_work_and_fences_a_stale_owner()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        if (!database.Available) return;
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.ConnectionString)
+            .Options;
+        await using (var migration = new ApplicationDbContext(options))
+            await migration.Database.MigrateAsync();
+        await using var firstServices = BuildLeaseServices(
+            database.ConnectionString!, TimeProvider.System);
+        await using var secondServices = BuildLeaseServices(
+            database.ConnectionString!, TimeProvider.System);
+        var shortLease = Options.Create(new AnalyticsWorkerOptions
+        {
+            LeaseDurationSeconds = 2,
+            LeaseRenewalSeconds = 1,
+            PollIntervalSeconds = 1,
+            MaximumBatchSize = 10
+        });
+        var previousInstanceId = Environment.GetEnvironmentVariable("CONVOLAB_INSTANCE_ID");
+        OperationalWorkerLease first;
+        OperationalWorkerLease second;
+        try
+        {
+            Environment.SetEnvironmentVariable("CONVOLAB_INSTANCE_ID", "renewing-owner");
+            first = new(
+                firstServices.GetRequiredService<IServiceScopeFactory>(),
+                TimeProvider.System,
+                shortLease);
+            Environment.SetEnvironmentVariable("CONVOLAB_INSTANCE_ID", "contending-owner");
+            second = new(
+                secondServices.GetRequiredService<IServiceScopeFactory>(),
+                TimeProvider.System,
+                shortLease);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONVOLAB_INSTANCE_ID", previousInstanceId);
+        }
+
+        const string worker = "long-running-renewal-test";
+        var firstLease = Assert.IsType<WorkerLeaseHandle>(await first.TryAcquireAsync(worker));
+        Assert.True(await first.IsOwnedAsync(firstLease));
+        await Task.Delay(1200);
+        Assert.True(await first.RenewAsync(firstLease));
+        DateTimeOffset firstRenewalExpiry;
+        await using (var firstRenewalEvidence = new ApplicationDbContext(options))
+            firstRenewalExpiry = await firstRenewalEvidence.OperationalWorkerHeartbeats
+                .Where(item => item.WorkerName == worker)
+                .Select(item => item.LeaseExpiresAt)
+                .SingleAsync();
+        await Task.Delay(1200);
+        Assert.Null(await second.TryAcquireAsync(worker));
+        Assert.True(await first.RenewAsync(firstLease));
+        DateTimeOffset secondRenewalExpiry;
+        await using (var secondRenewalEvidence = new ApplicationDbContext(options))
+            secondRenewalExpiry = await secondRenewalEvidence.OperationalWorkerHeartbeats
+                .Where(item => item.WorkerName == worker)
+                .Select(item => item.LeaseExpiresAt)
+                .SingleAsync();
+        Assert.True(secondRenewalExpiry > firstRenewalExpiry);
+
+        await Task.Delay(2200);
+        var takeover = Assert.IsType<WorkerLeaseHandle>(await second.TryAcquireAsync(worker));
+        Assert.True(takeover.Token > firstLease.Token);
+        Assert.False(await first.IsOwnedAsync(firstLease));
+        Assert.True(await second.IsOwnedAsync(takeover));
+        Assert.False(await first.RecordResultAsync(
+            firstLease,
+            AnalyticsMaintenanceResult.Empty with { OutboxProcessed = 99 }));
+        Assert.True(await second.RecordResultAsync(
+            takeover,
+            AnalyticsMaintenanceResult.Empty with { OutboxProcessed = 1 }));
+
+        await using var evidence = new ApplicationDbContext(options);
+        var record = await evidence.OperationalWorkerHeartbeats.AsNoTracking()
+            .SingleAsync(item => item.WorkerName == worker);
+        Assert.Equal("contending-owner", record.InstanceId);
+        Assert.Equal(takeover.Token, record.LeaseToken);
+        Assert.Equal(1, record.LastOutboxProcessed);
+        Assert.Equal(1, record.CumulativeProcessedCount);
+        output.WriteLine(
+            "owner={0}; initialToken={1}; initialExpiry={2:O}; firstRenewalExpiry={3:O}; secondRenewalExpiry={4:O}; contenderDuringRenewal=denied; takeoverToken={5}; staleFinalWrite=rejected; finalOutboxProcessed={6}",
+            firstLease.Owner,
+            firstLease.Token,
+            firstLease.LeaseExpiresAt,
+            firstRenewalExpiry,
+            secondRenewalExpiry,
+            takeover.Token,
+            record.LastOutboxProcessed);
+    }
+
+    [Fact]
+    public async Task Analytics_export_claim_is_atomic_fenced_and_retries_abandoned_processing()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        if (!database.Available) return;
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.ConnectionString)
+            .Options;
+        var workerName = "analytics-export-claim-test";
+        var owner = "claim-owner";
+        var firstExportId = Guid.NewGuid();
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            await setup.Database.MigrateAsync();
+            var now = DateTimeOffset.UtcNow;
+            setup.OperationalWorkerHeartbeats.Add(new OperationalWorkerHeartbeatRecord
+            {
+                WorkerName = workerName,
+                InstanceId = owner,
+                StartedAt = now,
+                LastHeartbeatAt = now,
+                CurrentStatus = "Running",
+                LeaseToken = 7,
+                LeaseExpiresAt = now.AddMinutes(2),
+                Revision = 1
+            });
+            setup.AnalyticsExports.Add(Export(firstExportId, now));
+            await setup.SaveChangesAsync();
+        }
+        var leaseHandle = new WorkerLeaseHandle(
+            workerName, owner, 7, DateTimeOffset.UtcNow.AddMinutes(2));
+
+        await using var contenderOne = new ApplicationDbContext(options);
+        await using var contenderTwo = new ApplicationDbContext(options);
+        var claims = await Task.WhenAll(
+            AnalyticsExportClaims.ClaimAsync(contenderOne, leaseHandle, 120, 10, CancellationToken.None),
+            AnalyticsExportClaims.ClaimAsync(contenderTwo, leaseHandle, 120, 10, CancellationToken.None));
+        Assert.Equal(1, claims.Sum(result => result.Count(item => item.Id == firstExportId)));
+
+        await using (var evidence = new ApplicationDbContext(options))
+        {
+            var claimed = await evidence.AnalyticsExports.AsNoTracking()
+                .SingleAsync(item => item.Id == firstExportId);
+            Assert.Equal("Processing", claimed.Status);
+            Assert.Equal(owner, claimed.ProcessingOwner);
+            Assert.Equal(7, claimed.ProcessingLeaseToken);
+            Assert.Equal(1, claimed.AttemptCount);
+            await evidence.Database.ExecuteSqlInterpolatedAsync($"""
+                UPDATE "AnalyticsExports"
+                SET "ProcessingStartedAt" = clock_timestamp() - interval '121 seconds'
+                WHERE "Id" = {firstExportId};
+                """);
+        }
+
+        await using (var retry = new ApplicationDbContext(options))
+        {
+            var retried = await AnalyticsExportClaims.ClaimAsync(
+                retry, leaseHandle, 120, 10, CancellationToken.None);
+            Assert.Contains(retried, item => item.Id == firstExportId);
+        }
+        var secondExportId = Guid.NewGuid();
+        await using (var takeover = new ApplicationDbContext(options))
+        {
+            takeover.AnalyticsExports.Add(Export(secondExportId, DateTimeOffset.UtcNow));
+            var worker = await takeover.OperationalWorkerHeartbeats.SingleAsync(item =>
+                item.WorkerName == workerName);
+            worker.InstanceId = "takeover-owner";
+            worker.LeaseToken = 8;
+            worker.LeaseExpiresAt = DateTimeOffset.UtcNow.AddMinutes(2);
+            await takeover.SaveChangesAsync();
+        }
+        await using (var stale = new ApplicationDbContext(options))
+        {
+            Assert.Empty(await AnalyticsExportClaims.ClaimAsync(
+                stale, leaseHandle, 120, 10, CancellationToken.None));
+        }
+        await using (var current = new ApplicationDbContext(options))
+        {
+            var currentLease = new WorkerLeaseHandle(
+                workerName, "takeover-owner", 8, DateTimeOffset.UtcNow.AddMinutes(2));
+            var claimed = await AnalyticsExportClaims.ClaimAsync(
+                current, currentLease, 120, 10, CancellationToken.None);
+            Assert.Contains(claimed, item => item.Id == secondExportId);
+        }
+
+        static AnalyticsExportRecord Export(Guid id, DateTimeOffset now) => new()
+        {
+            Id = id,
+            WorkspaceId = Guid.NewGuid(),
+            CreatedBy = Guid.NewGuid(),
+            Status = "Pending",
+            FileName = $"analytics-{id:N}.csv",
+            FiltersJson = "{}",
+            CreatedAt = now,
+            ExpiresAt = now.AddDays(7)
+        };
     }
 
     [Fact]
@@ -231,6 +427,52 @@ public sealed class PostgresMigrationTests
                     .Where(item => item.Id == eventId)
                     .Select(item => item.SourceExecutionId)
                     .SingleAsync());
+        }
+    }
+
+    [Fact]
+    public async Task Operational_foundation_schema_upgrades_and_preserves_safe_mode_and_worker_evidence()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        if (!database.Available) return;
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.ConnectionString)
+            .Options;
+        await using (var foundation = new ApplicationDbContext(options))
+        {
+            var migrator = foundation.Database.GetService<IMigrator>();
+            var foundationMigration = foundation.Database.GetMigrations()
+                .Single(id => id.EndsWith("_OperationalFoundationV1", StringComparison.Ordinal));
+            await migrator.MigrateAsync(
+                foundation.Database.GetService<IMigrationsIdGenerator>().GetName(foundationMigration));
+            await foundation.Database.ExecuteSqlRawAsync("""
+                UPDATE "PlatformOperationalSettings"
+                SET "SafeModeEnabled" = TRUE,
+                    "SafeModeReason" = 'preserved correction evidence',
+                    "Revision" = 9
+                WHERE "Key" = 'platform';
+                INSERT INTO "OperationalWorkerHeartbeats"
+                    ("WorkerName", "InstanceId", "StartedAt", "LastHeartbeatAt",
+                     "CurrentStatus", "ProcessedCount", "LeaseExpiresAt", "Revision")
+                VALUES
+                    ('analytics-maintenance', 'foundation-owner', clock_timestamp(),
+                     clock_timestamp(), 'Running', 7,
+                     clock_timestamp() + interval '2 minutes', 4);
+                """);
+        }
+
+        await using (var corrected = new ApplicationDbContext(options))
+        {
+            await corrected.Database.MigrateAsync();
+            var safeMode = await corrected.PlatformOperationalSettings.AsNoTracking().SingleAsync();
+            var worker = await corrected.OperationalWorkerHeartbeats.AsNoTracking().SingleAsync();
+            Assert.True(safeMode.SafeModeEnabled);
+            Assert.Equal("preserved correction evidence", safeMode.SafeModeReason);
+            Assert.Equal(9, safeMode.Revision);
+            Assert.Equal("foundation-owner", worker.InstanceId);
+            Assert.Equal(7, worker.CumulativeProcessedCount);
+            Assert.Equal(0, worker.LeaseToken);
+            Assert.Empty(await corrected.Database.GetPendingMigrationsAsync());
         }
     }
 

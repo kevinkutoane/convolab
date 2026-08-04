@@ -1,8 +1,8 @@
-# alpha.15 Operational Foundation (in progress)
+# alpha.15 Operational Foundation — Final Sign-Off
 
 This repository remains versioned `1.0.0-alpha.14`. The changes described here are the in-progress alpha.15 Operational Foundation tranche and do not constitute an alpha.15 release.
 
-The tranche adds static Production configuration validation, explicit forwarded-header trust, secure centralized cookies, filesystem/X.509 data protection, asynchronous environment/Docker/Azure Key Vault secret providers, optional OTLP export, sanitized operational health, PostgreSQL-authoritative Analytics worker leases, persisted safe mode, and the administrator-only Operations Center.
+The tranche adds static Production configuration validation, explicit forwarded-header trust, secure centralized cookies, filesystem/X.509 data protection, asynchronous environment/Docker/Azure Key Vault secret providers, optional OTLP export, sanitized operational health, PostgreSQL-authoritative Analytics worker leases, persisted safe mode, and the administrator-only Operations Center. The correction sprint makes pipeline failures, effective required secrets, continuous lease ownership, worker results, database-backed gauges, OTLP evidence, and Studio safe-mode freshness truthful and testable.
 
 ## Production configuration boundary
 
@@ -21,6 +21,8 @@ Production data-protection keys use `SharedFileSystem`, an absolute writable key
 Operational evidence uses only these states: `NotConfigured`, `Configured`, `StubValidated`, `LiveValidated`, `Unavailable`, and `Degraded`. Stub adapters are never presented as live integrations. Backups remain `NotConfigured`; no RPO, RTO, age, or verification measurement is invented.
 
 Routine Operations Center polling produces structured telemetry and no database audit rows. Safe-mode changes, explicitly opened readiness evidence, live validations, sensitive evidence access, and deliberate administrative actions remain audited.
+
+Typed operational defaults and status semantics are documented under [`docs/operations`](operations/OperationsCenter.md). PostgreSQL claims evaluate server time once per statement, renew for the full iteration, and require a matching fencing token for final worker/export writes. Required-secret readiness resolves only active in-scope effective configuration rather than scanning raw setting rows.
 
 ## Deferred alpha.15 workstreams
 

@@ -578,3 +578,12 @@ gzip_min_length 1000;
 - See `README.md` for quick start
 - See `ARCHITECTURE.md` for architecture overview
 - See `.github/workflows/ci.yml` for CI/CD workflow
+# Operational Foundation correction-sprint deployment notes
+
+Active application/package metadata remains `1.0.0-alpha.14`; `alpha.15 Operational Foundation — Final Sign-Off` is a workstream label, not a releasable alpha.15 promotion.
+
+Before deploying this workstream, review [ProductionSecurityChecklist.md](docs/security/ProductionSecurityChecklist.md) and the operational runbooks in [docs/operations](docs/operations/OperationsCenter.md). Production requires external PostgreSQL values, explicit trusted proxies/hosts, acknowledged local authentication, shared filesystem/X.509 data protection, and an explicit `SafeMode__BlockAnalyticsExports=true|false` decision. UAT/Production Key Vault authentication is restricted to workload or managed identity.
+
+Apply migration `202608030002_OperationalFoundationCorrectionsV1` after `202608030001_OperationalFoundationV1`. It adds only the worker fencing/result columns and Analytics export claim columns/index. Run the fresh-install and both upgrade paths against PostgreSQL, then verify a long lease renewal, contention/takeover, stale final-write rejection, and atomic export retry.
+
+OTLP remains optional and collector outage must not interrupt API service. Operations Center reports configured/reachable evidence without claiming durable delivery. Backups remain `NotConfigured`; do not assign RPO/RTO or promote this workstream as operationally complete.

@@ -12,6 +12,7 @@ interface StudioShellProps {
   onToggleTheme: () => void;
   status?: PlatformStatus;
   isFetching: boolean;
+  statusStale?: boolean;
 }
 
 export function StudioShell({
@@ -19,6 +20,7 @@ export function StudioShell({
   onToggleTheme,
   status,
   isFetching,
+  statusStale = false,
 }: StudioShellProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -55,6 +57,7 @@ export function StudioShell({
         {status?.safeMode && (
           <div className="safe-mode-banner" role="alert">
             Platform safe mode is active. External execution and plugin activation are blocked.
+            {statusStale ? " Status refresh is temporarily unavailable; this is the last known state." : ""}
           </div>
         )}
         <main className="studio-content">

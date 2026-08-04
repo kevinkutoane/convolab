@@ -1,96 +1,111 @@
 using ConvoLab.Application.Settings;
+using ConvoLab.Application.Operations;
 using ConvoLab.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 
 namespace ConvoLab.Api.Health;
 
-public sealed class WorkerHeartbeatHealthCheck(ApplicationDbContext db) : IHealthCheck
+public sealed class WorkerHeartbeatHealthCheck(
+    ApplicationDbContext db,
+    IOptions<OperationsThresholdOptions> options) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var heartbeats = await db.OperationalWorkerHeartbeats.AsNoTracking()
-            .ToListAsync(cancellationToken);
-        var heartbeat = heartbeats.OrderByDescending(item => item.LastHeartbeatAt).FirstOrDefault();
+        var heartbeat = await db.OperationalWorkerHeartbeats.AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.WorkerName == "analytics-maintenance",
+                cancellationToken);
         if (heartbeat is null) return HealthCheckResult.Degraded("No worker heartbeat has been recorded.");
         var age = DateTimeOffset.UtcNow - heartbeat.LastHeartbeatAt;
-        if (age > TimeSpan.FromSeconds(60))
+        if (age >= TimeSpan.FromSeconds(options.Value.WorkerUnhealthySeconds)
+            || heartbeat.CurrentStatus is "Failed" or "LeaseLost")
             return HealthCheckResult.Unhealthy("The Analytics worker heartbeat is stale.");
-        return heartbeat.CurrentStatus == "Degraded"
+        return age >= TimeSpan.FromSeconds(options.Value.WorkerWarningSeconds)
+               || heartbeat.CurrentStatus == "Degraded"
             ? HealthCheckResult.Degraded("The Analytics worker is reporting an impaired iteration.")
             : HealthCheckResult.Healthy("The Analytics worker heartbeat is current.");
     }
 }
 
-public sealed class AnalyticsPipelineHealthCheck(ApplicationDbContext db) : IHealthCheck
+public sealed class AnalyticsPipelineHealthCheck(
+    IAnalyticsOperationalEvidenceReader evidenceReader,
+    ApplicationDbContext db,
+    IOptions<OperationsThresholdOptions> options) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var now = DateTimeOffset.UtcNow;
-        DateTimeOffset? oldestOutbox;
-        DateTimeOffset? oldestAggregation;
-        if (db.Database.IsSqlite())
+        var evidence = await evidenceReader.ReadAsync(cancellationToken);
+        var partialFailure = await db.OperationalWorkerHeartbeats.AsNoTracking()
+            .AnyAsync(item => item.WorkerName == "analytics-maintenance"
+                && item.CurrentStatus == "Degraded", cancellationToken);
+        var status = AnalyticsPipelineStatusEvaluator.Evaluate(
+            evidence,
+            options.Value,
+            partialFailure);
+        var data = new Dictionary<string, object>
         {
-            var outboxTimes = await db.AnalyticsOutbox.AsNoTracking()
-                .Where(item => item.Status == "Pending")
-                .Select(item => item.CreatedAt)
-                .ToListAsync(cancellationToken);
-            var aggregationTimes = await db.AnalyticsAggregationCheckpoints.AsNoTracking()
-                .Where(item => item.Status == "Pending" || item.Status == "Failed")
-                .Select(item => item.UpdatedAt)
-                .ToListAsync(cancellationToken);
-            oldestOutbox = outboxTimes.Count == 0 ? null : outboxTimes.Min();
-            oldestAggregation = aggregationTimes.Count == 0 ? null : aggregationTimes.Min();
-        }
-        else
+            ["pendingCount"] = evidence.PendingCount,
+            ["failedCount"] = evidence.FailedCount,
+            ["oldestPendingAgeSeconds"] = evidence.OldestPendingAgeSeconds ?? 0,
+            ["oldestFailedAgeSeconds"] = evidence.OldestFailedAgeSeconds ?? 0,
+            ["aggregationDirtyCheckpointCount"] = evidence.AggregationDirtyCheckpointCount,
+            ["aggregationFailedCheckpointCount"] = evidence.AggregationFailedCheckpointCount,
+            ["maximumAggregationLagSeconds"] = evidence.MaximumAggregationLagSeconds
+        };
+        return status switch
         {
-            oldestOutbox = await db.AnalyticsOutbox.AsNoTracking()
-                .Where(item => item.Status == "Pending")
-                .MinAsync(item => (DateTimeOffset?)item.CreatedAt, cancellationToken);
-            oldestAggregation = await db.AnalyticsAggregationCheckpoints.AsNoTracking()
-                .Where(item => item.Status == "Pending" || item.Status == "Failed")
-                .MinAsync(item => (DateTimeOffset?)item.UpdatedAt, cancellationToken);
-        }
-        var outboxAge = oldestOutbox.HasValue ? now - oldestOutbox.Value : TimeSpan.Zero;
-        var aggregationAge = oldestAggregation.HasValue ? now - oldestAggregation.Value : TimeSpan.Zero;
-        if (outboxAge >= TimeSpan.FromSeconds(300) || aggregationAge >= TimeSpan.FromSeconds(600))
-            return HealthCheckResult.Unhealthy("The Analytics operational pipeline exceeded an unhealthy threshold.");
-        if (outboxAge >= TimeSpan.FromSeconds(60) || aggregationAge >= TimeSpan.FromSeconds(120))
-            return HealthCheckResult.Degraded("The Analytics operational pipeline exceeded a warning threshold.");
-        return HealthCheckResult.Healthy("The Analytics outbox and aggregation lag are within thresholds.");
+            OperationalStatusLevel.Unhealthy => HealthCheckResult.Unhealthy(
+                "The Analytics operational pipeline exceeded an unhealthy threshold.",
+                data: data),
+            OperationalStatusLevel.Degraded => HealthCheckResult.Degraded(
+                "The Analytics operational pipeline is impaired.",
+                data: data),
+            _ => HealthCheckResult.Healthy(
+                "The Analytics outbox and aggregation lag are within thresholds.",
+                data)
+        };
     }
 }
 
 public sealed class RequiredSecretsHealthCheck(
-    ApplicationDbContext db,
-    ISecretStore secretStore) : IHealthCheck
+    IRequiredSecretReadinessEvaluator evaluator) : IHealthCheck
 {
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context,
         CancellationToken cancellationToken = default)
     {
-        var rawReferences = await db.SettingValues.AsNoTracking()
-            .Where(item => item.DefinitionKey == "ai.secret_reference")
-            .Select(item => item.ValueJson)
-            .Distinct()
-            .ToListAsync(cancellationToken);
-        foreach (var raw in rawReferences)
+        var snapshot = await evaluator.EvaluateAsync(cancellationToken);
+        var required = snapshot.Environments.Where(item => item.Required).ToArray();
+        var data = new Dictionary<string, object>
         {
-            var reference = raw.Trim().Trim('"');
-            if (string.IsNullOrWhiteSpace(reference)) continue;
-            var result = await secretStore.ValidateAsync(reference, cancellationToken);
-            if (!result.IsValid)
-                return HealthCheckResult.Unhealthy("A required external-provider credential is unavailable.");
-        }
+            ["scopedEnvironments"] = snapshot.Environments.Count,
+            ["requiredSecrets"] = required.Length,
+            ["dependencyStates"] = snapshot.Environments
+                .GroupBy(item => item.DependencyState.ToString())
+                .ToDictionary(group => group.Key, group => group.Count()),
+            ["failureCodes"] = snapshot.ScopeFailureCodes
+                .Concat(required.Where(item => item.FailureCode is not null)
+                    .Select(item => item.FailureCode!))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray()
+        };
+        if (snapshot.ScopeFailureCodes.Count > 0
+            || required.Any(item => item.DependencyState == OperationalDependencyState.Unavailable))
+            return HealthCheckResult.Unhealthy(
+                "A required effective external-provider credential is unavailable.",
+                data: data);
+        if (required.Any(item => item.DependencyState == OperationalDependencyState.Degraded))
+            return HealthCheckResult.Degraded(
+                "A required effective external-provider credential is degraded.",
+                data: data);
         return HealthCheckResult.Healthy(
-            "Required secret references resolve without exposing their values.",
-            data: new Dictionary<string, object>
-            {
-                ["configuredReferences"] = rawReferences.Count
-            });
+            "Effective required credentials validate without exposing references or values.",
+            data);
     }
 }

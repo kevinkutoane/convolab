@@ -165,6 +165,10 @@ public sealed class AnalyticsExportRecord
     public long? SizeBytes { get; set; }
     public string? Checksum { get; set; }
     public string? FailureReason { get; set; }
+    public string? ProcessingOwner { get; set; }
+    public long? ProcessingLeaseToken { get; set; }
+    public DateTimeOffset? ProcessingStartedAt { get; set; }
+    public int AttemptCount { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }

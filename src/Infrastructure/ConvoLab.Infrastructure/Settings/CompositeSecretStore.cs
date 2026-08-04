@@ -10,12 +10,15 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace ConvoLab.Infrastructure.Settings;
 
 public interface ISecretProvider
 {
     string Scheme { get; }
+    OperationalDependencyState InitialState => OperationalDependencyState.Configured;
+    OperationalDependencyState SuccessfulValidationState => OperationalDependencyState.LiveValidated;
     Task<SecretResolutionResult> ResolveAsync(string key, CancellationToken ct);
 }
 
@@ -24,15 +27,19 @@ public sealed class SecretProviderEvidenceRegistry : ISecretProviderEvidenceSour
     private readonly ConcurrentDictionary<string, SecretProviderEvidence> _evidence =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public void Configured(string provider) => _evidence.TryAdd(
+    public void Initialize(string provider, OperationalDependencyState state) => _evidence.TryAdd(
         provider,
-        new SecretProviderEvidence(provider, OperationalDependencyState.Configured, null, null));
+        new SecretProviderEvidence(provider, state, null, null));
 
-    public void Record(string provider, SecretResolutionStatus status, string? errorCode)
+    public void Record(
+        string provider,
+        SecretResolutionStatus status,
+        string? errorCode,
+        OperationalDependencyState successfulValidationState)
     {
         var state = status switch
         {
-            SecretResolutionStatus.Resolved => OperationalDependencyState.LiveValidated,
+            SecretResolutionStatus.Resolved => successfulValidationState,
             SecretResolutionStatus.Unavailable or SecretResolutionStatus.TimedOut =>
                 OperationalDependencyState.Unavailable,
             _ => OperationalDependencyState.Degraded
@@ -59,14 +66,15 @@ public sealed class CompositeSecretStore : ISecretStore
         IEnumerable<ISecretProvider> providers,
         IMemoryCache cache,
         SecretProviderEvidenceRegistry evidence,
-        IConfiguration configuration)
+        IOptions<SecretStoreOptions> options)
     {
         _providers = providers.ToDictionary(provider => provider.Scheme, StringComparer.OrdinalIgnoreCase);
         _cache = cache;
         _evidence = evidence;
         _ttl = TimeSpan.FromSeconds(Math.Clamp(
-            configuration.GetValue("SecretStores:CacheTtlSeconds", 300), 1, 3600));
-        foreach (var provider in _providers.Values) _evidence.Configured(provider.Scheme);
+            options.Value.CacheTtlSeconds, 1, 3600));
+        foreach (var provider in _providers.Values)
+            _evidence.Initialize(provider.Scheme, provider.InitialState);
     }
 
     public async Task<SecretResolutionResult> ResolveAsync(
@@ -106,7 +114,11 @@ public sealed class CompositeSecretStore : ISecretStore
 
             var generation = _cacheGenerations.GetOrAdd(canonical, 0);
             var result = await provider.ResolveAsync(key, ct);
-            _evidence.Record(scheme, result.Status, result.ErrorCode);
+            _evidence.Record(
+                scheme,
+                result.Status,
+                result.ErrorCode,
+                provider.SuccessfulValidationState);
             activity?.SetTag("secret.provider", scheme);
             activity?.SetTag("secret.outcome", result.Status.ToString());
             if (!result.IsResolved)
@@ -139,7 +151,29 @@ public sealed class CompositeSecretStore : ISecretStore
         CancellationToken ct = default)
     {
         var result = await ResolveAsync(reference, ct);
-        return new(result.Provider, result.Status, result.ErrorCode);
+        var state = result.Status switch
+        {
+            SecretResolutionStatus.Resolved => providerState(reference),
+            SecretResolutionStatus.Unavailable or SecretResolutionStatus.TimedOut
+                => OperationalDependencyState.Unavailable,
+            _ => OperationalDependencyState.Degraded
+        };
+        return new(result.Provider, result.Status, result.ErrorCode, state);
+
+        OperationalDependencyState providerState(string value)
+        {
+            try
+            {
+                var (scheme, _) = Domain.Settings.SecretReference.ParseReference(value.Trim());
+                return _providers.TryGetValue(scheme, out var configured)
+                    ? configured.SuccessfulValidationState
+                    : OperationalDependencyState.Degraded;
+            }
+            catch (ArgumentException)
+            {
+                return OperationalDependencyState.Degraded;
+            }
+        }
     }
 
     public void Invalidate(string reference)
@@ -176,9 +210,13 @@ internal sealed partial class EnvironmentSecretProvider : ISecretProvider
     private static partial Regex EnvironmentVariableName();
 }
 
-internal sealed class DockerSecretProvider(IConfiguration configuration) : ISecretProvider
+internal sealed class DockerSecretProvider(IOptions<SecretStoreOptions> options) : ISecretProvider
 {
     public string Scheme => "docker-secret";
+    public OperationalDependencyState InitialState =>
+        string.IsNullOrWhiteSpace(options.Value.DockerSecretsRoot)
+            ? OperationalDependencyState.NotConfigured
+            : OperationalDependencyState.Configured;
 
     public async Task<SecretResolutionResult> ResolveAsync(string key, CancellationToken ct)
     {
@@ -189,7 +227,9 @@ internal sealed class DockerSecretProvider(IConfiguration configuration) : ISecr
             return SecretResolutionResult.Failed(
                 Scheme, SecretResolutionStatus.Invalid, "secret.docker.name_invalid");
 
-        var root = Path.GetFullPath(configuration["SecretStores:DockerSecretsRoot"] ?? "/run/secrets");
+        var root = Path.GetFullPath(string.IsNullOrWhiteSpace(options.Value.DockerSecretsRoot)
+            ? "/run/secrets"
+            : options.Value.DockerSecretsRoot);
         var path = Path.GetFullPath(Path.Combine(root, key));
         if (!path.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
                 StringComparison.OrdinalIgnoreCase))
@@ -255,20 +295,68 @@ internal sealed class DockerSecretProvider(IConfiguration configuration) : ISecr
     }
 }
 
-internal sealed partial class AzureKeyVaultSecretProvider : ISecretProvider
+internal interface IAzureKeyVaultSecretClient
 {
-    private readonly IConfiguration _configuration;
-    private readonly IHostEnvironment _environment;
-    private readonly ConcurrentDictionary<string, SecretClient> _clients =
+    Task<string?> GetSecretValueAsync(
+        string name,
+        string? version,
+        CancellationToken ct);
+}
+
+internal interface IAzureKeyVaultSecretClientFactory
+{
+    OperationalDependencyState SuccessfulValidationState { get; }
+    IAzureKeyVaultSecretClient Create(Uri vaultUri);
+}
+
+internal sealed class AzureKeyVaultSecretClient(SecretClient client) : IAzureKeyVaultSecretClient
+{
+    public async Task<string?> GetSecretValueAsync(
+        string name,
+        string? version,
+        CancellationToken ct) =>
+        (await client.GetSecretAsync(name, version, ct)).Value.Value;
+}
+
+internal sealed class AzureKeyVaultSecretClientFactory(
+    IOptions<SecretStoreOptions> options,
+    IHostEnvironment environment) : IAzureKeyVaultSecretClientFactory
+{
+    public OperationalDependencyState SuccessfulValidationState =>
+        OperationalDependencyState.LiveValidated;
+
+    public IAzureKeyVaultSecretClient Create(Uri vaultUri)
+    {
+        var configured = options.Value.AzureKeyVault;
+        var credential = AzureKeyVaultCredentialFactory.Create(configured, environment);
+        var clientOptions = new SecretClientOptions
+        {
+            Retry =
+            {
+                // Retries are controlled by the provider so their limit is deterministic.
+                MaxRetries = 0,
+                NetworkTimeout = TimeSpan.FromSeconds(
+                    Math.Clamp(configured.TimeoutSeconds, 1, 60))
+            }
+        };
+        return new AzureKeyVaultSecretClient(new SecretClient(vaultUri, credential, clientOptions));
+    }
+}
+
+internal sealed partial class AzureKeyVaultSecretProvider(
+    IOptions<SecretStoreOptions> options,
+    IAzureKeyVaultSecretClientFactory clientFactory) : ISecretProvider
+{
+    private readonly ConcurrentDictionary<string, IAzureKeyVaultSecretClient> _clients =
         new(StringComparer.OrdinalIgnoreCase);
 
-    public AzureKeyVaultSecretProvider(IConfiguration configuration, IHostEnvironment environment)
-    {
-        _configuration = configuration;
-        _environment = environment;
-    }
-
     public string Scheme => "azure-key-vault";
+    public OperationalDependencyState SuccessfulValidationState =>
+        clientFactory.SuccessfulValidationState;
+    public OperationalDependencyState InitialState =>
+        options.Value.AzureKeyVault.AllowedVaultUris.Length == 0
+            ? OperationalDependencyState.NotConfigured
+            : OperationalDependencyState.Configured;
 
     public async Task<SecretResolutionResult> ResolveAsync(string key, CancellationToken ct)
     {
@@ -276,23 +364,38 @@ internal sealed partial class AzureKeyVaultSecretProvider : ISecretProvider
             return SecretResolutionResult.Failed(
                 Scheme, SecretResolutionStatus.Invalid, "secret.azure.reference_invalid");
 
-        var allowlist = _configuration.GetSection("SecretStores:AzureKeyVault:AllowedVaultUris")
-            .Get<string[]>() ?? [];
+        var configured = options.Value.AzureKeyVault;
+        var allowlist = configured.AllowedVaultUris;
         if (!allowlist.Any(item => IsExactAllowedVault(item, vaultUri)))
             return SecretResolutionResult.Failed(
                 Scheme, SecretResolutionStatus.Invalid, "secret.azure.vault_not_allowed");
 
         try
         {
-            var client = _clients.GetOrAdd(vaultUri.AbsoluteUri, _ => CreateClient(vaultUri));
+            var client = _clients.GetOrAdd(vaultUri.AbsoluteUri, _ => clientFactory.Create(vaultUri));
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
             timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(
-                _configuration.GetValue("SecretStores:AzureKeyVault:TimeoutSeconds", 10), 1, 60)));
-            var response = await client.GetSecretAsync(name, version, timeout.Token);
-            return string.IsNullOrWhiteSpace(response.Value.Value)
+                configured.TimeoutSeconds, 1, 60)));
+            string? value = null;
+            for (var attempt = 0; attempt <= configured.MaxRetries; attempt++)
+            {
+                try
+                {
+                    value = await client.GetSecretValueAsync(name, version, timeout.Token);
+                    break;
+                }
+                catch (RequestFailedException exception) when (
+                    attempt < configured.MaxRetries && IsRetryable(exception.Status))
+                {
+                    await Task.Delay(
+                        TimeSpan.FromMilliseconds(Math.Min(100 * (1 << attempt), 1000)),
+                        timeout.Token);
+                }
+            }
+            return string.IsNullOrWhiteSpace(value)
                 ? SecretResolutionResult.Failed(
                     Scheme, SecretResolutionStatus.Missing, "secret.azure.empty")
-                : SecretResolutionResult.Resolved(Scheme, response.Value.Value);
+                : SecretResolutionResult.Resolved(Scheme, value);
         }
         catch (RequestFailedException exception) when (exception.Status == 404)
         {
@@ -321,21 +424,7 @@ internal sealed partial class AzureKeyVaultSecretProvider : ISecretProvider
         }
     }
 
-    private SecretClient CreateClient(Uri vaultUri)
-    {
-        var credential = AzureKeyVaultCredentialFactory.Create(_configuration, _environment);
-        var clientOptions = new SecretClientOptions
-        {
-            Retry =
-            {
-                MaxRetries = Math.Clamp(
-                    _configuration.GetValue("SecretStores:AzureKeyVault:MaxRetries", 3), 0, 5),
-                NetworkTimeout = TimeSpan.FromSeconds(Math.Clamp(
-                    _configuration.GetValue("SecretStores:AzureKeyVault:TimeoutSeconds", 10), 1, 60))
-            }
-        };
-        return new SecretClient(vaultUri, credential, clientOptions);
-    }
+    private static bool IsRetryable(int status) => status is 408 or 429 or >= 500;
 
     private static bool TryParse(
         string value,
@@ -381,9 +470,11 @@ internal sealed partial class AzureKeyVaultSecretProvider : ISecretProvider
 
 public static class AzureKeyVaultCredentialFactory
 {
-    public static TokenCredential Create(IConfiguration configuration, IHostEnvironment environment)
+    public static TokenCredential Create(
+        AzureKeyVaultOptions options,
+        IHostEnvironment environment)
     {
-        var clientId = configuration["SecretStores:AzureKeyVault:ManagedIdentityClientId"];
+        var clientId = options.ManagedIdentityClientId;
         if (!environment.IsProduction() && !environment.IsEnvironment("UAT"))
         {
             return new DefaultAzureCredential(new DefaultAzureCredentialOptions

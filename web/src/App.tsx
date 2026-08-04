@@ -7,6 +7,7 @@ import { useTheme } from "./hooks/useTheme";
 import type { PlatformStatus } from "./types/platform";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PlatformAdministratorRoute } from "./components/PlatformAdministratorRoute";
+import { useAuth } from "./contexts/useAuth";
 
 const CapabilityPage = lazy(() => import("./pages/CapabilityPage").then(module => ({ default: module.CapabilityPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then(module => ({ default: module.DashboardPage })));
@@ -31,24 +32,47 @@ const OperationsPage = lazy(() => import("./pages/OperationsPage").then(module =
 
 function StudioRoutes() {
   const { theme, toggleTheme } = useTheme();
+  const { session, loading, workspaceEpoch } = useAuth();
   const [platformStatus, setPlatformStatus] = useState<PlatformStatus>(designTimePlatformStatus);
   const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+  const [statusStale, setStatusStale] = useState(false);
   useEffect(() => {
     let controller = new AbortController();
     const load = () => {
       controller.abort();
       controller = new AbortController();
       setIsFetchingStatus(true);
-      fetch("/api/platform/status", { signal: controller.signal })
-        .then(response => response.ok ? response.json() as Promise<PlatformStatus> : Promise.reject(new Error(`Platform status failed (${response.status}).`)))
-        .then(setPlatformStatus)
-        .catch(error => { if (error instanceof Error && error.name !== "AbortError") setPlatformStatus(designTimePlatformStatus); })
+      fetch("/api/platform/status", { signal: controller.signal, credentials: "include" })
+        .then(response => response.ok
+          ? response.json() as Promise<PlatformStatus>
+          : Promise.reject(new Error(`Platform status failed (${response.status}).`)))
+        .then(value => { setPlatformStatus(value); setStatusStale(false); })
+        .catch(error => {
+          if (error instanceof Error && error.name !== "AbortError") setStatusStale(true);
+        })
         .finally(() => setIsFetchingStatus(false));
     };
+    const visibility = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    const focus = () => load();
     load();
+    const poll = window.setInterval(load, 45_000);
     window.addEventListener("convolab:platform-status", load);
-    return () => { controller.abort(); window.removeEventListener("convolab:platform-status", load); };
+    window.addEventListener("focus", focus);
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      controller.abort();
+      window.clearInterval(poll);
+      window.removeEventListener("convolab:platform-status", load);
+      window.removeEventListener("focus", focus);
+      document.removeEventListener("visibilitychange", visibility);
+    };
   }, []);
+  useEffect(() => {
+    if (!loading)
+      window.dispatchEvent(new Event("convolab:platform-status"));
+  }, [loading, session?.userId, workspaceEpoch]);
 
   return (
     <Routes>
@@ -62,6 +86,7 @@ function StudioRoutes() {
             onToggleTheme={toggleTheme}
             status={platformStatus}
             isFetching={isFetchingStatus}
+            statusStale={statusStale}
           />
         }
       >

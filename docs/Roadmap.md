@@ -2,6 +2,8 @@
 
 Current release candidate: `v1.0.0-alpha.14`.
 
+Current workstream: `alpha.15 Operational Foundation — Final Sign-Off`. This does not advance release metadata. The scope covers truthful Analytics/secret readiness, continuous fenced worker leasing, actual iteration evidence, typed operational thresholds, database-backed gauges, safe-mode freshness, Operations Center acceptance, and final environment/package evidence.
+
 ## Phase 1 — Platform Core
 
 | Capability | Status |
@@ -77,6 +79,14 @@ Current release candidate: `v1.0.0-alpha.14`.
 - Genesys Cloud
 - SQL and REST data sources
 - Enterprise identity providers
+
+## Deferred alpha.15 workstreams
+
+- Entra/OIDC and external identity records
+- Backup and restore implementation and verified recovery objectives
+- Deployment promotion and hardened UAT/Production manifests
+- Supply-chain artifacts and SBOM release workflow
+- Full load/endurance evidence and the final operational readiness report
 
 ## Phase 6 — Developer ecosystem
 

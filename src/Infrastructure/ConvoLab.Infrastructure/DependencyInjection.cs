@@ -107,6 +107,7 @@ public static class DependencyInjection
         services.AddScoped<ISecretReferenceService, SecretReferenceService>();
         services.AddScoped<IEffectiveConfigurationResolver, EffectiveConfigurationResolver>();
         services.AddScoped<IRuntimeConfigurationResolver, RuntimeConfigurationResolver>();
+        services.AddScoped<IRequiredSecretReadinessEvaluator, RequiredSecretReadinessEvaluator>();
         services.AddScoped<IProviderValidationService, ProviderValidationService>();
         services.AddMemoryCache(options => options.SizeLimit = 1024);
         services.AddSingleton<SecretProviderEvidenceRegistry>();
@@ -114,6 +115,7 @@ public static class DependencyInjection
             provider.GetRequiredService<SecretProviderEvidenceRegistry>());
         services.AddSingleton<ISecretProvider, EnvironmentSecretProvider>();
         services.AddSingleton<ISecretProvider, DockerSecretProvider>();
+        services.AddSingleton<IAzureKeyVaultSecretClientFactory, AzureKeyVaultSecretClientFactory>();
         services.AddSingleton<ISecretProvider, AzureKeyVaultSecretProvider>();
         services.AddSingleton<ISecretStore, CompositeSecretStore>();
         services.AddSingleton<PlatformOperationalStateService>();
@@ -123,8 +125,17 @@ public static class DependencyInjection
             provider.GetRequiredService<PlatformOperationalStateService>());
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IOperationalWorkerLease, OperationalWorkerLease>();
+        services.AddSingleton<OperationalMetricsSnapshotService>();
+        services.AddHostedService(provider =>
+            provider.GetRequiredService<OperationalMetricsSnapshotService>());
+        services.AddSingleton<OtlpDependencyEvidenceService>();
+        services.AddSingleton<ITelemetryDependencyEvidenceSource>(provider =>
+            provider.GetRequiredService<OtlpDependencyEvidenceService>());
+        services.AddHostedService(provider =>
+            provider.GetRequiredService<OtlpDependencyEvidenceService>());
         services.AddScoped<SettingsBootstrapper>();
         services.AddScoped<IAnalyticsService, AnalyticsService>();
+        services.AddScoped<IAnalyticsOperationalEvidenceReader, AnalyticsOperationalEvidenceReader>();
         services.AddHostedService<AnalyticsMaintenanceWorker>();
 
         return services;

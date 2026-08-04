@@ -38,14 +38,16 @@ try
         .Enrich.FromLogContext()
         .Enrich.WithProperty("Service", "ConvoLab.Api")
         .Enrich.WithProperty("Version", AssemblyVersion())
-        .Enrich.WithProperty("Workstream", "alpha.15-operational-foundation"));
+        .Enrich.WithProperty("Workstream", OperationalWorkstream.Marker));
     builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
     ProductionReadinessValidator.ValidateStaticOrThrow(builder.Configuration, builder.Environment);
 
+    AddOperationalOptions(builder.Services, builder.Configuration);
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddSingleton<IProductionReadinessValidator, ProductionReadinessValidator>();
+    builder.Services.AddSingleton<OperationalReadinessSummary>();
     builder.Services.AddConvoLabDataProtection(builder.Configuration, builder.Environment);
     builder.Services.AddConvoLabSecurity(builder.Environment);
     ConfigureForwardedHeaders(builder.Services, builder.Configuration);
@@ -63,7 +65,8 @@ try
     builder.Services.AddScoped<WorkspaceIdentityBootstrapper>();
     builder.Services.AddScoped<ConvoLab.Infrastructure.Settings.SettingsBootstrapper>();
 
-    var enableConsoleTelemetry = builder.Configuration.GetValue<bool>("Telemetry:ConsoleExporter:Enabled");
+    var telemetryOptions = builder.Configuration.GetSection("Telemetry").Get<TelemetryOptions>() ?? new();
+    var enableConsoleTelemetry = telemetryOptions.ConsoleExporter.Enabled;
     var otlpEndpoint = builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
                        ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
     var tracesExporter = builder.Configuration["OTEL_TRACES_EXPORTER"]
@@ -79,12 +82,12 @@ try
     var version = AssemblyVersion();
     var serviceName = builder.Configuration["OTEL_SERVICE_NAME"]
                       ?? Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
-                      ?? "ConvoLab.Api";
+                      ?? telemetryOptions.ServiceName;
     var resource = ResourceBuilder.CreateDefault()
         .AddService(serviceName, serviceVersion: version)
         .AddAttributes([
             new KeyValuePair<string, object>("deployment.environment.name", builder.Environment.EnvironmentName),
-            new KeyValuePair<string, object>("convolab.workstream", "alpha.15-operational-foundation")
+            new KeyValuePair<string, object>("convolab.workstream", OperationalWorkstream.Marker)
         ]);
     builder.Services.AddOpenTelemetry()
         .WithTracing(tracing =>
@@ -93,15 +96,8 @@ try
                 .AddSource("ConvoLab.Api", ConvoLabTelemetry.SourceName)
                 .SetResourceBuilder(resource)
                 .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation(options => options.FilterHttpRequestMessage = request =>
-                {
-                    if (request.Options.TryGetValue(
-                            SensitiveTelemetryHttpRequestOptions.SuppressAutomaticInstrumentation,
-                            out var suppress) && suppress) return false;
-                    var host = request.RequestUri?.Host ?? string.Empty;
-                    return !host.Equals("generativelanguage.googleapis.com", StringComparison.OrdinalIgnoreCase)
-                           && !host.EndsWith(".vault.azure.net", StringComparison.OrdinalIgnoreCase);
-                })
+                .AddHttpClientInstrumentation(options => options.FilterHttpRequestMessage =
+                    SensitiveTelemetryHttpRequestOptions.ShouldInstrument)
                 .AddEntityFrameworkCoreInstrumentation();
             if (enableConsoleTelemetry) tracing.AddConsoleExporter();
             if (enableOtlpTraces) tracing.AddOtlpExporter();
@@ -110,7 +106,10 @@ try
         {
             metrics
                 .SetResourceBuilder(resource)
-                .AddMeter("ConvoLab.Api", ConvoLabTelemetry.MeterName)
+                .AddMeter(
+                    "ConvoLab.Api",
+                    ConvoLabTelemetry.MeterName,
+                    ConvoLabTelemetry.DatabaseMeterName)
                 .AddAspNetCoreInstrumentation()
                 .AddRuntimeInstrumentation();
             if (enableConsoleTelemetry) metrics.AddConsoleExporter();
@@ -222,12 +221,12 @@ try
     app.MapHealthChecks("/health/ready", new HealthCheckOptions
     {
         Predicate = registration => registration.Tags.Contains("ready"),
-        ResponseWriter = WriteHealthResponseAsync
+        ResponseWriter = WriteReadinessHealthResponseAsync
     }).AllowAnonymous();
     app.MapHealthChecks("/health", new HealthCheckOptions
     {
         Predicate = registration => registration.Tags.Contains("ready"),
-        ResponseWriter = WriteHealthResponseAsync
+        ResponseWriter = WriteReadinessHealthResponseAsync
     }).AllowAnonymous();
 
     await app.RunAsync();
@@ -259,6 +258,16 @@ static async Task WriteHealthResponseAsync(HttpContext context, HealthReport rep
     });
 }
 
+static async Task WriteReadinessHealthResponseAsync(
+    HttpContext context,
+    HealthReport report)
+{
+    context.RequestServices
+        .GetRequiredService<OperationalReadinessSummary>()
+        .Record(report.Status);
+    await WriteHealthResponseAsync(context, report);
+}
+
 static string AssemblyVersion()
 {
     var version = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
@@ -271,21 +280,72 @@ static bool ExporterIncludesOtlp(string? value) =>
     value?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Any(item => item.Equals("otlp", StringComparison.OrdinalIgnoreCase)) == true;
 
+static void AddOperationalOptions(IServiceCollection services, IConfiguration configuration)
+{
+    services.AddOptions<ProxyOptions>()
+        .Bind(configuration.GetSection("Proxy"))
+        .Validate(value => !value.Enabled
+            || value.ForwardLimit is >= 1 and <= 5
+            && (value.KnownProxies.Length > 0 || value.KnownNetworks.Length > 0),
+            "Enabled proxy forwarding requires bounded, explicit trust boundaries.")
+        .ValidateOnStart();
+    services.AddOptions<LocalAuthenticationOptions>()
+        .Bind(configuration.GetSection("Authentication:Local"))
+        .ValidateOnStart();
+    services.AddOptions<DataProtectionOptions>()
+        .Bind(configuration.GetSection("DataProtection"))
+        .ValidateOnStart();
+    services.AddOptions<SecretStoreOptions>()
+        .Bind(configuration.GetSection("SecretStores"))
+        .Validate(value => value.CacheTtlSeconds is >= 1 and <= 3600
+            && value.AzureKeyVault.TimeoutSeconds is >= 1 and <= 60
+            && value.AzureKeyVault.MaxRetries is >= 0 and <= 5,
+            "Secret-store cache, timeout, or retry settings are outside safe bounds.")
+        .ValidateOnStart();
+    services.AddOptions<SafeModeOptions>()
+        .Bind(configuration.GetSection("SafeMode"))
+        .ValidateOnStart();
+    services.AddOptions<OperationsThresholdOptions>()
+        .Bind(configuration.GetSection("Operations:Thresholds"))
+        .Validate(OperationsThresholdOptions.IsValid,
+            "Operational warning thresholds must be positive and lower than unhealthy thresholds.")
+        .ValidateOnStart();
+    services.AddOptions<RequiredSecretReadinessOptions>()
+        .Bind(configuration.GetSection("Operations:RequiredSecrets"))
+        .ValidateOnStart();
+    services.AddOptions<TelemetryOptions>()
+        .Bind(configuration.GetSection("Telemetry"))
+        .Validate(value => value.OperationalSnapshotSeconds is >= 5 and <= 300
+            && value.CollectorProbeSeconds is >= 5 and <= 300
+            && !string.IsNullOrWhiteSpace(value.ServiceName),
+            "Telemetry refresh and service-name settings are invalid.")
+        .ValidateOnStart();
+    services.AddOptions<BuildOptions>()
+        .Bind(configuration.GetSection("Build"))
+        .ValidateOnStart();
+    services.AddOptions<AnalyticsWorkerOptions>()
+        .Bind(configuration.GetSection("AnalyticsWorker"))
+        .Validate(AnalyticsWorkerOptions.IsValid,
+            "Analytics worker lease, renewal, poll, batch, or tolerance settings are invalid.")
+        .ValidateOnStart();
+}
+
 static void ConfigureForwardedHeaders(IServiceCollection services, IConfiguration configuration)
 {
-    if (!configuration.GetValue<bool>("Proxy:Enabled")) return;
+    var configured = configuration.GetSection("Proxy").Get<ProxyOptions>() ?? new();
+    if (!configured.Enabled) return;
     services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
                                    | ForwardedHeaders.XForwardedProto
                                    | ForwardedHeaders.XForwardedHost;
         options.RequireHeaderSymmetry = true;
-        options.ForwardLimit = Math.Clamp(configuration.GetValue("Proxy:ForwardLimit", 1), 1, 5);
+        options.ForwardLimit = configured.ForwardLimit;
         options.KnownProxies.Clear();
         options.KnownNetworks.Clear();
-        foreach (var value in configuration.GetSection("Proxy:KnownProxies").Get<string[]>() ?? [])
+        foreach (var value in configured.KnownProxies)
             options.KnownProxies.Add(IPAddress.Parse(value));
-        foreach (var value in configuration.GetSection("Proxy:KnownNetworks").Get<string[]>() ?? [])
+        foreach (var value in configured.KnownNetworks)
         {
             var parts = value.Split('/', 2, StringSplitOptions.TrimEntries);
             options.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(

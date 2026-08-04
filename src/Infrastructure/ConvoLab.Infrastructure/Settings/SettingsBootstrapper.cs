@@ -159,8 +159,11 @@ public sealed class SettingsBootstrapper
 
     private async Task EnsureGeminiSecretReferenceAsync(Guid workspaceId, CancellationToken ct)
     {
+        // Keep the reference as a captured value so EF parameterizes it. A literal
+        // in the expression can be emitted in query-compilation and command logs.
+        var defaultReference = "env:GEMINI_API_KEY";
         var exists = await _db.SecretReferences
-            .AnyAsync(r => r.WorkspaceId == workspaceId && r.Reference == "env:GEMINI_API_KEY", ct);
+            .AnyAsync(r => r.WorkspaceId == workspaceId && r.Reference == defaultReference, ct);
         if (exists) return;
 
         var now = DateTimeOffset.UtcNow;
@@ -171,7 +174,7 @@ public sealed class SettingsBootstrapper
             Id = Guid.NewGuid(),
             WorkspaceId = workspaceId,
             DisplayName = "Gemini API Key",
-            Reference = "env:GEMINI_API_KEY",
+            Reference = defaultReference,
             Provider = "env",
             Status = keyPresent ? "NotValidated" : "Missing",
             CreatedAt = now,

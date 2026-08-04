@@ -19,13 +19,13 @@ public sealed class PlatformController(IPlatformOperationalState operationalStat
             PlatformName: "ConvoLab Platform",
             ProductName: "ConvoLab Studio",
             Version: Version(),
-            Workstream: "alpha.15-operational-foundation",
+            Workstream: OperationalWorkstream.Label,
             SafeMode: safeMode.EffectiveSafeModeEnabled,
             Environment: HttpContext.RequestServices
                 .GetRequiredService<IHostEnvironment>()
                 .EnvironmentName,
             ArchitectureHealth: "Hardened Alpha",
-            ApiHealth: "Healthy",
+            ApiHealth: "Responding",
             Capabilities:
             [
                 new("conversation", "Conversation Engine", "Lifecycle, sessions, participants, memory, and timeline.", "stable", "1.0", 16),

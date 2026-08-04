@@ -1,5 +1,6 @@
 using System.Text.Json;
 using ConvoLab.Domain.Analytics;
+using ConvoLab.Application.Operations;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.Settings;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
@@ -129,6 +130,17 @@ public static class AnalyticsOutboxFactory
         ApplicationDbContext db,
         AnalyticsEventRecord analyticsEvent)
     {
+        if (analyticsEvent.CostZar.HasValue
+            && analyticsEvent.CostType is "Actual" or "Estimated")
+        {
+            System.Diagnostics.TagList tags = default;
+            tags.Add("provider_type", ProviderType(analyticsEvent.Provider));
+            tags.Add("cost_type", analyticsEvent.CostType.ToLowerInvariant());
+            tags.Add("outcome", BoundedOutcome(analyticsEvent.Outcome));
+            ConvoLabTelemetry.ProviderCostZar.Add(
+                decimal.ToDouble(analyticsEvent.CostZar.Value),
+                tags);
+        }
         db.AnalyticsOutbox.Add(new AnalyticsOutboxRecord
         {
             Id = Guid.NewGuid(),
@@ -139,4 +151,20 @@ public static class AnalyticsOutboxFactory
             CreatedAt = DateTimeOffset.UtcNow
         });
     }
+
+    private static string ProviderType(string? provider) => provider switch
+    {
+        null or "" => "none",
+        var value when value.Contains("deterministic", StringComparison.OrdinalIgnoreCase)
+            => "deterministic",
+        _ => "external"
+    };
+
+    private static string BoundedOutcome(string outcome) => outcome switch
+    {
+        "Succeeded" or "Completed" => "succeeded",
+        "Denied" => "denied",
+        "Failed" => "failed",
+        _ => "other"
+    };
 }
