@@ -85,10 +85,19 @@ test("platform administrator can navigate every Operations Center panel", async 
 
   const authentication = page.locator("article", { hasText: "Authentication" });
   await authentication.getByRole("button", { name: "Load evidence" }).click();
+  await expect(authentication.getByText("Authentication mode", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("Entra dependency state", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("Tenant configuration", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("Client authentication configured", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("External identities", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("External login successes (24h)", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("External login failures (24h)", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("Active application sessions", { exact: true })).toBeVisible();
   await expect(authentication.getByText("Break-glass state", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("Break-glass successful uses (24h)", { exact: true })).toBeVisible();
   await expect(authentication.getByText("Break-glass failures (24h)", { exact: true })).toBeVisible();
   await expect(authentication.getByText("Last break-glass success", { exact: true })).toBeVisible();
-  await expect(authentication).not.toContainText(/account|email|credential|hash|failed at/i);
+  await expect(authentication).not.toContainText(/tenant id|authority|secret reference|account|email|credential|hash|password|subject|failed at/i);
 });
 
 test("workspace roles do not receive Operations navigation or route access", async ({ page }) => {

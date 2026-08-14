@@ -35,11 +35,37 @@ export interface ReadinessEvidence {
   correlationId: string;
 }
 
+export interface AuthenticationEvidence {
+  mode: "Local" | "Entra" | "Hybrid";
+  localLoginEnabled: boolean;
+  entraEnabled: boolean;
+  tenantConfigurationState: "NotConfigured" | "Configured";
+  clientAuthentication: {
+    configured: boolean;
+    secretProviderScheme?: string | null;
+  };
+  state: DependencyState;
+  lastValidationAt?: string | null;
+  lastFailureCode?: string | null;
+  externalIdentityCount: number;
+  linkedActiveUsers: number;
+  externalLoginSuccessesLast24Hours: number;
+  externalLoginFailuresLast24Hours: number;
+  activeSessions: number;
+  breakGlassEnabled: boolean;
+  breakGlassAvailable: boolean;
+  breakGlassState: "Disabled" | "Available" | "Locked" | "Unavailable";
+  breakGlassUsesLast24Hours: number;
+  breakGlassFailuresLast24Hours: number;
+  lastBreakGlassSuccessfulUseAt?: string | null;
+  correlationId: string;
+}
+
 export async function getOperationsStatus() { return (await api.get<OperationsStatus>("/api/operations/status")).data; }
 export async function getReadiness() { return (await api.get<ReadinessEvidence>("/api/operations/readiness")).data; }
 export async function getWorkers() { return (await api.get("/api/operations/workers")).data; }
 export async function getAnalyticsPipeline() { return (await api.get("/api/operations/analytics-pipeline")).data; }
-export async function getAuthenticationEvidence() { return (await api.get("/api/operations/authentication")).data; }
+export async function getAuthenticationEvidence() { return (await api.get<AuthenticationEvidence>("/api/operations/authentication")).data; }
 export async function getSecretProviders() { return (await api.get("/api/operations/secret-providers")).data; }
 export async function getBackups() { return (await api.get("/api/operations/backups")).data; }
 export async function getBuildEvidence() { return (await api.get("/api/operations/build")).data; }

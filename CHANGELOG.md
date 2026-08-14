@@ -8,9 +8,9 @@ Active version metadata remains `1.0.0-alpha.14`; this is not an alpha.15 releas
 - Added tenant-specific authorization-code OIDC with PKCE, framework state/nonce/correlation validation, asynchronously resolved client-secret references, and no token persistence.
 - Added stable provider/issuer/subject/tenant identity records, tenant-bound single-use invitation linking with optional authoritative `email` corroboration, opaque Entra sessions, external logout, and identity-administration session revocation.
 - Added disabled-by-default Platform Administrator break glass, high-severity audit/telemetry, Production startup validation, Operations evidence, readiness semantics, focused migration, tests, and runbooks.
-- Added global Studio maturity labels for every stable screen and a live API checking/online/offline notification with outage-recovery acceptance coverage.
-- Corrected Workflow Designer sizing with a bounded desktop three-pane workbench and earlier compact Inspector/Definitions drawers.
-- Prevented a multi-event Analytics outbox batch from staging duplicate workspace/granularity checkpoints during restart recovery.
+- Incidental acceptance defect correction (scope-limited): added global Studio maturity labels plus API checking/online/offline notification and outage-recovery coverage.
+- Incidental acceptance defect correction (scope-limited): corrected Workflow Designer sizing with a bounded desktop three-pane workbench and earlier compact Inspector/Definitions drawers.
+- Incidental acceptance defect correction (scope-limited): prevented a multi-event Analytics outbox batch from staging duplicate workspace/granularity checkpoints during restart recovery.
 - Live Microsoft Entra validation has not been executed in this repository evidence; deterministic and framework tests must not be described as live validation.
 
 - Corrected Analytics readiness so fresh pending work stays Healthy while aged pending, failed outbox work, failed checkpoints, aggregation lag, and partial worker failures affect status through shared typed thresholds.

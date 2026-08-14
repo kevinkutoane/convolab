@@ -16,21 +16,29 @@ namespace ConvoLab.Api.IntegrationTests;
 public sealed class BreakGlassAuthenticationTests
 {
     [Fact]
-    public async Task Failures_increment_dedicated_state_and_lock_without_touching_local_lockout()
+    public async Task Lock_transition_is_emitted_once_and_locked_attempts_remain_failures_without_touching_local_lockout()
     {
         await using var factory = new BreakGlassFactory(rateLimit: 60);
         using var client = factory.CreateClient();
         for (var index = 0; index < 5; index++)
             Assert.Equal(HttpStatusCode.Unauthorized, (await FailAsync(client)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await FailAsync(client)).StatusCode);
 
         await using var scope = factory.Services.CreateAsyncScope();
-        var credential = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
-            .LocalCredentials.AsNoTracking().SingleAsync();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var credential = await db.LocalCredentials.AsNoTracking().SingleAsync();
         Assert.Equal(5, credential.BreakGlassFailedAttempts);
         Assert.NotNull(credential.BreakGlassLockedUntil);
         Assert.NotNull(credential.BreakGlassLastFailedAt);
         Assert.Equal(0, credential.FailedAttempts);
         Assert.Null(credential.LockedUntil);
+        Assert.Equal(6, await db.WorkspaceAuditEvents.AsNoTracking()
+            .CountAsync(item => item.Action == "Authentication.BreakGlassFailure"));
+        Assert.Equal(1, await db.WorkspaceAuditEvents.AsNoTracking()
+            .CountAsync(item => item.Action == "Authentication.BreakGlassLocked"));
+        Assert.Equal(2, await db.WorkspaceAuditEvents.AsNoTracking()
+            .CountAsync(item => item.Action == "Authentication.BreakGlassFailure"
+                                && item.DetailJson!.Contains("\"lockoutState\":\"Locked\"")));
     }
 
     [Fact]

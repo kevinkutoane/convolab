@@ -15,7 +15,7 @@ Evidence date: 2026-08-14
 - Local logout always revokes the ConvoLab session; an Entra session can additionally initiate framework-managed external logout.
 - Break glass is off by default, uses a separate endpoint, limiter, failure counter, optimistic-concurrency revision, and lockout state, and is restricted to an active Platform Administrator with a local credential. It creates a one-hour `BreakGlass` session and emits bounded audit/metric evidence without changing ordinary local lockout state.
 - Platform Administrators can list, invite, enable, disable, and logically remove external identities. Disablement revokes associated sessions, uses revision checks, requires final-method confirmation, and prevents self-lockout.
-- The Operations authentication endpoint exposes only break-glass enabled/available flags, aggregate state, last successful use, recent failure count, and correlation ID.
+- The Operations authentication endpoint exposes sanitized mode/configuration/dependency classifications and aggregate external-identity, linked-active-user, external-login, active-session, and break-glass evidence together. It returns no tenant ID, authority, secret reference, identity claim, account identity, or credential material.
 - PostgreSQL and SQLite are supported by the original `202608040001_EntraHybridAuthenticationV1` migration and correction migration `202608050001_EntraHybridAuthenticationCorrectionsV1`. The correction adds only four dedicated break-glass columns and preserves existing authentication data.
 
 Known limitations: group-to-role mapping, multi-tenant Entra, SCIM, automatic onboarding, certificate client authentication, and authenticated self-linking are deferred. Live tenant validation has not been performed. ConvoLab remains the sole role and workspace authorization authority.
@@ -125,7 +125,7 @@ All external callback failures use `/login?error=authentication.external_login_f
 | Disabled state | Endpoint unavailable unless explicitly enabled in `Entra` or `Hybrid` mode |
 | Unauthorised user | Denied unless the credential belongs to an active Platform Administrator |
 | Authorised Platform Administrator | Separate route creates a one-hour opaque `BreakGlass` session |
-| Audit | `Authentication.BreakGlassFailure`, threshold `Authentication.BreakGlassLocked`, and successful `Authentication.BreakGlassLogin` |
+| Audit | Every denial emits `Authentication.BreakGlassFailure`; the threshold transition alone emits `Authentication.BreakGlassLocked`; active-lockout retries remain failures with `lockoutState=Locked`; success emits `Authentication.BreakGlassLogin` |
 | Telemetry | `convolab.auth.break_glass.total` with bounded `outcome`, `failure_code`, and `lockout_state` only |
 | Session | Provider `BreakGlass`; idle and absolute expiry both one hour |
 | Account state | Five attempts, 15-minute break-glass-only lockout, deterministic expiry/reset, optimistic-concurrency retry |
@@ -157,9 +157,13 @@ The correction implementation and deterministic focused tests cover:
 - exactly one successful concurrent callback, one consumed invitation, one identity, and one committed session;
 - database commit before `TicketReceived` cookie issuance, plus forced transaction-commit failure with rollback and no `convolab_session` cookie;
 - dedicated break-glass threshold, lockout, correct-password denial while locked, deterministic expiry, successful reset, independent limiter, ordinary-login isolation, concurrency preservation, generic Problem Details, safe audits, and bounded metric labels;
+- threshold-only `Authentication.BreakGlassLocked` transition evidence and continued `Authentication.BreakGlassFailure` evidence with `lockoutState=Locked` for attempts during the active lockout;
 - correction migration discovery and SQLite preservation coverage, with PostgreSQL preservation coverage included in the disposable-database suite;
-- aggregate-only Operations contract and serial Playwright configuration (`workers: 1`, `retries: 0`).
-- restart-safe Analytics checkpoint reuse for multi-event outbox batches, plus global Studio maturity labels and API checking/online/offline notification coverage.
+- combined sanitized Entra/identity and break-glass Operations contract, database-side aggregate queries, and serial Playwright configuration (`workers: 1`, `retries: 0`).
+
+## Incidental acceptance defects
+
+Acceptance also uncovered two unrelated, tightly scoped defects. The Analytics worker reused an in-memory checkpoint instance incorrectly when one outbox batch contained multiple events for the same workspace/granularity; the correction is limited to restart-safe checkpoint reuse. The Studio shell had incomplete stable-screen/API-connectivity presentation and the Workflow Designer desktop workbench was mis-sized; corrections are limited to global maturity/connectivity indicators and the bounded three-pane/compact-drawer layout. Neither defect expands the Entra/hybrid-authentication tranche or begins a new Analytics or Studio redesign workstream.
 
 Final lifecycle evidence, dependency audits, sentinel scans, and all four serial Playwright positions are recorded below only after execution.
 
@@ -175,6 +179,7 @@ Live Microsoft Entra validation was not executed; identity-provider acceptance r
 | `dotnet build --configuration Release --no-restore` | PASS — 0 warnings, 0 errors |
 | `dotnet test` | PASS — 416/416 (Domain 188, Application 42, Architecture 16, Infrastructure 86, API 84) |
 | Deterministic authentication corrections | PASS — 54 focused OIDC, invitation, transaction, break-glass, Operations, and security tests |
+| Final combined authentication Operations contract | PASS — sanitized Entra/identity and break-glass evidence returned together; relational `COUNT`/`MAX` aggregation; forbidden configuration, claim, account, and credential fields absent |
 | PostgreSQL fresh/upgrade migration | PASS — 9/9 tests against disposable PostgreSQL 16, including correction-upgrade preservation |
 | PostgreSQL persistence/restart | PASS — persisted state survived restart; the final application and complete browser suite remained usable after database restart |
 | `npm ci` | PASS — reproducible lockfile install |
@@ -188,9 +193,11 @@ Live Microsoft Entra validation was not executed; identity-provider acceptance r
 | Playwright after API restart | PASS — 23/23, one worker, zero retries |
 | Playwright after PostgreSQL restart | PASS — 23/23, one worker, zero retries |
 | Playwright against final rebuilt/recreated images | PASS — 23/23, one worker, zero retries |
+| Final Operations Playwright correction gate | PASS — 8/8, including combined Entra/identity and break-glass rendering |
+| Final complete Playwright correction rerun | PASS — 23/23, one worker, zero retries, against the final healthy acceptance configuration |
 | API restart | PASS — container healthy and protected browser flows remained usable |
 | PostgreSQL restart | PASS — database/API/web healthy and browser verification completed |
-| Sentinel security scans | PASS with the intentional external-identity database-field qualification above |
+| Final sentinel security scans | PASS — zero matches in API/Studio runtime logs, Playwright artifacts, and relevant persisted authentication/audit/outbox fields, with the intentional external-identity database-field qualification above |
 | Operational readiness | PASS — `/health/live` Healthy and `/health/ready` Healthy in final Local-mode runtime; Entra correctly `NotConfigured` there |
 | Metadata/root guard | PASS — repository remains `convolab-main`; package/assembly/Studio metadata remains `1.0.0-alpha.14` |
 

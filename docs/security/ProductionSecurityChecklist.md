@@ -26,5 +26,5 @@ This checklist applies to `alpha.15 — Microsoft Entra ID, External Identities 
 - [ ] Application sessions store only a token hash, provider, and external identity reference; raw provider tokens are absent.
 - [ ] Break glass is disabled or has an active authorised Platform Administrator, vault ownership, alerting, and a completed runbook exercise.
 - [ ] Dedicated break-glass attempts, lockout, rate limit, concurrency, generic denial, reset, and ordinary-login isolation have been verified.
-- [ ] Operations authentication evidence exposes only aggregate break-glass state, availability, last success, and recent failure count.
+- [ ] Operations authentication evidence renders sanitized Entra/identity classifications and aggregate counts together with break-glass state, availability, recent uses/failures, and last success.
 - [ ] Operations evidence distinguishes `StubValidated` from `LiveValidated` and exposes no authority, subject, email, token, or secret reference.

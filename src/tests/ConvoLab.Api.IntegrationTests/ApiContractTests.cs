@@ -750,7 +750,7 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
     }
 
     [Fact]
-    public async Task Operations_authentication_exposes_only_aggregate_break_glass_evidence()
+    public async Task Operations_authentication_exposes_sanitized_Entra_identity_session_and_break_glass_evidence()
     {
         using var client = _factory.CreateClient();
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/auth/login", new
@@ -763,14 +763,36 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var properties = payload.RootElement.EnumerateObject().Select(item => item.Name).OrderBy(item => item).ToArray();
         Assert.Equal([
-            "breakGlassAvailable", "breakGlassEnabled", "breakGlassFailuresLast24Hours",
-            "breakGlassState", "correlationId", "lastBreakGlassSuccessfulUseAt"
+            "activeSessions", "breakGlassAvailable", "breakGlassEnabled", "breakGlassFailuresLast24Hours",
+            "breakGlassState", "breakGlassUsesLast24Hours", "clientAuthentication", "correlationId",
+            "entraEnabled", "externalIdentityCount", "externalLoginFailuresLast24Hours",
+            "externalLoginSuccessesLast24Hours", "lastBreakGlassSuccessfulUseAt", "lastFailureCode",
+            "lastValidationAt", "linkedActiveUsers", "localLoginEnabled", "mode", "state",
+            "tenantConfigurationState"
         ], properties);
+        Assert.Equal("Local", payload.RootElement.GetProperty("mode").GetString());
+        Assert.True(payload.RootElement.GetProperty("localLoginEnabled").GetBoolean());
+        Assert.False(payload.RootElement.GetProperty("entraEnabled").GetBoolean());
+        Assert.Equal("NotConfigured", payload.RootElement.GetProperty("tenantConfigurationState").GetString());
+        Assert.False(payload.RootElement.GetProperty("clientAuthentication").GetProperty("configured").GetBoolean());
+        Assert.Equal("NotConfigured", payload.RootElement.GetProperty("state").GetString());
+        Assert.True(payload.RootElement.GetProperty("activeSessions").GetInt32() >= 1);
+        Assert.True(payload.RootElement.TryGetProperty("externalIdentityCount", out _));
+        Assert.True(payload.RootElement.TryGetProperty("linkedActiveUsers", out _));
+        Assert.True(payload.RootElement.TryGetProperty("externalLoginSuccessesLast24Hours", out _));
+        Assert.True(payload.RootElement.TryGetProperty("externalLoginFailuresLast24Hours", out _));
+        Assert.True(payload.RootElement.TryGetProperty("breakGlassUsesLast24Hours", out _));
+        Assert.True(payload.RootElement.TryGetProperty("breakGlassFailuresLast24Hours", out _));
         var serialized = payload.RootElement.GetRawText();
         Assert.DoesNotContain("email", serialized, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("credential", serialized, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("hash", serialized, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("account", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("tenantId", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("authority", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("secretReference", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("subject", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("password", serialized, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]

@@ -138,9 +138,24 @@ function Evidence({ value }: { value: unknown }) {
     <Fact label="Last failure code" value={String(record.lastFailureCode ?? "None")} />
   </dl>;
   if ("breakGlassState" in record) return <dl className="operations-facts">
+    <Fact label="Authentication mode" value={String(record.mode)} />
+    <Fact label="Local login enabled" value={String(record.localLoginEnabled)} />
+    <Fact label="Entra enabled" value={String(record.entraEnabled)} />
+    <Fact label="Tenant configuration" value={String(record.tenantConfigurationState)} />
+    <Fact label="Client authentication configured" value={String((record.clientAuthentication as Record<string, unknown>)?.configured ?? false)} />
+    <Fact label="Client authentication provider" value={String((record.clientAuthentication as Record<string, unknown>)?.secretProviderScheme ?? "Not configured")} />
+    <div><dt>Entra dependency state</dt><dd><State value={String(record.state) as DependencyState} /></dd></div>
+    <Fact label="Last Entra validation" value={Timestamp(record.lastValidationAt)} />
+    <Fact label="Last Entra failure code" value={String(record.lastFailureCode ?? "None")} />
+    <Fact label="External identities" value={String(record.externalIdentityCount)} />
+    <Fact label="Linked active users" value={String(record.linkedActiveUsers)} />
+    <Fact label="External login successes (24h)" value={String(record.externalLoginSuccessesLast24Hours)} />
+    <Fact label="External login failures (24h)" value={String(record.externalLoginFailuresLast24Hours)} />
+    <Fact label="Active application sessions" value={String(record.activeSessions)} />
     <Fact label="Break-glass enabled" value={String(record.breakGlassEnabled)} />
     <Fact label="Break-glass available" value={String(record.breakGlassAvailable)} />
     <Fact label="Break-glass state" value={String(record.breakGlassState)} />
+    <Fact label="Break-glass successful uses (24h)" value={String(record.breakGlassUsesLast24Hours)} />
     <Fact label="Break-glass failures (24h)" value={String(record.breakGlassFailuresLast24Hours)} />
     <Fact label="Last break-glass success" value={Timestamp(record.lastBreakGlassSuccessfulUseAt)} />
   </dl>;

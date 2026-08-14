@@ -1,5 +1,7 @@
 using System.Reflection;
 using System.Security.Claims;
+using System.Data;
+using System.Globalization;
 using ConvoLab.Api.Health;
 using ConvoLab.Application.Operations;
 using ConvoLab.Domain.Analytics;
@@ -27,7 +29,8 @@ public sealed class OperationsController(
     IAnalyticsOperationalEvidenceReader analyticsEvidence,
     OperationalReadinessSummary readinessSummary,
     HealthCheckService healthChecks,
-    IConfiguration configuration,
+    IOptions<AuthenticationOptions> authenticationOptions,
+    EntraDependencyEvidence entraEvidence,
     IOptions<OperationsThresholdOptions> thresholdOptions,
     IOptions<BuildOptions> buildOptions,
     IHostEnvironment environment,
@@ -191,35 +194,159 @@ public sealed class OperationsController(
     public async Task<ActionResult> Authentication(CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
-        var authenticationAudits = await db.WorkspaceAuditEvents.AsNoTracking()
-            .Where(item => item.Action == "Authentication.BreakGlassLogin"
-                           || item.Action == "Authentication.BreakGlassFailure")
-            .Select(item => new { item.Action, item.Outcome, item.OccurredAt }).ToListAsync(ct);
         var since = now.AddHours(-24);
-        var breakGlassFailures = authenticationAudits.Count(item => item.Action == "Authentication.BreakGlassFailure"
-            && item.OccurredAt >= since);
-        var lastBreakGlassSuccess = authenticationAudits
-            .Where(item => item.Action == "Authentication.BreakGlassLogin" && item.Outcome == "Succeeded")
-            .Select(item => (DateTimeOffset?)item.OccurredAt).OrderByDescending(item => item).FirstOrDefault();
-        var breakGlassEnabled = configuration.GetValue<bool>("Authentication:Local:BreakGlassEnabled");
-        var authorisedLockouts = await db.IdentityUsers.AsNoTracking()
-            .Where(item => item.Status == "Active" && item.IsPlatformAdministrator)
-            .Join(db.LocalCredentials.AsNoTracking(), user => user.Id, credential => credential.UserId,
-                (_, credential) => credential.BreakGlassLockedUntil).ToListAsync(ct);
+        var configured = authenticationOptions.Value;
+        var localLoginEnabled = configured.Mode == ConvoLabAuthenticationMode.Local
+                                || configured.Mode == ConvoLabAuthenticationMode.Hybrid
+                                && configured.Local.Enabled;
+        var entraEnabled = configured.Entra.Enabled
+                           && configured.Mode is ConvoLabAuthenticationMode.Entra or ConvoLabAuthenticationMode.Hybrid;
+        var tenantConfigurationState = string.IsNullOrWhiteSpace(configured.Entra.TenantId)
+            ? "NotConfigured"
+            : "Configured";
+        var clientAuthenticationScheme = ClientAuthenticationScheme(configured.Entra.ClientSecretReference);
+
+        var aggregates = await ReadAuthenticationAggregatesAsync(since, now, ct);
+        var breakGlassEnabled = configured.Local.BreakGlassEnabled;
         var breakGlassState = !breakGlassEnabled ? "Disabled"
-            : authorisedLockouts.Count == 0 ? "Unavailable"
-            : authorisedLockouts.Any(item => !item.HasValue || item <= now) ? "Available"
+            : aggregates.AuthorisedCredentialCount == 0 ? "Unavailable"
+            : aggregates.AvailableCredentialCount > 0 ? "Available"
             : "Locked";
+        var dependency = entraEvidence.Snapshot();
         return Ok(new
         {
+            mode = configured.Mode.ToString(),
+            localLoginEnabled,
+            entraEnabled,
+            tenantConfigurationState,
+            clientAuthentication = new
+            {
+                configured = clientAuthenticationScheme is not null,
+                secretProviderScheme = clientAuthenticationScheme
+            },
+            state = dependency.State,
+            lastValidationAt = dependency.CheckedAt,
+            lastFailureCode = dependency.FailureCode,
+            externalIdentityCount = aggregates.ExternalIdentityCount,
+            linkedActiveUsers = aggregates.LinkedActiveUsers,
+            externalLoginSuccessesLast24Hours = aggregates.ExternalLoginSuccesses,
+            externalLoginFailuresLast24Hours = aggregates.ExternalLoginFailures,
+            activeSessions = aggregates.ActiveSessions,
             breakGlassEnabled,
             breakGlassAvailable = breakGlassState == "Available",
             breakGlassState,
-            breakGlassFailuresLast24Hours = breakGlassFailures,
-            lastBreakGlassSuccessfulUseAt = lastBreakGlassSuccess,
+            breakGlassUsesLast24Hours = aggregates.BreakGlassUses,
+            breakGlassFailuresLast24Hours = aggregates.BreakGlassFailures,
+            lastBreakGlassSuccessfulUseAt = aggregates.LastBreakGlassSuccess,
             correlationId = HttpContext.TraceIdentifier
         });
     }
+
+    private static string? ClientAuthenticationScheme(string? reference)
+    {
+        if (string.IsNullOrWhiteSpace(reference)) return null;
+        var separator = reference.IndexOf(':');
+        if (separator <= 0) return null;
+        var scheme = reference[..separator].Trim().ToLowerInvariant();
+        return scheme is "env" or "docker-secret" or "azure-key-vault" ? scheme : null;
+    }
+
+    private async Task<AuthenticationAggregates> ReadAuthenticationAggregatesAsync(
+        DateTimeOffset since,
+        DateTimeOffset now,
+        CancellationToken ct)
+    {
+        // Explicit relational COUNT/MAX queries keep all audit/session aggregation in the
+        // database and avoid SQLite's inability to translate DateTimeOffset aggregates.
+        var connection = db.Database.GetDbConnection();
+        var closeWhenComplete = connection.State != ConnectionState.Open;
+        if (closeWhenComplete) await connection.OpenAsync(ct);
+        try
+        {
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT
+                    (SELECT COUNT(*) FROM "ExternalIdentities"),
+                    (SELECT COUNT(DISTINCT identity."UserId")
+                       FROM "ExternalIdentities" AS identity
+                       INNER JOIN "IdentityUsers" AS linkedUser ON linkedUser."Id" = identity."UserId"
+                      WHERE identity."IsActive" = TRUE AND linkedUser."Status" = 'Active'),
+                    (SELECT COUNT(*) FROM "WorkspaceAuditEvents"
+                      WHERE "Action" = 'Authentication.EntraLogin'
+                        AND "Outcome" = 'Succeeded' AND "OccurredAt" >= @since),
+                    (SELECT COUNT(*) FROM "WorkspaceAuditEvents"
+                      WHERE "Action" = 'Authentication.EntraLogin'
+                        AND "Outcome" <> 'Succeeded' AND "OccurredAt" >= @since),
+                    (SELECT COUNT(*) FROM "AuthenticationSessions"
+                      WHERE "RevokedAt" IS NULL AND "ExpiresAt" > @now),
+                    (SELECT COUNT(*) FROM "WorkspaceAuditEvents"
+                      WHERE "Action" = 'Authentication.BreakGlassLogin'
+                        AND "Outcome" = 'Succeeded' AND "OccurredAt" >= @since),
+                    (SELECT COUNT(*) FROM "WorkspaceAuditEvents"
+                      WHERE "Action" = 'Authentication.BreakGlassFailure' AND "OccurredAt" >= @since),
+                    (SELECT MAX("OccurredAt") FROM "WorkspaceAuditEvents"
+                      WHERE "Action" = 'Authentication.BreakGlassLogin' AND "Outcome" = 'Succeeded'),
+                    (SELECT COUNT(*) FROM "IdentityUsers" AS administrator
+                       INNER JOIN "LocalCredentials" AS credential ON credential."UserId" = administrator."Id"
+                      WHERE administrator."Status" = 'Active' AND administrator."IsPlatformAdministrator" = TRUE),
+                    (SELECT COUNT(*) FROM "IdentityUsers" AS administrator
+                       INNER JOIN "LocalCredentials" AS credential ON credential."UserId" = administrator."Id"
+                      WHERE administrator."Status" = 'Active' AND administrator."IsPlatformAdministrator" = TRUE
+                        AND (credential."BreakGlassLockedUntil" IS NULL OR credential."BreakGlassLockedUntil" <= @now))
+                """;
+            var sinceParameter = command.CreateParameter();
+            sinceParameter.ParameterName = "@since";
+            sinceParameter.Value = since;
+            command.Parameters.Add(sinceParameter);
+            var nowParameter = command.CreateParameter();
+            nowParameter.ParameterName = "@now";
+            nowParameter.Value = now;
+            command.Parameters.Add(nowParameter);
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            await reader.ReadAsync(ct);
+            return new AuthenticationAggregates(
+                Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture),
+                Convert.ToInt32(reader.GetValue(1), CultureInfo.InvariantCulture),
+                Convert.ToInt32(reader.GetValue(2), CultureInfo.InvariantCulture),
+                Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
+                Convert.ToInt32(reader.GetValue(4), CultureInfo.InvariantCulture),
+                Convert.ToInt32(reader.GetValue(5), CultureInfo.InvariantCulture),
+                Convert.ToInt32(reader.GetValue(6), CultureInfo.InvariantCulture),
+                ParseTimestamp(reader.GetValue(7)),
+                Convert.ToInt32(reader.GetValue(8), CultureInfo.InvariantCulture),
+                Convert.ToInt32(reader.GetValue(9), CultureInfo.InvariantCulture));
+        }
+        finally
+        {
+            if (closeWhenComplete) await connection.CloseAsync();
+        }
+    }
+
+    private static DateTimeOffset? ParseTimestamp(object value)
+    {
+        if (value is null or DBNull) return null;
+        if (value is DateTimeOffset timestamp) return timestamp;
+        if (value is DateTime dateTime) return new DateTimeOffset(dateTime);
+        return DateTimeOffset.TryParse(
+            Convert.ToString(value, CultureInfo.InvariantCulture),
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind,
+            out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private sealed record AuthenticationAggregates(
+        int ExternalIdentityCount,
+        int LinkedActiveUsers,
+        int ExternalLoginSuccesses,
+        int ExternalLoginFailures,
+        int ActiveSessions,
+        int BreakGlassUses,
+        int BreakGlassFailures,
+        DateTimeOffset? LastBreakGlassSuccess,
+        int AuthorisedCredentialCount,
+        int AvailableCredentialCount);
 
     [HttpGet("secret-providers")]
     public async Task<ActionResult> SecretProviders(CancellationToken ct)
