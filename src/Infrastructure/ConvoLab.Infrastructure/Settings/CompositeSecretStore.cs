@@ -222,7 +222,7 @@ internal sealed class DockerSecretProvider(IOptions<SecretStoreOptions> options)
     {
         if (string.IsNullOrWhiteSpace(key)
             || Path.IsPathRooted(key)
-            || key.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]) >= 0
+            || key.IndexOfAny(['/', '\\']) >= 0
             || key is "." or "..")
             return SecretResolutionResult.Failed(
                 Scheme, SecretResolutionStatus.Invalid, "secret.docker.name_invalid");

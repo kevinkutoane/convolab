@@ -177,7 +177,7 @@ Live Microsoft Entra validation was not executed; identity-provider acceptance r
 |---|---|
 | `dotnet restore` | PASS |
 | `dotnet build --configuration Release --no-restore` | PASS — 0 warnings, 0 errors |
-| `dotnet test` | PASS — 416/416 (Domain 188, Application 42, Architecture 16, Infrastructure 86, API 84) |
+| `dotnet test` | PASS — 419/419 (Domain 188, Application 42, Architecture 16, Infrastructure 86, API 87) |
 | Deterministic authentication corrections | PASS — 54 focused OIDC, invitation, transaction, break-glass, Operations, and security tests |
 | Final combined authentication Operations contract | PASS — sanitized Entra/identity and break-glass evidence returned together; relational `COUNT`/`MAX` aggregation; forbidden configuration, claim, account, and credential fields absent |
 | PostgreSQL fresh/upgrade migration | PASS — 9/9 tests against disposable PostgreSQL 16, including correction-upgrade preservation |
