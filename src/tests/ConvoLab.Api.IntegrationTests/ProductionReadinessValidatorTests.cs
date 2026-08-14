@@ -60,7 +60,7 @@ public sealed class ProductionReadinessValidatorTests : IDisposable
     [InlineData("Database:ApplyMigrationsOnStartup", "true", "production.database.automatic_migrations_forbidden")]
     [InlineData("AllowedHosts", "*", "production.http.hosts_required")]
     [InlineData("Http:UseHttpsRedirection", "false", "production.http.https_required")]
-    [InlineData("Authentication:Mode", "Entra", "production.authentication.mode_unsupported")]
+    [InlineData("Authentication:Mode", "Unsupported", "production.authentication.mode_unsupported")]
     [InlineData("Authentication:Local:ProductionAllowed", "false", "production.authentication.local_unacknowledged")]
     [InlineData("DataProtection:Provider", "LocalFileSystem", "production.data_protection.shared_storage_required")]
     [InlineData("SafeMode:BlockAnalyticsExports", null, "production.safe_mode.analytics_export_decision_required")]
@@ -81,6 +81,49 @@ public sealed class ProductionReadinessValidatorTests : IDisposable
             ["Proxy:ForwardLimit"] = "1"
         };
         Assert.Contains(Evaluate(values), finding => finding.Code == "production.proxy.trust_boundary_required");
+    }
+
+    [Fact]
+    public void Valid_entra_only_configuration_has_no_authentication_findings()
+    {
+        var tenant = "11111111-1111-1111-1111-111111111111";
+        var values = new Dictionary<string, string?>(_valid)
+        {
+            ["Authentication:Mode"] = "Entra",
+            ["Authentication:Local:Enabled"] = "false",
+            ["Authentication:Entra:Enabled"] = "true",
+            ["Authentication:Entra:TenantId"] = tenant,
+            ["Authentication:Entra:ClientId"] = "22222222-2222-2222-2222-222222222222",
+            ["Authentication:Entra:Authority"] = $"https://login.microsoftonline.com/{tenant}/v2.0",
+            ["Authentication:Entra:ClientSecretReference"] = "env:CONVOLAB_ENTRA_CLIENT_SECRET",
+            ["Authentication:Entra:PublicOrigin"] = "https://api.convolab.test",
+            ["Authentication:Entra:CallbackPath"] = "/signin-oidc",
+            ["Authentication:Entra:SignedOutCallbackPath"] = "/signout-callback-oidc",
+            ["Authentication:Entra:InvitationExpiryHours"] = "24"
+        };
+        Assert.DoesNotContain(Evaluate(values), finding => finding.Code.StartsWith("production.authentication", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Entra_configuration_rejects_cross_tenant_authority_and_plaintext_secret()
+    {
+        var values = new Dictionary<string, string?>(_valid)
+        {
+            ["Authentication:Mode"] = "Entra",
+            ["Authentication:Local:Enabled"] = "false",
+            ["Authentication:Entra:Enabled"] = "true",
+            ["Authentication:Entra:TenantId"] = "11111111-1111-1111-1111-111111111111",
+            ["Authentication:Entra:ClientId"] = "22222222-2222-2222-2222-222222222222",
+            ["Authentication:Entra:Authority"] = "https://login.microsoftonline.com/33333333-3333-3333-3333-333333333333/v2.0",
+            ["Authentication:Entra:ClientSecretReference"] = "plaintext-secret",
+            ["Authentication:Entra:PublicOrigin"] = "https://api.convolab.test",
+            ["Authentication:Entra:CallbackPath"] = "/signin-oidc",
+            ["Authentication:Entra:SignedOutCallbackPath"] = "/signout-callback-oidc",
+            ["Authentication:Entra:InvitationExpiryHours"] = "24"
+        };
+        var findings = Evaluate(values);
+        Assert.Contains(findings, finding => finding.Code == "production.authentication.entra_authority_invalid");
+        Assert.Contains(findings, finding => finding.Code == "production.authentication.entra_client_secret_reference_invalid");
     }
 
     [Fact]

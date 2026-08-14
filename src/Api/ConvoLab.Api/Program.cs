@@ -49,7 +49,7 @@ try
     builder.Services.AddSingleton<IProductionReadinessValidator, ProductionReadinessValidator>();
     builder.Services.AddSingleton<OperationalReadinessSummary>();
     builder.Services.AddConvoLabDataProtection(builder.Configuration, builder.Environment);
-    builder.Services.AddConvoLabSecurity(builder.Environment);
+    builder.Services.AddConvoLabSecurity(builder.Environment, builder.Configuration);
     ConfigureForwardedHeaders(builder.Services, builder.Configuration);
     builder.Services.AddHsts(options =>
     {
@@ -129,6 +129,7 @@ try
         .AddCheck<DocumentStorageHealthCheck>("document-storage", tags: ["ready"])
         .AddCheck<ProviderConfigurationHealthCheck>("providers", tags: ["ready"])
         .AddCheck<BootstrapIdentityHealthCheck>("workspace-identity", tags: ["ready"])
+        .AddCheck<EntraAuthenticationHealthCheck>("entra-authentication", tags: ["ready"])
         .AddCheck<RequiredSecretsHealthCheck>("required-secrets", tags: ["ready"])
         .AddCheck<WorkerHeartbeatHealthCheck>("analytics-worker", tags: ["ready"])
         .AddCheck<AnalyticsPipelineHealthCheck>("analytics-pipeline", tags: ["ready"]);
@@ -144,6 +145,18 @@ try
         await db.Database.MigrateAsync();
         await scope.ServiceProvider.GetRequiredService<WorkspaceIdentityBootstrapper>().ApplyAsync();
         await scope.ServiceProvider.GetRequiredService<ConvoLab.Infrastructure.Settings.SettingsBootstrapper>().ApplyAsync();
+    }
+    if (app.Environment.IsProduction()
+        && app.Configuration.GetValue<bool>("Authentication:Local:BreakGlassEnabled"))
+    {
+        await using var scope = app.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var authorisedAccountExists = await db.IdentityUsers.AsNoTracking()
+            .Where(item => item.Status == "Active" && item.IsPlatformAdministrator)
+            .AnyAsync(item => db.LocalCredentials.Any(credential => credential.UserId == item.Id));
+        if (!authorisedAccountExists)
+            throw new InvalidOperationException(
+                "Production readiness validation failed: production.authentication.break_glass_account_unavailable (Authentication:Local:BreakGlassEnabled)");
     }
 
     if (app.Configuration.GetValue<bool>("Proxy:Enabled")) app.UseForwardedHeaders();
@@ -282,6 +295,9 @@ static bool ExporterIncludesOtlp(string? value) =>
 
 static void AddOperationalOptions(IServiceCollection services, IConfiguration configuration)
 {
+    services.AddOptions<AuthenticationOptions>()
+        .Bind(configuration.GetSection("Authentication"))
+        .ValidateOnStart();
     services.AddOptions<ProxyOptions>()
         .Bind(configuration.GetSection("Proxy"))
         .Validate(value => !value.Enabled

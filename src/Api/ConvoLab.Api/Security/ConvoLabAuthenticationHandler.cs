@@ -58,7 +58,8 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         var now = DateTimeOffset.UtcNow;
         var hash = ConvoLabAuthentication.HashSecret(token);
         var session = await _db.AuthenticationSessions.AsTracking().SingleOrDefaultAsync(item => item.TokenHash == hash);
-        if (session is null || session.RevokedAt.HasValue || session.ExpiresAt <= now)
+        if (session is null || session.RevokedAt.HasValue || session.ExpiresAt <= now
+            || session.AbsoluteExpiresAt != default && session.AbsoluteExpiresAt <= now)
             return AuthenticateResult.Fail("The session is invalid or expired.");
 
         var user = await _db.IdentityUsers.AsNoTracking().SingleOrDefaultAsync(item => item.Id == session.UserId && item.Status == "Active");
@@ -147,7 +148,8 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()), new(ClaimTypes.Name, user.DisplayName),
-            new(ClaimTypes.Email, user.Email), new("actor_type", "User"), new("session_id", session.Id.ToString())
+            new(ClaimTypes.Email, user.Email), new("actor_type", "User"), new("session_id", session.Id.ToString()),
+            new("authentication_provider", session.AuthenticationProvider)
         };
         if (user.IsPlatformAdministrator) claims.Add(new("platform_administrator", "true"));
         if (workspace is not null && membership is not null && Enum.TryParse<WorkspaceRole>(membership.Role, out var role))

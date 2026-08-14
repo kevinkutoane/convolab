@@ -47,4 +47,26 @@ public sealed class WorkspaceIdentityTests
         Assert.DoesNotContain(WorkspacePermissions.ManageEnvironmentSettings, permissions);
         Assert.DoesNotContain(WorkspacePermissions.ManageSecretReferences, permissions);
     }
+
+    [Fact]
+    public void External_identity_requires_stable_provider_issuer_and_subject()
+    {
+        Assert.Throws<ArgumentException>(() => new ExternalIdentity(
+            Guid.NewGuid(), Guid.NewGuid(), "Entra", "", "subject"));
+        var identity = new ExternalIdentity(Guid.NewGuid(), Guid.NewGuid(), "Entra",
+            "https://issuer.example/v2.0", "stable-subject");
+        identity.Disable();
+        Assert.False(identity.IsActive);
+        Assert.Equal(2, identity.Revision);
+        identity.Enable();
+        Assert.True(identity.IsActive);
+        Assert.Equal(3, identity.Revision);
+    }
+
+    [Fact]
+    public void Authentication_providers_are_fixed_platform_values()
+    {
+        Assert.Equal(["Local", "Entra", "ServiceAccount", "BreakGlass"],
+            Enum.GetNames<AuthenticationProvider>());
+    }
 }

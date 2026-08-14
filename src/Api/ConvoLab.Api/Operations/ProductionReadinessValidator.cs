@@ -76,12 +76,81 @@ public sealed class ProductionReadinessValidator(
             "HTTPS redirection cannot be disabled in Production.");
 
         var authMode = configuration["Authentication:Mode"]?.Trim();
-        Reject(!string.Equals(authMode, "Local", StringComparison.OrdinalIgnoreCase),
+        var localMode = string.Equals(authMode, "Local", StringComparison.OrdinalIgnoreCase);
+        var entraMode = string.Equals(authMode, "Entra", StringComparison.OrdinalIgnoreCase);
+        var hybridMode = string.Equals(authMode, "Hybrid", StringComparison.OrdinalIgnoreCase);
+        Reject(!localMode && !entraMode && !hybridMode,
             "production.authentication.mode_unsupported", "Authentication:Mode",
-            "Only Local authentication is implemented in this workstream.");
-        Reject(!configuration.GetValue<bool>("Authentication:Local:ProductionAllowed"),
+            "Authentication mode must be Local, Entra, or Hybrid.");
+        Reject(localMode && !configuration.GetValue<bool>("Authentication:Local:ProductionAllowed"),
             "production.authentication.local_unacknowledged", "Authentication:Local:ProductionAllowed",
             "Local authentication must be explicitly acknowledged for Production.");
+        var entraSelected = entraMode || hybridMode;
+        Reject(entraSelected && !configuration.GetValue<bool>("Authentication:Entra:Enabled"),
+            "production.authentication.entra_disabled", "Authentication:Entra:Enabled",
+            "The selected authentication mode requires Entra authentication.");
+        var tenantId = configuration["Authentication:Entra:TenantId"]?.Trim();
+        var clientId = configuration["Authentication:Entra:ClientId"]?.Trim();
+        Reject(entraSelected && !Guid.TryParse(tenantId, out _),
+            "production.authentication.entra_tenant_required", "Authentication:Entra:TenantId",
+            "A specific Microsoft Entra tenant id is required.");
+        Reject(entraSelected && !Guid.TryParse(clientId, out _),
+            "production.authentication.entra_client_required", "Authentication:Entra:ClientId",
+            "A Microsoft Entra application client id is required.");
+        var authorityValue = configuration["Authentication:Entra:Authority"]?.Trim();
+        var authorityValid = Uri.TryCreate(authorityValue, UriKind.Absolute, out var authority)
+                             && authority.Scheme == Uri.UriSchemeHttps
+                             && authority.Host.Equals("login.microsoftonline.com", StringComparison.OrdinalIgnoreCase)
+                             && authority.AbsolutePath.Trim('/').Split('/').FirstOrDefault()
+                                 ?.Equals(tenantId, StringComparison.OrdinalIgnoreCase) == true
+                             && authority.AbsolutePath.Trim('/').EndsWith("/v2.0", StringComparison.OrdinalIgnoreCase);
+        Reject(entraSelected && !authorityValid,
+            "production.authentication.entra_authority_invalid", "Authentication:Entra:Authority",
+            "Authority must be the configured tenant's HTTPS v2.0 Microsoft authority.");
+        var callbackPath = configuration["Authentication:Entra:CallbackPath"];
+        var signedOutPath = configuration["Authentication:Entra:SignedOutCallbackPath"];
+        Reject(entraSelected && !IsLocalPath(callbackPath),
+            "production.authentication.entra_callback_invalid", "Authentication:Entra:CallbackPath",
+            "The OIDC callback must be a local application path.");
+        Reject(entraSelected && !IsLocalPath(signedOutPath),
+            "production.authentication.entra_signed_out_callback_invalid", "Authentication:Entra:SignedOutCallbackPath",
+            "The signed-out callback must be a local application path.");
+        var secretReference = configuration["Authentication:Entra:ClientSecretReference"]?.Trim();
+        Reject(entraSelected && !IsSupportedSecretReference(secretReference),
+            "production.authentication.entra_client_secret_reference_invalid", "Authentication:Entra:ClientSecretReference",
+            "Client authentication requires an env, docker-secret, or azure-key-vault reference.");
+        Reject(entraMode && configuration.GetValue("Authentication:Local:Enabled", true),
+            "production.authentication.local_enabled_in_entra_mode", "Authentication:Local:Enabled",
+            "Ordinary local authentication must be disabled in Entra-only mode.");
+        Reject(hybridMode && configuration.GetValue("Authentication:Local:Enabled", true)
+                          && !configuration.GetValue<bool>("Authentication:Local:HybridAccessAcknowledged"),
+            "production.authentication.hybrid_local_unacknowledged", "Authentication:Local:HybridAccessAcknowledged",
+            "Hybrid local access requires explicit operational acknowledgement.");
+        var breakGlass = configuration.GetValue<bool>("Authentication:Local:BreakGlassEnabled");
+        Reject(breakGlass && !entraMode && !hybridMode,
+            "production.authentication.break_glass_mode_invalid", "Authentication:Local:BreakGlassEnabled",
+            "Break-glass is permitted only in Entra or Hybrid mode.");
+        Reject(breakGlass && !configuration.GetValue<bool>("Authentication:Local:BreakGlassAccountConfigured"),
+            "production.authentication.break_glass_account_required", "Authentication:Local:BreakGlassAccountConfigured",
+            "Break-glass requires an explicitly provisioned Platform Administrator account.");
+        Reject(entraSelected && configuration.GetValue("Authentication:Entra:AllowInvitationLinking", true)
+                             && configuration.GetValue<int>("Authentication:Entra:InvitationExpiryHours") is < 1 or > 168,
+            "production.authentication.invitation_expiry_invalid", "Authentication:Entra:InvitationExpiryHours",
+            "Invitation expiry must be between one hour and seven days.");
+        var publicOriginValue = configuration["Authentication:Entra:PublicOrigin"];
+        var publicOriginValid = Uri.TryCreate(publicOriginValue, UriKind.Absolute, out var publicOrigin)
+                                && publicOrigin.Scheme == Uri.UriSchemeHttps
+                                && string.IsNullOrEmpty(publicOrigin.AbsolutePath.Trim('/'));
+        Reject(entraSelected && !publicOriginValid,
+            "production.authentication.public_origin_invalid", "Authentication:Entra:PublicOrigin",
+            "A host-only HTTPS public origin is required for OIDC callbacks.");
+        if (entraSelected && publicOriginValid)
+        {
+            var hosts = allowedHosts?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
+            Reject(!hosts.Contains(publicOrigin!.Host, StringComparer.OrdinalIgnoreCase),
+                "production.authentication.callback_host_not_allowed", "AllowedHosts",
+                "AllowedHosts must contain the public OIDC callback host.");
+        }
 
         if (configuration.GetValue<bool>("Proxy:Enabled"))
         {
@@ -200,6 +269,16 @@ public sealed class ProductionReadinessValidator(
     private static bool IsPlaceholder(string value) =>
         new[] { "change-me", "changeme", "placeholder", "your-", "convolab_password", "password=admin", "password=postgres" }
             .Any(marker => value.Contains(marker, StringComparison.OrdinalIgnoreCase));
+
+    private static bool IsLocalPath(string? value) =>
+        !string.IsNullOrWhiteSpace(value) && value.StartsWith("/", StringComparison.Ordinal)
+        && !value.StartsWith("//", StringComparison.Ordinal) && !value.Contains('\\');
+
+    private static bool IsSupportedSecretReference(string? value) =>
+        !string.IsNullOrWhiteSpace(value)
+        && new[] { "env:", "docker-secret:", "azure-key-vault:" }
+            .Any(prefix => value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                           && value.Length > prefix.Length);
 
     private static bool IsExporterSettingValid(string? value)
     {

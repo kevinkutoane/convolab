@@ -1,6 +1,6 @@
 # Operational health checks
 
-ConvoLab remains versioned `1.0.0-alpha.14`. These checks are part of the `alpha.15 Operational Foundation — Final Sign-Off` workstream.
+ConvoLab remains versioned `1.0.0-alpha.14`. Entra dependency evidence is extended by the in-progress `alpha.15 — Microsoft Entra ID and Hybrid Authentication` workstream.
 
 ## Endpoints
 

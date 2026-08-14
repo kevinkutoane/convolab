@@ -2,7 +2,7 @@
 
 Current release candidate: `v1.0.0-alpha.14`.
 
-Current workstream: `alpha.15 Operational Foundation — Final Sign-Off`. This does not advance release metadata. The scope covers truthful Analytics/secret readiness, continuous fenced worker leasing, actual iteration evidence, typed operational thresholds, database-backed gauges, safe-mode freshness, Operations Center acceptance, and final environment/package evidence.
+Current workstream: `alpha.15 — Microsoft Entra ID and Hybrid Authentication`. This does not advance release metadata. The in-progress scope covers tenant-specific OIDC, explicit identity linking, opaque application sessions, hybrid/local policy, break glass, and truthful identity-provider Operations evidence. Live tenant validation is still required before organisational SSO readiness can be claimed.
 
 ## Phase 1 — Platform Core
 
@@ -82,7 +82,7 @@ Current workstream: `alpha.15 Operational Foundation — Final Sign-Off`. This d
 
 ## Deferred alpha.15 workstreams
 
-- Entra/OIDC and external identity records
+- Live Entra organisational validation (implementation and deterministic evidence are in progress)
 - Backup and restore implementation and verified recovery objectives
 - Deployment promotion and hardened UAT/Production manifests
 - Supply-chain artifacts and SBOM release workflow

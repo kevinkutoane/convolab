@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using ConvoLab.Application.Operations;
+using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.Authentication;
 
 namespace ConvoLab.Api.Controllers;
 
@@ -19,13 +21,68 @@ namespace ConvoLab.Api.Controllers;
 public sealed class AuthController(
     ApplicationDbContext db,
     IPasswordHasher<IdentityUserRecord> passwordHasher,
-    SessionCookieService sessionCookies) : ControllerBase
+    SessionCookieService sessionCookies,
+    IOptions<ConvoLab.Application.Operations.AuthenticationOptions> authentication) : ControllerBase
 {
+    [AllowAnonymous]
+    [HttpGet("options")]
+    public ActionResult AuthenticationOptions()
+    {
+        var configured = authentication.Value;
+        var local = configured.Mode == ConvoLabAuthenticationMode.Local
+                    || configured.Mode == ConvoLabAuthenticationMode.Hybrid && configured.Local.Enabled;
+        return Ok(new
+        {
+            mode = configured.Mode.ToString(),
+            localLoginAvailable = local,
+            entraLoginAvailable = configured.Entra.Enabled && configured.Mode is ConvoLabAuthenticationMode.Entra or ConvoLabAuthenticationMode.Hybrid,
+            breakGlassAvailable = configured.Local.BreakGlassEnabled && configured.Mode is ConvoLabAuthenticationMode.Entra or ConvoLabAuthenticationMode.Hybrid,
+            entraLoginPath = "/api/auth/entra/login"
+        });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("entra/prepare-invitation")]
+    public async Task<ActionResult> PrepareEntraInvitation(PrepareEntraInvitationRequest request,
+        [FromServices] IAntiforgery antiforgery)
+    {
+        await antiforgery.ValidateRequestAsync(HttpContext);
+        if (string.IsNullOrWhiteSpace(request.Token))
+            throw new RequestValidationException("invitation.invalid", "The invitation is invalid or expired.");
+        Response.Cookies.Append(EntraAuthentication.InvitationCookie,
+            ConvoLabAuthentication.HashSecret(request.Token), new CookieOptions
+            {
+                HttpOnly = true, Secure = Request.IsHttps, SameSite = SameSiteMode.Lax,
+                MaxAge = TimeSpan.FromMinutes(10), Path = "/api/auth/entra"
+            });
+        return NoContent();
+    }
+
+    [AllowAnonymous]
+    [HttpGet("entra/login")]
+    public IActionResult EntraLogin([FromQuery] string? returnUrl = null)
+    {
+        var configured = authentication.Value;
+        if (!configured.Entra.Enabled || configured.Mode == ConvoLabAuthenticationMode.Local)
+            return NotFound();
+        var properties = new AuthenticationProperties { RedirectUri = EntraAuthentication.SafeReturnUrl(returnUrl) };
+        properties.Items["return_url"] = EntraAuthentication.SafeReturnUrl(returnUrl);
+        if (Request.Cookies.TryGetValue(EntraAuthentication.InvitationCookie, out var invitationHash)
+            && !string.IsNullOrWhiteSpace(invitationHash))
+            properties.Items["invitation_hash"] = invitationHash;
+        Response.Cookies.Delete(EntraAuthentication.InvitationCookie, new CookieOptions { Path = "/api/auth/entra" });
+        return Challenge(properties, EntraAuthentication.Scheme);
+    }
+
     [AllowAnonymous]
     [EnableRateLimiting("login")]
     [HttpPost("login")]
     public async Task<ActionResult<AuthSessionResponse>> Login(LoginRequest request, CancellationToken ct)
     {
+        var configured = authentication.Value;
+        if (configured.Mode == ConvoLabAuthenticationMode.Entra
+            || configured.Mode == ConvoLabAuthenticationMode.Hybrid && !configured.Local.Enabled)
+            return NotFound();
         using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("authentication.login");
         var email = request.Email?.Trim().ToUpperInvariant() ?? string.Empty;
         var user = await db.IdentityUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == email, ct);
@@ -54,7 +111,8 @@ public sealed class AuthController(
         {
             Id = Guid.NewGuid(), UserId = user!.Id, ActiveWorkspaceId = membership?.WorkspaceId,
             TokenHash = ConvoLabAuthentication.HashSecret(token), CreatedAt = now, LastSeenAt = now,
-            ExpiresAt = now.AddHours(8), IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+            ExpiresAt = now.AddHours(8), AbsoluteExpiresAt = now.AddHours(24), AuthenticationProvider = "Local",
+            SessionFamilyId = Guid.NewGuid(), IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
             UserAgent = Request.Headers.UserAgent.ToString()
         };
         var organisationId = membership is null ? null : await db.Workspaces.AsNoTracking().Where(item => item.Id == membership.WorkspaceId).Select(item => (Guid?)item.OrganisationId).SingleAsync(ct);
@@ -66,6 +124,60 @@ public sealed class AuthController(
         ConvoLabTelemetry.AuthenticationLogins.Add(1);
         WriteSessionCookie(token, session.ExpiresAt);
         return Ok(await DescribeAsync(user, session, ct));
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("login")]
+    [HttpPost("break-glass/login")]
+    public async Task<ActionResult<AuthSessionResponse>> BreakGlassLogin(LoginRequest request, CancellationToken ct)
+    {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("authentication.break_glass");
+        var configured = authentication.Value;
+        if (!configured.Local.BreakGlassEnabled
+            || configured.Mode is not (ConvoLabAuthenticationMode.Entra or ConvoLabAuthenticationMode.Hybrid))
+            return NotFound();
+        var normalized = request.Email?.Trim().ToUpperInvariant() ?? string.Empty;
+        var user = await db.IdentityUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == normalized, ct);
+        var credential = user is null ? null : await db.LocalCredentials.SingleOrDefaultAsync(item => item.UserId == user.Id, ct);
+        var now = DateTimeOffset.UtcNow;
+        var valid = user is { Status: "Active", IsPlatformAdministrator: true } && credential is not null
+                    && (!credential.LockedUntil.HasValue || credential.LockedUntil <= now)
+                    && passwordHasher.VerifyHashedPassword(user, credential.PasswordHash, request.Password ?? string.Empty)
+                    != PasswordVerificationResult.Failed;
+        if (!valid)
+        {
+            ConvoLabTelemetry.BreakGlassLogins.Add(1, new KeyValuePair<string, object?>("outcome", "denied"));
+            db.WorkspaceAuditEvents.Add(Audit("Platform", null, null, "Anonymous", null, "Emergency administrator",
+                "Authentication.BreakGlassLogin", "IdentityUser", null, "Denied", HttpContext.TraceIdentifier));
+            await db.SaveChangesAsync(ct);
+            return UnauthorizedProblem("authentication.break_glass_denied", "Emergency administrator access was denied.");
+        }
+        credential!.FailedAttempts = 0; credential.LockedUntil = null; credential.UpdatedAt = now;
+        var administrator = user!;
+        var memberships = await db.WorkspaceMemberships.AsNoTracking()
+            .Where(item => item.UserId == administrator.Id && item.Status == "Active")
+            .ToListAsync(ct);
+        var membership = memberships.OrderBy(item => item.CreatedAt).FirstOrDefault();
+        var token = ConvoLabAuthentication.NewSecret();
+        var session = new AuthenticationSessionRecord
+        {
+            Id = Guid.NewGuid(), UserId = administrator.Id, ActiveWorkspaceId = membership?.WorkspaceId,
+            TokenHash = ConvoLabAuthentication.HashSecret(token), CreatedAt = now, LastSeenAt = now,
+            ExpiresAt = now.AddHours(1), AbsoluteExpiresAt = now.AddHours(1),
+            AuthenticationProvider = "BreakGlass", SessionFamilyId = Guid.NewGuid(),
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(), UserAgent = Request.Headers.UserAgent.ToString()
+        };
+        db.AuthenticationSessions.Add(session);
+        var audit = Audit("Platform", null, membership?.WorkspaceId, "User", administrator.Id, "Emergency administrator",
+            "Authentication.BreakGlassLogin", "AuthenticationSession", session.Id.ToString(), "Succeeded",
+            HttpContext.TraceIdentifier);
+        audit.DetailJson = "{\"severity\":\"High\"}";
+        db.WorkspaceAuditEvents.Add(audit);
+        await AnalyticsOutboxFactory.EnqueueAuditAsync(db, audit, cancellationToken: ct);
+        await db.SaveChangesAsync(ct);
+        ConvoLabTelemetry.BreakGlassLogins.Add(1, new KeyValuePair<string, object?>("outcome", "succeeded"));
+        WriteSessionCookie(token, session.ExpiresAt);
+        return Ok(await DescribeAsync(administrator, session, ct));
     }
 
     [AllowAnonymous]
@@ -97,20 +209,27 @@ public sealed class AuthController(
             ?? throw new ResourceNotFoundException("auth.session_not_found", "The session was not found.");
         var now = DateTimeOffset.UtcNow; var token = ConvoLabAuthentication.NewSecret(); var hash = ConvoLabAuthentication.HashSecret(token);
         current.RevokedAt = now; current.ReplacedByTokenHash = hash;
-        var replacement = new AuthenticationSessionRecord { Id = Guid.NewGuid(), UserId = current.UserId, ActiveWorkspaceId = current.ActiveWorkspaceId, TokenHash = hash, CreatedAt = now, LastSeenAt = now, ExpiresAt = now.AddHours(8), IpAddress = current.IpAddress, UserAgent = current.UserAgent };
+        var replacement = new AuthenticationSessionRecord { Id = Guid.NewGuid(), UserId = current.UserId, ActiveWorkspaceId = current.ActiveWorkspaceId, TokenHash = hash, CreatedAt = now, LastSeenAt = now, ExpiresAt = new[] { now.AddHours(8), current.AbsoluteExpiresAt }.Min(), AbsoluteExpiresAt = current.AbsoluteExpiresAt, AuthenticationProvider = current.AuthenticationProvider, ExternalIdentityId = current.ExternalIdentityId, SessionFamilyId = current.SessionFamilyId == Guid.Empty ? current.Id : current.SessionFamilyId, IpAddress = current.IpAddress, UserAgent = current.UserAgent };
         db.AuthenticationSessions.Add(replacement); await db.SaveChangesAsync(ct); WriteSessionCookie(token, replacement.ExpiresAt);
         var user = await db.IdentityUsers.AsNoTracking().SingleAsync(item => item.Id == current.UserId, ct);
         return Ok(await DescribeAsync(user, replacement, ct));
     }
 
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout(CancellationToken ct)
+    public async Task<IActionResult> Logout([FromQuery] bool external, CancellationToken ct)
     {
         var sessionId = ClaimGuid("session_id");
+        var provider = "Local";
         if (sessionId.HasValue)
         {
             var session = await db.AuthenticationSessions.SingleOrDefaultAsync(item => item.Id == sessionId, ct);
-            if (session is not null && !session.RevokedAt.HasValue) session.RevokedAt = DateTimeOffset.UtcNow;
+            provider = session?.AuthenticationProvider ?? "Local";
+            if (session is not null && !session.RevokedAt.HasValue)
+            {
+                session.RevokedAt = DateTimeOffset.UtcNow;
+                session.RevocationReason = "UserLogout";
+                session.RevokedBy = ClaimGuid(ClaimTypes.NameIdentifier);
+            }
             var workspaceId = session?.ActiveWorkspaceId;
             var organisationId = workspaceId.HasValue
                 ? await db.Workspaces.AsNoTracking()
@@ -138,6 +257,12 @@ public sealed class AuthController(
             await db.SaveChangesAsync(ct);
         }
         sessionCookies.Delete(Response);
+        ConvoLabTelemetry.AuthenticationLogouts.Add(1);
+        if (external && provider == "Entra")
+            return SignOut(new AuthenticationProperties
+            {
+                RedirectUri = EntraAuthentication.SafeReturnUrl(authentication.Value.Entra.PostLogoutRedirectUri)
+            }, EntraAuthentication.Scheme);
         return NoContent();
     }
 
@@ -146,7 +271,10 @@ public sealed class AuthController(
     {
         var userId = ClaimGuid(ClaimTypes.NameIdentifier) ?? throw new ResourceNotFoundException("auth.user_not_found", "The user was not found.");
         var currentSessionId = ClaimGuid("session_id");
-        return Ok(await db.AuthenticationSessions.AsNoTracking().Where(item => item.UserId == userId && item.RevokedAt == null && item.ExpiresAt > DateTimeOffset.UtcNow).Select(item => new { item.Id, item.CreatedAt, item.LastSeenAt, item.ExpiresAt, item.IpAddress, item.UserAgent, current = item.Id == currentSessionId }).ToListAsync(ct));
+        var now = DateTimeOffset.UtcNow;
+        var sessions = await db.AuthenticationSessions.AsNoTracking()
+            .Where(item => item.UserId == userId && item.RevokedAt == null).ToListAsync(ct);
+        return Ok(sessions.Where(item => item.ExpiresAt > now).Select(item => new { item.Id, item.CreatedAt, item.LastSeenAt, item.ExpiresAt, item.AuthenticationProvider, item.IpAddress, item.UserAgent, current = item.Id == currentSessionId }));
     }
 
     [HttpDelete("sessions/{sessionId:guid}")]
@@ -155,7 +283,11 @@ public sealed class AuthController(
         var userId = ClaimGuid(ClaimTypes.NameIdentifier) ?? throw new ResourceNotFoundException("auth.user_not_found", "The user was not found.");
         var session = await db.AuthenticationSessions.SingleOrDefaultAsync(item => item.Id == sessionId && item.UserId == userId, ct)
             ?? throw new ResourceNotFoundException("auth.session_not_found", "The session was not found.");
-        session.RevokedAt ??= DateTimeOffset.UtcNow; await db.SaveChangesAsync(ct);
+        if (!session.RevokedAt.HasValue)
+        {
+            session.RevokedAt = DateTimeOffset.UtcNow; session.RevocationReason = "UserRevoked"; session.RevokedBy = userId;
+        }
+        await db.SaveChangesAsync(ct);
         if (ClaimGuid("session_id") == sessionId) sessionCookies.Delete(Response);
         return NoContent();
     }
@@ -199,8 +331,10 @@ public sealed class AuthController(
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 12)
             throw new RequestValidationException("credential.password.weak", "Passwords must contain at least 12 characters.");
         var hash = ConvoLabAuthentication.HashSecret(request.Token ?? string.Empty); var now = DateTimeOffset.UtcNow;
-        var membership = await db.WorkspaceMemberships.SingleOrDefaultAsync(item => item.InvitationTokenHash == hash && item.Status == "Invited" && item.InvitationExpiresAt > now, ct)
-            ?? throw new RequestValidationException("invitation.invalid", "The invitation is invalid or expired.");
+        var membership = await db.WorkspaceMemberships.SingleOrDefaultAsync(
+            item => item.InvitationTokenHash == hash && item.Status == "Invited", ct);
+        if (membership?.InvitationExpiresAt is not { } expiresAt || expiresAt <= now)
+            throw new RequestValidationException("invitation.invalid", "The invitation is invalid or expired.");
         var user = await db.IdentityUsers.SingleAsync(item => item.Id == membership.UserId, ct);
         db.LocalCredentials.Add(new LocalCredentialRecord { UserId = user.Id, PasswordHash = passwordHasher.HashPassword(user, request.Password ?? string.Empty), UpdatedAt = now });
         user.Status = "Active"; user.UpdatedAt = now; user.Revision++; membership.Status = "Active"; membership.InvitationTokenHash = null; membership.InvitationExpiresAt = null; membership.Revision++; membership.UpdatedAt = now;
@@ -213,7 +347,7 @@ public sealed class AuthController(
         var ids = memberships.Select(item => item.WorkspaceId).ToArray();
         var workspaces = await db.Workspaces.AsNoTracking().Where(item => ids.Contains(item.Id) && item.Status == "Active").ToListAsync(ct);
         var choices = workspaces.Select(workspace => { var membership = memberships.Single(item => item.WorkspaceId == workspace.Id); return new WorkspaceChoice(workspace.Id, workspace.OrganisationId, workspace.Name, membership.Role); }).ToArray();
-        return new AuthSessionResponse(user.Id, user.Email, user.DisplayName, user.IsPlatformAdministrator, session.ExpiresAt, session.ActiveWorkspaceId, choices);
+        return new AuthSessionResponse(user.Id, user.Email, user.DisplayName, user.IsPlatformAdministrator, session.AuthenticationProvider, session.ExpiresAt, session.ActiveWorkspaceId, choices);
     }
 
     private void WriteSessionCookie(string token, DateTimeOffset expires) =>
@@ -231,5 +365,6 @@ public sealed class AuthController(
 public sealed record LoginRequest(string? Email, string? Password);
 public sealed record SwitchWorkspaceRequest(Guid WorkspaceId);
 public sealed record AcceptInvitationRequest(string? Token, string? Password);
+public sealed record PrepareEntraInvitationRequest(string? Token);
 public sealed record WorkspaceChoice(Guid Id, Guid OrganisationId, string Name, string Role);
-public sealed record AuthSessionResponse(Guid UserId, string Email, string DisplayName, bool IsPlatformAdministrator, DateTimeOffset ExpiresAt, Guid? ActiveWorkspaceId, IReadOnlyList<WorkspaceChoice> Workspaces);
+public sealed record AuthSessionResponse(Guid UserId, string Email, string DisplayName, bool IsPlatformAdministrator, string AuthenticationProvider, DateTimeOffset ExpiresAt, Guid? ActiveWorkspaceId, IReadOnlyList<WorkspaceChoice> Workspaces);

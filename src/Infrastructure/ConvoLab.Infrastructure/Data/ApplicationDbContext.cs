@@ -34,6 +34,8 @@ public sealed class ApplicationDbContext : DbContext
     public DbSet<WorkspaceMembershipRecord> WorkspaceMemberships => Set<WorkspaceMembershipRecord>();
     public DbSet<LocalCredentialRecord> LocalCredentials => Set<LocalCredentialRecord>();
     public DbSet<AuthenticationSessionRecord> AuthenticationSessions => Set<AuthenticationSessionRecord>();
+    public DbSet<ExternalIdentityRecord> ExternalIdentities => Set<ExternalIdentityRecord>();
+    public DbSet<ExternalIdentityInvitationRecord> ExternalIdentityInvitations => Set<ExternalIdentityInvitationRecord>();
     public DbSet<ServiceAccountRecord> ServiceAccounts => Set<ServiceAccountRecord>();
     public DbSet<AuditEventRecord> WorkspaceAuditEvents => Set<AuditEventRecord>();
     public DbSet<SimulationRecord> Simulations => Set<SimulationRecord>();
@@ -656,10 +658,43 @@ public sealed class ApplicationDbContext : DbContext
             entity.Property(item => item.ReplacedByTokenHash).HasMaxLength(128);
             entity.Property(item => item.IpAddress).HasMaxLength(64);
             entity.Property(item => item.UserAgent).HasMaxLength(500);
+            entity.Property(item => item.AuthenticationProvider).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.RevocationReason).HasMaxLength(160);
             entity.HasOne<IdentityUserRecord>().WithMany().HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<WorkspaceRecord>().WithMany().HasForeignKey(item => item.ActiveWorkspaceId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<ExternalIdentityRecord>().WithMany().HasForeignKey(item => item.ExternalIdentityId).OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(item => item.TokenHash).IsUnique();
             entity.HasIndex(item => new { item.UserId, item.ExpiresAt });
+            entity.HasIndex(item => new { item.ExternalIdentityId, item.ExpiresAt });
+        });
+        modelBuilder.Entity<ExternalIdentityRecord>(entity =>
+        {
+            entity.ToTable("ExternalIdentities"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.Provider).HasMaxLength(40).IsRequired();
+            entity.Property(item => item.Issuer).HasMaxLength(500).IsRequired();
+            entity.Property(item => item.Subject).HasMaxLength(255).IsRequired();
+            entity.Property(item => item.TenantId).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.EmailAtLastLogin).HasMaxLength(320);
+            entity.Property(item => item.DisplayNameAtLastLogin).HasMaxLength(200);
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasOne<IdentityUserRecord>().WithMany().HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(item => new { item.Provider, item.Issuer, item.Subject }).IsUnique();
+            entity.HasIndex(item => new { item.UserId, item.Provider });
+        });
+        modelBuilder.Entity<ExternalIdentityInvitationRecord>(entity =>
+        {
+            entity.ToTable("ExternalIdentityInvitations"); entity.HasKey(item => item.Id);
+            entity.Property(item => item.InvitedEmail).HasMaxLength(320).IsRequired();
+            entity.Property(item => item.NormalizedEmail).HasMaxLength(320).IsRequired();
+            entity.Property(item => item.ExpectedTenant).HasMaxLength(80).IsRequired();
+            entity.Property(item => item.ExpectedProvider).HasMaxLength(40).IsRequired();
+            entity.Property(item => item.TokenHash).HasMaxLength(128).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(30).IsRequired();
+            entity.Property(item => item.Revision).IsConcurrencyToken();
+            entity.HasOne<IdentityUserRecord>().WithMany().HasForeignKey(item => item.UserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ExternalIdentityRecord>().WithMany().HasForeignKey(item => item.ConsumedByExternalIdentityId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(item => item.TokenHash).IsUnique();
+            entity.HasIndex(item => new { item.UserId, item.Status, item.ExpiresAt });
         });
         modelBuilder.Entity<ServiceAccountRecord>(entity =>
         {

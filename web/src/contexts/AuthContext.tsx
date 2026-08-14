@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { AuthApiError, getSession, login as loginRequest, logout as logoutRequest, prepareAntiforgery, switchWorkspace as switchRequest, type AuthSession } from "../services/authApi";
+import { AuthApiError, breakGlassLogin as breakGlassLoginRequest, getSession, login as loginRequest, logout as logoutRequest, prepareAntiforgery, switchWorkspace as switchRequest, type AuthSession } from "../services/authApi";
 import { AuthContext } from "./authState";
 
 const bootstrapRetryDelays = [250, 750, 1_500, 3_000];
@@ -54,10 +54,11 @@ export function AuthProvider({children}:{children:ReactNode}) {
     };
   }, [attempt]);
   const login=useCallback(async(email:string,password:string)=>{ const value=await loginRequest(email,password); await prepareAntiforgery(); setSession(value); setError(undefined); },[]);
+  const breakGlassLogin=useCallback(async(email:string,password:string)=>{ const value=await breakGlassLoginRequest(email,password); await prepareAntiforgery(); setSession(value); setError(undefined); },[]);
   const clearWorkspaceQueries=useCallback(async()=>{const detail:{tasks:Promise<unknown>[]}={tasks:[]};window.dispatchEvent(new CustomEvent("convolab:workspace-changing",{detail}));await Promise.all(detail.tasks)},[]);
   const logout=useCallback(async()=>{ await clearWorkspaceQueries(); await logoutRequest(); setSession(undefined); },[clearWorkspaceQueries]);
   const switchWorkspace=useCallback(async(id:string)=>{ await clearWorkspaceQueries(); const value=await switchRequest(id); setSession(value); setWorkspaceEpoch(value=>value+1); },[clearWorkspaceQueries]);
   const retry=useCallback(()=>{setError(undefined);setLoading(true);setAttempt(value=>value+1)},[]);
-  const value=useMemo(()=>({session,loading,error,workspaceEpoch,login,logout,switchWorkspace,retry}),[session,loading,error,workspaceEpoch,login,logout,switchWorkspace,retry]);
+  const value=useMemo(()=>({session,loading,error,workspaceEpoch,login,breakGlassLogin,logout,switchWorkspace,retry}),[session,loading,error,workspaceEpoch,login,breakGlassLogin,logout,switchWorkspace,retry]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

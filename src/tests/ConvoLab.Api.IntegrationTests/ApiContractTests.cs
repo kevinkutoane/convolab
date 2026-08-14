@@ -735,6 +735,32 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
     }
 
     [Fact]
+    public async Task Authentication_options_report_local_mode_without_exposing_oidc_configuration()
+    {
+        var response = await _client.GetAsync("/api/auth/options");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var payload = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"mode\":\"Local\"", payload, StringComparison.Ordinal);
+        Assert.Contains("\"localLoginAvailable\":true", payload, StringComparison.Ordinal);
+        Assert.Contains("\"entraLoginAvailable\":false", payload, StringComparison.Ordinal);
+        Assert.DoesNotContain("tenantId", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("clientSecret", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("authority", payload, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/analytics?range=day")]
+    public void Local_return_urls_are_accepted(string value) => Assert.True(EntraAuthentication.IsSafeReturnUrl(value));
+
+    [Theory]
+    [InlineData("https://evil.example/")]
+    [InlineData("//evil.example/")]
+    [InlineData("/%2f%2fevil.example")]
+    [InlineData("javascript:alert(1)")]
+    public void External_or_encoded_return_urls_are_rejected(string value) => Assert.False(EntraAuthentication.IsSafeReturnUrl(value));
+
+    [Fact]
     public async Task Operations_polling_is_not_audited_but_readiness_and_safe_mode_mutations_are()
     {
         var login = await _client.PostAsJsonAsync("/api/auth/login", new
@@ -758,9 +784,9 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
             var status = await ReadJsonAsync(statusResponse);
             Assert.Equal("1.0.0-alpha.14", status.RootElement.GetProperty("version").GetString());
-        Assert.Equal(
-            "alpha.15 Operational Foundation — Final Sign-Off",
-            status.RootElement.GetProperty("workstream").GetString());
+            Assert.Equal(
+                "alpha.15 — Microsoft Entra ID and Hybrid Authentication",
+                status.RootElement.GetProperty("workstream").GetString());
         }
         Assert.Equal(readinessBefore, Baseline("Operations.ReadinessEvidenceViewed"));
 

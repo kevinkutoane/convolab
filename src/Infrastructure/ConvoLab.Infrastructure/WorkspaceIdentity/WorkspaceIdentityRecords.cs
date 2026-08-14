@@ -69,10 +69,53 @@ public sealed class AuthenticationSessionRecord
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset LastSeenAt { get; set; }
     public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset AbsoluteExpiresAt { get; set; }
     public DateTimeOffset? RevokedAt { get; set; }
+    public string? RevocationReason { get; set; }
+    public Guid? RevokedBy { get; set; }
     public string? ReplacedByTokenHash { get; set; }
+    public string AuthenticationProvider { get; set; } = "Local";
+    public Guid? ExternalIdentityId { get; set; }
+    public Guid SessionFamilyId { get; set; }
     public string? IpAddress { get; set; }
     public string? UserAgent { get; set; }
+}
+
+public sealed class ExternalIdentityRecord
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string Provider { get; set; } = "Entra";
+    public string Issuer { get; set; } = string.Empty;
+    public string Subject { get; set; } = string.Empty;
+    public string TenantId { get; set; } = string.Empty;
+    public string? EmailAtLastLogin { get; set; }
+    public string? DisplayNameAtLastLogin { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset LastLoginAt { get; set; }
+    public bool IsActive { get; set; } = true;
+    public DateTimeOffset? DisabledAt { get; set; }
+    public Guid? DisabledBy { get; set; }
+    public long Revision { get; set; } = 1;
+}
+
+public sealed class ExternalIdentityInvitationRecord
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string InvitedEmail { get; set; } = string.Empty;
+    public string NormalizedEmail { get; set; } = string.Empty;
+    public string ExpectedTenant { get; set; } = string.Empty;
+    public string ExpectedProvider { get; set; } = "Entra";
+    public string TokenHash { get; set; } = string.Empty;
+    public DateTimeOffset ExpiresAt { get; set; }
+    public Guid CreatedBy { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset? ConsumedAt { get; set; }
+    public Guid? ConsumedByExternalIdentityId { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public string Status { get; set; } = "Active";
+    public long Revision { get; set; } = 1;
 }
 
 public sealed class ServiceAccountRecord

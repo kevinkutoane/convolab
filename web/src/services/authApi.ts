@@ -6,10 +6,13 @@ export function clearAntiforgeryRequestToken() { antiforgeryRequestToken = undef
 async function request<T>(path:string, init:RequestInit={}){const headers=new Headers(init.headers);if(init.body)headers.set("Content-Type","application/json");if(antiforgeryRequestToken&&!(["GET","HEAD","OPTIONS"].includes((init.method??"GET").toUpperCase())))headers.set("X-XSRF-TOKEN",antiforgeryRequestToken);const response=await fetch(path,{...init,headers,credentials:"include"});if(!response.ok){const problem=await response.json().catch(()=>({}));throw new AuthApiError(problem.detail??`Request failed (${response.status}).`,response.status,problem.correlationId)}if(response.status===204)return undefined as T;return await response.json() as T}
 
 export interface WorkspaceChoice { id:string; organisationId:string; name:string; role:string }
-export interface AuthSession { userId:string; email:string; displayName:string; isPlatformAdministrator:boolean; expiresAt:string; activeWorkspaceId?:string; workspaces:WorkspaceChoice[] }
+export interface AuthSession { userId:string; email:string; displayName:string; isPlatformAdministrator:boolean; authenticationProvider:string; expiresAt:string; activeWorkspaceId?:string; workspaces:WorkspaceChoice[] }
+export interface AuthenticationOptions { mode:"Local"|"Entra"|"Hybrid"; localLoginAvailable:boolean; entraLoginAvailable:boolean; breakGlassAvailable:boolean; entraLoginPath:string }
 
 export async function getSession() { return request<AuthSession>("/api/auth/session"); }
 export async function login(email:string,password:string) { return request<AuthSession>("/api/auth/login",{method:"POST",body:JSON.stringify({email,password})}); }
+export async function breakGlassLogin(email:string,password:string) { return request<AuthSession>("/api/auth/break-glass/login",{method:"POST",body:JSON.stringify({email,password})}); }
+export async function getAuthenticationOptions() { return request<AuthenticationOptions>("/api/auth/options"); }
 export async function prepareAntiforgery(force = false) {
   if (!force && antiforgeryRequestToken) return antiforgeryRequestToken;
   if (!force && antiforgeryRequestTokenPromise) return antiforgeryRequestTokenPromise;

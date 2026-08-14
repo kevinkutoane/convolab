@@ -1,8 +1,14 @@
 # Changelog
 
-## In progress — alpha.15 Operational Foundation — Final Sign-Off
+## In progress — alpha.15 Microsoft Entra ID and Hybrid Authentication
 
 Active version metadata remains `1.0.0-alpha.14`; this is not an alpha.15 release declaration.
+
+- Added strongly typed Local, Entra, and Hybrid authentication modes with a safe public options endpoint and mode-aware Studio login.
+- Added tenant-specific authorization-code OIDC with PKCE, framework state/nonce/correlation validation, asynchronously resolved client-secret references, and no token persistence.
+- Added stable provider/issuer/subject identity records, single-use verified-email invitation linking, opaque Entra sessions, external logout, and identity-administration session revocation.
+- Added disabled-by-default Platform Administrator break glass, high-severity audit/telemetry, Production startup validation, Operations evidence, readiness semantics, focused migration, tests, and runbooks.
+- Live Microsoft Entra validation has not been executed in this repository evidence; deterministic and framework tests must not be described as live validation.
 
 - Corrected Analytics readiness so fresh pending work stays Healthy while aged pending, failed outbox work, failed checkpoints, aggregation lag, and partial worker failures affect status through shared typed thresholds.
 - Replaced raw required-secret scanning with active-scope effective-configuration validation and sanitized dependency evidence.
@@ -10,7 +16,7 @@ Active version metadata remains `1.0.0-alpha.14`; this is not an alpha.15 releas
 - Persisted component-specific iteration results and removed the synthetic processed-per-iteration count.
 - Added database-backed operational gauges, bounded provider-cost evidence, truthful OTLP dependency states, Telemetry Operations evidence, and cross-session safe-mode refresh.
 - Expanded PostgreSQL, secret-store, safe-mode, Operations authorization, and Playwright acceptance while preserving alpha.14 Analytics reconciliation, isolation, and policy-denial guarantees.
-- Entra, backup/restore, deployment promotion, supply-chain controls, and the final readiness report remain required later workstreams.
+- Backup/restore, deployment promotion, supply-chain controls, and the final readiness report remain required later workstreams.
 
 ## 1.0.0-alpha.14 — 2026-07-28
 

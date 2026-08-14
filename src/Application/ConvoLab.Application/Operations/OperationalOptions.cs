@@ -10,7 +10,42 @@ public sealed class ProxyOptions
 
 public sealed class LocalAuthenticationOptions
 {
+    public bool Enabled { get; init; } = true;
     public bool ProductionAllowed { get; init; }
+    public bool BreakGlassEnabled { get; init; }
+    public bool BreakGlassAccountConfigured { get; init; }
+    public bool HybridAccessAcknowledged { get; init; }
+}
+
+public enum ConvoLabAuthenticationMode
+{
+    Local,
+    Entra,
+    Hybrid
+}
+
+public sealed class AuthenticationOptions
+{
+    public ConvoLabAuthenticationMode Mode { get; init; } = ConvoLabAuthenticationMode.Local;
+    public LocalAuthenticationOptions Local { get; init; } = new();
+    public EntraAuthenticationOptions Entra { get; init; } = new();
+}
+
+public sealed class EntraAuthenticationOptions
+{
+    public bool Enabled { get; init; }
+    public string Authority { get; init; } = string.Empty;
+    public string TenantId { get; init; } = string.Empty;
+    public string ClientId { get; init; } = string.Empty;
+    public string ClientSecretReference { get; init; } = string.Empty;
+    public string PublicOrigin { get; init; } = string.Empty;
+    public string CallbackPath { get; init; } = "/signin-oidc";
+    public string SignedOutCallbackPath { get; init; } = "/signout-callback-oidc";
+    public string PostLogoutRedirectUri { get; init; } = "/login";
+    public bool RequireLinkedIdentity { get; init; } = true;
+    public bool AllowInvitationLinking { get; init; } = true;
+    public int InvitationExpiryHours { get; init; } = 24;
+    public int DependencyEvidenceTtlSeconds { get; init; } = 300;
 }
 
 public sealed class DataProtectionOptions

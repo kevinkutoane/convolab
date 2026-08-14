@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
+using ConvoLab.Api.Security;
 
 namespace ConvoLab.Api.Controllers;
 
@@ -29,6 +30,7 @@ public sealed class OperationsController(
     IConfiguration configuration,
     IOptions<OperationsThresholdOptions> thresholdOptions,
     IOptions<BuildOptions> buildOptions,
+    EntraDependencyEvidence entraEvidence,
     IHostEnvironment environment,
     ILogger<OperationsController> logger) : ControllerBase
 {
@@ -190,14 +192,41 @@ public sealed class OperationsController(
     public async Task<ActionResult> Authentication(CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
-        var activeSessions = await db.AuthenticationSessions.AsNoTracking()
-            .CountAsync(item => item.RevokedAt == null && item.ExpiresAt > now, ct);
-        var recentFailures = await db.WorkspaceAuditEvents.AsNoTracking()
-            .CountAsync(item => item.Action == "Authentication.Login" && item.Outcome == "Failed" && item.OccurredAt >= now.AddHours(-24), ct);
+        var sessionExpiries = await db.AuthenticationSessions.AsNoTracking()
+            .Where(item => item.RevokedAt == null).Select(item => item.ExpiresAt).ToListAsync(ct);
+        var activeSessions = sessionExpiries.Count(expiresAt => expiresAt > now);
+        var authenticationAudits = await db.WorkspaceAuditEvents.AsNoTracking()
+            .Where(item => item.Action == "Authentication.Login" || item.Action == "Authentication.EntraLogin"
+                           || item.Action == "Authentication.BreakGlassLogin")
+            .Select(item => new { item.Action, item.Outcome, item.OccurredAt }).ToListAsync(ct);
+        var since = now.AddHours(-24);
+        var recentFailures = authenticationAudits.Count(item => item.Outcome == "Failed" && item.OccurredAt >= since);
+        var externalIdentityCount = await db.ExternalIdentities.AsNoTracking().CountAsync(ct);
+        var linkedActiveUsers = await db.ExternalIdentities.AsNoTracking().Where(item => item.IsActive)
+            .Select(item => item.UserId).Distinct().CountAsync(ct);
+        var externalSuccesses = authenticationAudits.Count(item => item.Action == "Authentication.EntraLogin"
+            && item.Outcome == "Succeeded" && item.OccurredAt >= since);
+        var breakGlassUses = authenticationAudits.Count(item => item.Action == "Authentication.BreakGlassLogin"
+            && item.Outcome == "Succeeded" && item.OccurredAt >= since);
+        var evidence = entraEvidence.Snapshot();
+        var secretReference = configuration["Authentication:Entra:ClientSecretReference"] ?? string.Empty;
+        var secretScheme = secretReference.Split(':', 2)[0];
         return Ok(new
         {
             mode = configuration["Authentication:Mode"] ?? "Local",
-            state = OperationalDependencyState.Configured,
+            localLoginEnabled = configuration.GetValue("Authentication:Local:Enabled", true),
+            entraEnabled = configuration.GetValue<bool>("Authentication:Entra:Enabled"),
+            breakGlassEnabled = configuration.GetValue<bool>("Authentication:Local:BreakGlassEnabled"),
+            tenantConfigurationState = string.IsNullOrWhiteSpace(configuration["Authentication:Entra:TenantId"]) ? "NotConfigured" : "Configured",
+            clientAuthentication = new { configured = !string.IsNullOrWhiteSpace(secretReference), secretProviderScheme = string.IsNullOrWhiteSpace(secretReference) ? null : secretScheme },
+            state = evidence.State,
+            lastValidationAt = evidence.CheckedAt,
+            lastFailureCode = evidence.FailureCode,
+            externalIdentityCount,
+            linkedActiveUsers,
+            externalLoginSuccessesLast24Hours = externalSuccesses,
+            externalLoginFailuresLast24Hours = recentFailures,
+            breakGlassUsesLast24Hours = breakGlassUses,
             activeSessions,
             failuresLast24Hours = recentFailures,
             correlationId = HttpContext.TraceIdentifier
@@ -287,6 +316,10 @@ public sealed class OperationsController(
         if (entry.Status == HealthStatus.Degraded) return OperationalDependencyState.Degraded;
         if (component == "providers")
             return OperationalDependencyState.StubValidated;
+        if (component == "entra-authentication"
+            && entry.Data.TryGetValue("state", out var entraState)
+            && Enum.TryParse<OperationalDependencyState>(Convert.ToString(entraState), out var parsedEntraState))
+            return parsedEntraState;
         if (component == "production-configuration")
             return OperationalDependencyState.Configured;
         if (component == "required-secrets"

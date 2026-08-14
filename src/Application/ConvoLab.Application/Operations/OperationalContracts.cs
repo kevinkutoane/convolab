@@ -5,8 +5,8 @@ namespace ConvoLab.Application.Operations;
 
 public static class OperationalWorkstream
 {
-    public const string Label = "alpha.15 Operational Foundation — Final Sign-Off";
-    public const string Marker = "alpha.15-operational-foundation-final-sign-off";
+    public const string Label = "alpha.15 — Microsoft Entra ID and Hybrid Authentication";
+    public const string Marker = "alpha.15-entra-hybrid-authentication";
 }
 
 public enum OperationalDependencyState
@@ -148,6 +148,20 @@ public static class ConvoLabTelemetry
         Meter.CreateCounter<long>("convolab.auth.login.total");
     public static readonly Counter<long> AuthenticationFailures =
         Meter.CreateCounter<long>("convolab.auth.login.failure.total");
+    public static readonly Counter<long> EntraChallenges =
+        Meter.CreateCounter<long>("convolab.auth.entra.challenge.total");
+    public static readonly Counter<long> EntraLoginSuccesses =
+        Meter.CreateCounter<long>("convolab.auth.entra.login.success.total");
+    public static readonly Counter<long> EntraLoginFailures =
+        Meter.CreateCounter<long>("convolab.auth.entra.login.failure.total");
+    public static readonly Counter<long> ExternalIdentityLinks =
+        Meter.CreateCounter<long>("convolab.auth.external_identity.link.total");
+    public static readonly Counter<long> ExternalIdentityUnlinked =
+        Meter.CreateCounter<long>("convolab.auth.external_identity.unlinked.total");
+    public static readonly Counter<long> BreakGlassLogins =
+        Meter.CreateCounter<long>("convolab.auth.break_glass.total");
+    public static readonly Counter<long> AuthenticationLogouts =
+        Meter.CreateCounter<long>("convolab.auth.logout.total");
     public static readonly Counter<long> PolicyDecisions =
         Meter.CreateCounter<long>("convolab.policy.decision.total");
     public static readonly Counter<long> ProviderInvocations =

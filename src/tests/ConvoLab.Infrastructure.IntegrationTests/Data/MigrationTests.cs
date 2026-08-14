@@ -45,6 +45,8 @@ public sealed class MigrationTests
         "WorkspaceMemberships",
         "LocalCredentials",
         "AuthenticationSessions",
+        "ExternalIdentities",
+        "ExternalIdentityInvitations",
         "ServiceAccounts",
         "WorkspaceAuditEvents",
         "RuntimeEnvironments",
@@ -92,7 +94,8 @@ public sealed class MigrationTests
             "202607240001_PlatformAnalyticsV1",
             "202607250001_PlatformAnalyticsCompletionV1",
             "202608030001_OperationalFoundationV1",
-            "202608030002_OperationalFoundationCorrectionsV1"
+            "202608030002_OperationalFoundationCorrectionsV1",
+            "202608040001_EntraHybridAuthenticationV1"
         ], migrations);
 
         await db.Database.MigrateAsync();

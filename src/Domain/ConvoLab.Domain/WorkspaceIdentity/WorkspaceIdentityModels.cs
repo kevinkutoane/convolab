@@ -7,6 +7,30 @@ public enum MembershipStatus { Invited, Active, Suspended, Removed }
 public enum WorkspaceRole { Administrator, Engineer, Reviewer, Operator, Viewer }
 public enum ServiceAccountStatus { Active, Revoked, Expired }
 public enum AuditScope { Platform, Organisation, Workspace }
+public enum AuthenticationProvider { Local, Entra, ServiceAccount, BreakGlass }
+
+public sealed class ExternalIdentity
+{
+    public Guid Id { get; }
+    public Guid UserId { get; }
+    public string Provider { get; }
+    public string Issuer { get; }
+    public string Subject { get; }
+    public bool IsActive { get; private set; }
+    public long Revision { get; private set; }
+
+    public ExternalIdentity(Guid id, Guid userId, string provider, string issuer, string subject, bool isActive = true, long revision = 1)
+    {
+        if (id == Guid.Empty || userId == Guid.Empty) throw new ArgumentException("Identity and user ids are required.");
+        if (string.IsNullOrWhiteSpace(provider) || string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(subject))
+            throw new ArgumentException("Provider, issuer, and subject are required.");
+        Id = id; UserId = userId; Provider = provider.Trim(); Issuer = issuer.Trim(); Subject = subject.Trim();
+        IsActive = isActive; Revision = revision;
+    }
+
+    public void Disable() { if (!IsActive) return; IsActive = false; Revision++; }
+    public void Enable() { if (IsActive) return; IsActive = true; Revision++; }
+}
 
 public static class WorkspaceIdentityDefaults
 {

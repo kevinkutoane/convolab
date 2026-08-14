@@ -7,7 +7,7 @@
 ## Current milestone
 
 - **Platform Core / Studio:** `v1.0.0-alpha.14`
-- **Current workstream:** `alpha.15 Operational Foundation — Final Sign-Off` (release metadata remains alpha.14)
+- **Current workstream:** `alpha.15 — Microsoft Entra ID and Hybrid Authentication` (release metadata remains alpha.14)
 - **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
@@ -20,7 +20,9 @@
 - **Database adapter:** PostgreSQL-ready infrastructure
 - **Architecture:** Clean Architecture and Domain-Driven Design
 
-The current correction sprint makes Analytics readiness, effective required-secret validation, fenced worker ownership, worker evidence, operational gauges, safe-mode freshness, and Operations Center evidence operationally truthful. Entra/OIDC, backup and restore, deployment promotion, supply-chain controls, and the final readiness report remain deferred alpha.15 workstreams.
+The current in-progress tranche adds optional single-tenant Microsoft Entra OIDC, explicit external-identity linking, opaque ConvoLab sessions, Local/Entra/Hybrid modes, and controlled break-glass access. ConvoLab remains authoritative for roles and memberships. Backup/restore, deployment promotion, supply-chain controls, and live channel integrations remain deferred.
+
+Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Active package and release metadata remain `1.0.0-alpha.14`.
 
 ## Platform capabilities
 
