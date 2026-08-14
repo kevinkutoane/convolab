@@ -333,7 +333,13 @@ export function WorkflowDesignerPage() {
 
     {message && <div className="panel workflow-notice" role="status" aria-live="polite">{message}</div>}
 
-    <AdaptiveWorkspace storageKey="workflows" leftLabel="Definitions" rightLabel="Inspector">
+    <AdaptiveWorkspace
+      storageKey="workflows"
+      leftLabel="Definitions"
+      rightLabel="Inspector"
+      compactBreakpoint={1350}
+      className="workflow-adaptive-workspace"
+    >
     <section className="workflow-studio-layout">
       <aside className="panel workflow-library">
         <div className="panel-header"><div><span className="panel-eyebrow">Definitions</span><h3>{items.length} workflows</h3></div></div>

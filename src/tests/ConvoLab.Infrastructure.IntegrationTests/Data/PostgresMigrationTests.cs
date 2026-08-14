@@ -354,6 +354,48 @@ public sealed class PostgresMigrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task Entra_correction_Postgres_upgrade_preserves_existing_authentication_records()
+    {
+        await using var database = await TemporaryPostgresDatabase.CreateAsync();
+        if (!database.Available) return;
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(database.ConnectionString).Options;
+        var userId = Guid.NewGuid();
+        await using (var before = new ApplicationDbContext(options))
+        {
+            var migrator = before.Database.GetService<IMigrator>();
+            var entraMigration = before.Database.GetMigrations()
+                .Single(id => id.EndsWith("_EntraHybridAuthenticationV1", StringComparison.Ordinal));
+            await migrator.MigrateAsync(before.Database.GetService<IMigrationsIdGenerator>().GetName(entraMigration));
+            await before.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "IdentityUsers"
+                    ("Id", "Email", "NormalizedEmail", "DisplayName", "Status", "IsPlatformAdministrator",
+                     "CreatedAt", "UpdatedAt", "Revision")
+                VALUES ({userId}, {"postgres-preserved@example.test"}, {"POSTGRES-PRESERVED@EXAMPLE.TEST"},
+                        {"Postgres preserved user"}, {"Active"}, {true}, {DateTimeOffset.UtcNow},
+                        {DateTimeOffset.UtcNow}, {4});
+                INSERT INTO "LocalCredentials"
+                    ("UserId", "PasswordHash", "FailedAttempts", "LockedUntil", "UpdatedAt")
+                VALUES ({userId}, {"postgres-preserved-hash"}, {3}, {DateTimeOffset.UtcNow.AddMinutes(4)},
+                        {DateTimeOffset.UtcNow});
+                """);
+        }
+
+        await using (var corrected = new ApplicationDbContext(options))
+        {
+            await corrected.Database.MigrateAsync();
+            var credential = await corrected.LocalCredentials.AsNoTracking().SingleAsync();
+            Assert.Equal("postgres-preserved-hash", credential.PasswordHash);
+            Assert.Equal(3, credential.FailedAttempts);
+            Assert.Equal(0, credential.BreakGlassFailedAttempts);
+            Assert.Null(credential.BreakGlassLockedUntil);
+            Assert.Null(credential.BreakGlassLastFailedAt);
+            Assert.Equal(1, credential.BreakGlassRevision);
+            Assert.Empty(await corrected.Database.GetPendingMigrationsAsync());
+        }
+    }
+
+    [Fact]
     public async Task Alpha14_analytics_database_upgrades_through_completion_migration()
     {
         await using var database = await TemporaryPostgresDatabase.CreateAsync();

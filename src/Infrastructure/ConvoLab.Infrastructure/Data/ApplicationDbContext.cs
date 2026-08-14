@@ -649,6 +649,7 @@ public sealed class ApplicationDbContext : DbContext
         {
             entity.ToTable("LocalCredentials"); entity.HasKey(item => item.UserId);
             entity.Property(item => item.PasswordHash).HasMaxLength(1000).IsRequired();
+            entity.Property(item => item.BreakGlassRevision).IsConcurrencyToken();
             entity.HasOne<IdentityUserRecord>().WithOne().HasForeignKey<LocalCredentialRecord>(item => item.UserId).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<AuthenticationSessionRecord>(entity =>

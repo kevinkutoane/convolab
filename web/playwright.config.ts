@@ -7,7 +7,8 @@ export default defineConfig({
   timeout: 30_000,
   expect: { timeout: 8_000 },
   fullyParallel: false,
-  retries: process.env.CI ? 2 : 0,
+  workers: 1,
+  retries: 0,
   reporter: process.env.CI ? [["line"], ["html", { open: "never" }]] : "line",
   snapshotPathTemplate: "{testDir}/visual-baselines/{arg}{ext}",
   use: {

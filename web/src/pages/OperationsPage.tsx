@@ -67,7 +67,7 @@ export function OperationsPage() {
 
   return <div className="operations-page">
     <header className="studio-page-header operations-header">
-      <div><span className="page-eyebrow">alpha.15 — Microsoft Entra ID and Hybrid Authentication</span><h1>Operations Center</h1><p>Sanitized readiness, authentication, Analytics, secret-provider, telemetry, and safe-mode evidence for platform administrators.</p></div>
+      <div><span className="page-eyebrow">alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication</span><h1>Operations Center</h1><p>Sanitized readiness, authentication, Analytics, secret-provider, telemetry, and safe-mode evidence for platform administrators.</p></div>
       <button className="secondary-button" onClick={() => void statusQuery.refetch()} disabled={statusQuery.isFetching}><RefreshCw size={16} className={statusQuery.isFetching ? "spin" : ""} /> Refresh summary</button>
     </header>
 
@@ -137,18 +137,12 @@ function Evidence({ value }: { value: unknown }) {
     <Fact label="Last live validation" value={Timestamp(record.lastLiveValidatedAt)} />
     <Fact label="Last failure code" value={String(record.lastFailureCode ?? "None")} />
   </dl>;
-  if ("externalIdentityCount" in record) return <dl className="operations-facts">
-    <Fact label="Authentication mode" value={String(record.mode)} />
-    <Fact label="Entra dependency" value={String(record.state)} />
-    <Fact label="Local login enabled" value={String(record.localLoginEnabled)} />
-    <Fact label="Entra enabled" value={String(record.entraEnabled)} />
+  if ("breakGlassState" in record) return <dl className="operations-facts">
     <Fact label="Break-glass enabled" value={String(record.breakGlassEnabled)} />
-    <Fact label="Tenant configuration" value={String(record.tenantConfigurationState)} />
-    <Fact label="External identities" value={String(record.externalIdentityCount)} />
-    <Fact label="Linked active users" value={String(record.linkedActiveUsers)} />
-    <Fact label="External successes (24h)" value={String(record.externalLoginSuccessesLast24Hours)} />
-    <Fact label="External failures (24h)" value={String(record.externalLoginFailuresLast24Hours)} />
-    <Fact label="Break-glass uses (24h)" value={String(record.breakGlassUsesLast24Hours)} />
+    <Fact label="Break-glass available" value={String(record.breakGlassAvailable)} />
+    <Fact label="Break-glass state" value={String(record.breakGlassState)} />
+    <Fact label="Break-glass failures (24h)" value={String(record.breakGlassFailuresLast24Hours)} />
+    <Fact label="Last break-glass success" value={Timestamp(record.lastBreakGlassSuccessfulUseAt)} />
   </dl>;
   if (Array.isArray(record.providers)) return <div className="dependency-list">
     {(record.providers as Array<Record<string, unknown>>).map(provider => <div key={String(provider.provider)} data-dependency={String(provider.provider)}><strong>{String(provider.provider)}</strong><State value={String(provider.state) as DependencyState} /><span>{String(provider.lastErrorCode ?? "No failure")}</span></div>)}

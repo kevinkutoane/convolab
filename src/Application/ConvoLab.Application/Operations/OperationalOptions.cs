@@ -11,10 +11,28 @@ public sealed class ProxyOptions
 public sealed class LocalAuthenticationOptions
 {
     public bool Enabled { get; init; } = true;
+    public int LoginRateLimitPerMinute { get; init; } = 10;
     public bool ProductionAllowed { get; init; }
     public bool BreakGlassEnabled { get; init; }
     public bool BreakGlassAccountConfigured { get; init; }
     public bool HybridAccessAcknowledged { get; init; }
+    public BreakGlassAuthenticationOptions BreakGlass { get; init; } = new();
+
+    public static bool IsValid(LocalAuthenticationOptions value) =>
+        value.LoginRateLimitPerMinute is >= 1 and <= 100
+        && BreakGlassAuthenticationOptions.IsValid(value.BreakGlass);
+}
+
+public sealed class BreakGlassAuthenticationOptions
+{
+    public int MaximumAttempts { get; init; } = 5;
+    public int LockoutMinutes { get; init; } = 15;
+    public int RateLimitPerMinute { get; init; } = 3;
+
+    public static bool IsValid(BreakGlassAuthenticationOptions value) =>
+        value.MaximumAttempts is >= 3 and <= 10
+        && value.LockoutMinutes is >= 1 and <= 1440
+        && value.RateLimitPerMinute is >= 1 and <= 60;
 }
 
 public enum ConvoLabAuthenticationMode

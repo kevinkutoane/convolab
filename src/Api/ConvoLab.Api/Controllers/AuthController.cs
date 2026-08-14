@@ -22,7 +22,8 @@ public sealed class AuthController(
     ApplicationDbContext db,
     IPasswordHasher<IdentityUserRecord> passwordHasher,
     SessionCookieService sessionCookies,
-    IOptions<ConvoLab.Application.Operations.AuthenticationOptions> authentication) : ControllerBase
+    IOptions<ConvoLab.Application.Operations.AuthenticationOptions> authentication,
+    TimeProvider timeProvider) : ControllerBase
 {
     [AllowAnonymous]
     [HttpGet("options")]
@@ -127,7 +128,7 @@ public sealed class AuthController(
     }
 
     [AllowAnonymous]
-    [EnableRateLimiting("login")]
+    [EnableRateLimiting("break-glass-login")]
     [HttpPost("break-glass/login")]
     public async Task<ActionResult<AuthSessionResponse>> BreakGlassLogin(LoginRequest request, CancellationToken ct)
     {
@@ -136,23 +137,54 @@ public sealed class AuthController(
         if (!configured.Local.BreakGlassEnabled
             || configured.Mode is not (ConvoLabAuthenticationMode.Entra or ConvoLabAuthenticationMode.Hybrid))
             return NotFound();
+        var limits = configured.Local.BreakGlass;
         var normalized = request.Email?.Trim().ToUpperInvariant() ?? string.Empty;
+        const int maximumConcurrencyAttempts = 10;
+        for (var concurrencyAttempt = 0; concurrencyAttempt < maximumConcurrencyAttempts; concurrencyAttempt++)
+        {
         var user = await db.IdentityUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == normalized, ct);
         var credential = user is null ? null : await db.LocalCredentials.SingleOrDefaultAsync(item => item.UserId == user.Id, ct);
-        var now = DateTimeOffset.UtcNow;
-        var valid = user is { Status: "Active", IsPlatformAdministrator: true } && credential is not null
-                    && (!credential.LockedUntil.HasValue || credential.LockedUntil <= now)
-                    && passwordHasher.VerifyHashedPassword(user, credential.PasswordHash, request.Password ?? string.Empty)
-                    != PasswordVerificationResult.Failed;
-        if (!valid)
+        var now = timeProvider.GetUtcNow();
+        var eligible = user is { Status: "Active", IsPlatformAdministrator: true } && credential is not null;
+        var locked = eligible && credential!.BreakGlassLockedUntil is { } lockedUntil && lockedUntil > now;
+        if (eligible && credential!.BreakGlassLockedUntil is { } expired && expired <= now)
         {
-            ConvoLabTelemetry.BreakGlassLogins.Add(1, new KeyValuePair<string, object?>("outcome", "denied"));
-            db.WorkspaceAuditEvents.Add(Audit("Platform", null, null, "Anonymous", null, "Emergency administrator",
-                "Authentication.BreakGlassLogin", "IdentityUser", null, "Denied", HttpContext.TraceIdentifier));
-            await db.SaveChangesAsync(ct);
-            return UnauthorizedProblem("authentication.break_glass_denied", "Emergency administrator access was denied.");
+            credential.BreakGlassFailedAttempts = 0;
+            credential.BreakGlassLockedUntil = null;
         }
-        credential!.FailedAttempts = 0; credential.LockedUntil = null; credential.UpdatedAt = now;
+        var validPassword = eligible && !locked
+            && passwordHasher.VerifyHashedPassword(user!, credential!.PasswordHash, request.Password ?? string.Empty)
+               != PasswordVerificationResult.Failed;
+        if (!validPassword)
+        {
+            var thresholdReached = false;
+            if (eligible && !locked)
+            {
+                credential!.BreakGlassFailedAttempts++;
+                credential.BreakGlassLastFailedAt = now;
+                thresholdReached = credential.BreakGlassFailedAttempts >= limits.MaximumAttempts;
+                if (thresholdReached) credential.BreakGlassLockedUntil = now.AddMinutes(limits.LockoutMinutes);
+                credential.BreakGlassRevision++;
+                credential.UpdatedAt = now;
+            }
+            AddBreakGlassFailureEvidence(locked, thresholdReached);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                RecordBreakGlassMetric("denied", "invalid_credentials", locked || thresholdReached ? "locked" : "unlocked");
+                return UnauthorizedProblem("authentication.break_glass_denied", "Emergency administrator access was denied.");
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                db.ChangeTracker.Clear();
+                if (concurrencyAttempt < maximumConcurrencyAttempts - 1) continue;
+                break;
+            }
+        }
+        credential!.BreakGlassFailedAttempts = 0;
+        credential.BreakGlassLockedUntil = null;
+        credential.BreakGlassRevision++;
+        credential.UpdatedAt = now;
         var administrator = user!;
         var memberships = await db.WorkspaceMemberships.AsNoTracking()
             .Where(item => item.UserId == administrator.Id && item.Status == "Active")
@@ -175,9 +207,32 @@ public sealed class AuthController(
         db.WorkspaceAuditEvents.Add(audit);
         await AnalyticsOutboxFactory.EnqueueAuditAsync(db, audit, cancellationToken: ct);
         await db.SaveChangesAsync(ct);
-        ConvoLabTelemetry.BreakGlassLogins.Add(1, new KeyValuePair<string, object?>("outcome", "succeeded"));
+        RecordBreakGlassMetric("succeeded", "none", "unlocked");
         WriteSessionCookie(token, session.ExpiresAt);
         return Ok(await DescribeAsync(administrator, session, ct));
+        }
+        RecordBreakGlassMetric("denied", "concurrency_conflict", "unknown");
+        return UnauthorizedProblem("authentication.break_glass_denied", "Emergency administrator access was denied.");
+    }
+
+    private void AddBreakGlassFailureEvidence(bool alreadyLocked, bool thresholdReached)
+    {
+        var failure = Audit("Platform", null, null, "Anonymous", null, "Emergency administrator",
+            "Authentication.BreakGlassFailure", "IdentityUser", null, "Denied", HttpContext.TraceIdentifier);
+        failure.DetailJson = $"{{\"severity\":\"High\",\"lockoutState\":\"{(alreadyLocked || thresholdReached ? "Locked" : "Unlocked")}\"}}";
+        db.WorkspaceAuditEvents.Add(failure);
+        if (!thresholdReached) return;
+        var lockout = Audit("Platform", null, null, "Anonymous", null, "Emergency administrator",
+            "Authentication.BreakGlassLocked", "IdentityUser", null, "Denied", HttpContext.TraceIdentifier);
+        lockout.DetailJson = "{\"severity\":\"High\",\"lockoutState\":\"Locked\"}";
+        db.WorkspaceAuditEvents.Add(lockout);
+    }
+
+    private static void RecordBreakGlassMetric(string outcome, string failureCode, string lockoutState)
+    {
+        System.Diagnostics.TagList tags = default;
+        tags.Add("outcome", outcome); tags.Add("failure_code", failureCode); tags.Add("lockout_state", lockoutState);
+        ConvoLabTelemetry.BreakGlassLogins.Add(1, tags);
     }
 
     [AllowAnonymous]

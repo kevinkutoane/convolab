@@ -17,7 +17,7 @@ Choose one of `Local`, `Entra`, or `Hybrid`. Production Entra/Hybrid deployments
 
 For Entra-only deployments set `Authentication__Local__Enabled=false`. For Hybrid local fallback set `Authentication__Local__HybridAccessAcknowledged=true` after operational review. Break glass additionally requires a pre-provisioned active Platform Administrator local credential and both `BreakGlassAccountConfigured=true` and `BreakGlassEnabled=true`; startup verifies the account exists.
 
-Apply migration `202608040001_EntraHybridAuthenticationV1` explicitly before Production startup. Register `<public-origin>/signin-oidc` and `<public-origin>/signout-callback-oidc` in the single-tenant Entra application. See `docs/operations/EntraId.md`; never place the client secret itself in configuration or source control.
+Apply migrations `202608040001_EntraHybridAuthenticationV1` and `202608050001_EntraHybridAuthenticationCorrectionsV1` explicitly, in order, before starting the corrected API in Production. Register `<public-origin>/signin-oidc` and `<public-origin>/signout-callback-oidc` in the single-tenant Entra application. See `docs/operations/EntraId.md`; never place the client secret itself in configuration or source control.
 
 ## Local Development
 
@@ -588,7 +588,7 @@ gzip_min_length 1000;
 - See `.github/workflows/ci.yml` for CI/CD workflow
 # Operational Foundation correction-sprint deployment notes
 
-Active application/package metadata remains `1.0.0-alpha.14`; `alpha.15 — Microsoft Entra ID and Hybrid Authentication` is an in-progress workstream label, not a releasable alpha.15 promotion.
+Active application/package metadata remains `1.0.0-alpha.14`; `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` is an in-progress workstream label, not a releasable alpha.15 promotion.
 
 Before deploying this workstream, review [ProductionSecurityChecklist.md](docs/security/ProductionSecurityChecklist.md) and the operational runbooks in [docs/operations](docs/operations/OperationsCenter.md). Production requires external PostgreSQL values, explicit trusted proxies/hosts, acknowledged local authentication, shared filesystem/X.509 data protection, and an explicit `SafeMode__BlockAnalyticsExports=true|false` decision. UAT/Production Key Vault authentication is restricted to workload or managed identity.
 

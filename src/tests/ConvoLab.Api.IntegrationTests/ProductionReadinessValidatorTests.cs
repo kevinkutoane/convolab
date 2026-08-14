@@ -66,6 +66,14 @@ public sealed class ProductionReadinessValidatorTests : IDisposable
     [InlineData("SafeMode:BlockAnalyticsExports", null, "production.safe_mode.analytics_export_decision_required")]
     [InlineData("OTEL_EXPORTER_OTLP_ENDPOINT", "not-a-uri", "production.telemetry.otlp_endpoint_invalid")]
     [InlineData("OTEL_EXPORTER_OTLP_PROTOCOL", "http/json", "production.telemetry.otlp_protocol_invalid")]
+    [InlineData("Authentication:Local:LoginRateLimitPerMinute", "0", "production.authentication.local_rate_limit_invalid")]
+    [InlineData("Authentication:Local:LoginRateLimitPerMinute", "101", "production.authentication.local_rate_limit_invalid")]
+    [InlineData("Authentication:Local:BreakGlass:MaximumAttempts", "2", "production.authentication.break_glass_attempts_invalid")]
+    [InlineData("Authentication:Local:BreakGlass:MaximumAttempts", "11", "production.authentication.break_glass_attempts_invalid")]
+    [InlineData("Authentication:Local:BreakGlass:LockoutMinutes", "0", "production.authentication.break_glass_lockout_invalid")]
+    [InlineData("Authentication:Local:BreakGlass:LockoutMinutes", "1441", "production.authentication.break_glass_lockout_invalid")]
+    [InlineData("Authentication:Local:BreakGlass:RateLimitPerMinute", "0", "production.authentication.break_glass_rate_limit_invalid")]
+    [InlineData("Authentication:Local:BreakGlass:RateLimitPerMinute", "61", "production.authentication.break_glass_rate_limit_invalid")]
     public void Unsafe_static_condition_is_rejected(string key, string? value, string expectedCode)
     {
         var values = new Dictionary<string, string?>(_valid) { [key] = value };

@@ -22,6 +22,10 @@ const routes = [
 ] as const;
 
 const adminEmail = process.env.CONVOLAB_ACCEPTANCE_ADMIN_EMAIL ?? process.env.CONVOLAB_BOOTSTRAP_ADMIN_EMAIL;
+const stableRoutes = [
+  "/conversations", "/workflows", "/prompts", "/knowledge", "/intelligence",
+  "/evaluation", "/evaluations", "/traces", "/replay", "/policies", "/plugins",
+] as const;
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -40,6 +44,33 @@ test("every canonical and compatibility route loads without browser errors", asy
     await expect(page.locator(".async-loading")).toHaveCount(0);
   }
   expect(errors).toEqual([]);
+});
+
+test("stable screens and API connectivity are visible in the global shell", async ({ page }) => {
+  await expect(page.getByTestId("api-connectivity")).toHaveClass(/api-online/);
+  await expect(page.getByTestId("api-connectivity")).toContainText("API online");
+
+  for (const route of stableRoutes) {
+    await page.goto(route);
+    await expect(page.locator(".topbar .status-pill.status-stable")).toBeVisible();
+    await expect(page.locator(".topbar .status-pill.status-stable")).toContainText("Stable");
+  }
+});
+
+test("global API notification reports an outage and recovery", async ({ page }) => {
+  await page.route("**/api/platform/status", route => route.fulfill({
+    status: 503,
+    contentType: "application/problem+json",
+    body: JSON.stringify({ detail: "Readiness is temporarily unavailable." }),
+  }));
+  await page.reload();
+  await expect(page.getByTestId("api-connectivity")).toHaveClass(/api-offline/);
+  await expect(page.getByTestId("api-connectivity")).toContainText("API offline");
+
+  await page.unroute("**/api/platform/status");
+  await page.evaluate(() => window.dispatchEvent(new Event("convolab:platform-status")));
+  await expect(page.getByTestId("api-connectivity")).toHaveClass(/api-online/);
+  await expect(page.getByTestId("api-connectivity")).toContainText("API online");
 });
 
 test("governance workspaces expose functional dialogs, tabs and documentation", async ({ page }) => {
@@ -118,7 +149,23 @@ test("settings overview supports direct nested routes and metadata-driven contro
 });
 
 test("adaptive workspaces persist desktop panes and expose dismissible mobile drawers", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/workflows");
+  const definitions = page.locator(".workflow-library");
+  const workspace = page.locator(".workflow-workspace");
+  const inspector = page.locator(".workflow-inspector");
+  await expect(definitions).toBeVisible();
+  await expect(workspace).toBeVisible();
+  await expect(inspector).toBeVisible();
+  const [definitionsBox, workspaceBox, inspectorBox] = await Promise.all([
+    definitions.boundingBox(), workspace.boundingBox(), inspector.boundingBox(),
+  ]);
+  if (!definitionsBox || !workspaceBox || !inspectorBox) throw new Error("Workflow panes must have measurable desktop bounds.");
+  expect(definitionsBox.x + definitionsBox.width).toBeLessThanOrEqual(workspaceBox.x + 1);
+  expect(workspaceBox.x + workspaceBox.width).toBeLessThanOrEqual(inspectorBox.x + 1);
+  expect(inspectorBox.x + inspectorBox.width).toBeLessThanOrEqual(1440);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
   const hideDefinitions = page.getByRole("button", { name: "Hide Definitions" });
   await expect(hideDefinitions).toBeVisible();
   await hideDefinitions.click();
@@ -126,6 +173,17 @@ test("adaptive workspaces persist desktop panes and expose dismissible mobile dr
   await page.reload();
   await expect(page.getByRole("button", { name: "Show Definitions" })).toBeVisible();
   await expect(page.locator(".workflow-library")).toBeHidden();
+
+  await page.setViewportSize({ width: 1200, height: 850 });
+  await page.goto("/workflows");
+  await expect(page.getByRole("button", { name: "Show Inspector" })).toBeVisible();
+  await expect(page.locator(".workflow-inspector")).toBeHidden();
+  await page.getByRole("button", { name: "Show Inspector" }).click();
+  await expect(page.locator(".workflow-inspector")).toBeVisible();
+  const compactInspectorBox = await page.locator(".workflow-inspector").boundingBox();
+  if (!compactInspectorBox) throw new Error("Workflow Inspector drawer must have measurable compact bounds.");
+  expect(compactInspectorBox.x + compactInspectorBox.width).toBeLessThanOrEqual(1200);
+  await page.getByRole("button", { name: "Close workspace panel", exact: true }).click();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/prompts");

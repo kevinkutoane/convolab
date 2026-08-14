@@ -53,6 +53,8 @@ export function StudioShell({
           onOpenPalette={() => setPaletteOpen(true)}
           onOpenMobile={() => setMobileOpen(true)}
           status={status}
+          isFetchingStatus={isFetching}
+          statusStale={statusStale}
         />
         {status?.safeMode && (
           <div className="safe-mode-banner" role="alert">
@@ -63,7 +65,7 @@ export function StudioShell({
         <main className="studio-content">
           <Outlet />
         </main>
-        <StatusBar status={status} isFetching={isFetching} />
+        <StatusBar status={status} isFetching={isFetching} statusStale={statusStale} />
       </div>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>

@@ -1,4 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
+using System.Data.Common;
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -32,6 +34,7 @@ public sealed class MockEntraOidcTests
     {
         await using var factory = new MockEntraFactory();
         await factory.SeedLinkedUserAsync(activeIdentity: true, activeUser: true);
+        factory.CommitFailure.ObserveAuthenticationCommit = true;
         using var client = factory.CreateOidcClient();
         var callback = await factory.AuthenticateAsync(client);
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
@@ -48,6 +51,7 @@ public sealed class MockEntraOidcTests
         Assert.Equal(MockEntraFactory.UserId, createdSession.UserId);
         Assert.Equal(WorkspaceIdentityDefaults.WorkspaceId, createdSession.ActiveWorkspaceId);
         Assert.NotEqual(createdSession.TokenHash, createdSession.Id.ToString());
+        Assert.True(factory.CommitFailure.AuthenticationCommitCompleted);
         Assert.Equal(ConvoLab.Application.Operations.OperationalDependencyState.StubValidated,
             factory.Services.GetRequiredService<EntraDependencyEvidence>().Snapshot().State);
     }
@@ -65,6 +69,116 @@ public sealed class MockEntraOidcTests
         Assert.Equal(1, await db.ExternalIdentities.CountAsync());
         Assert.Equal("Consumed", await db.ExternalIdentityInvitations.Select(item => item.Status).SingleAsync());
         Assert.Equal(factory.Subject, await db.ExternalIdentities.Select(item => item.Subject).SingleAsync());
+    }
+
+    [Fact]
+    public async Task Valid_invitation_without_email_or_email_verified_links_successfully()
+    {
+        await using var factory = new MockEntraFactory();
+        factory.Backchannel.IncludeEmail = false;
+        var token = await factory.SeedInvitationAsync();
+        using var client = factory.CreateOidcClient();
+        var callback = await factory.AuthenticateAsync(client, token);
+        Assert.Equal("/", callback.Headers.Location?.OriginalString);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await db.ExternalIdentities.CountAsync());
+        Assert.Equal("Consumed", await db.ExternalIdentityInvitations.Select(item => item.Status).SingleAsync());
+    }
+
+    [Theory]
+    [InlineData("preferred_username")]
+    [InlineData("upn")]
+    public async Task Profile_login_names_are_not_authoritative_and_conflicting_email_is_rejected(string claimType)
+    {
+        await using var factory = new MockEntraFactory();
+        var token = await factory.SeedInvitationAsync();
+        factory.Backchannel.EmailOverride = "conflict@example.test";
+        if (claimType == "preferred_username") factory.Backchannel.PreferredUsername = factory.InvitedEmail;
+        else factory.Backchannel.Upn = factory.InvitedEmail;
+        using var client = factory.CreateOidcClient();
+        var callback = await factory.AuthenticateAsync(client, token);
+        Assert.StartsWith("/login?error=", callback.Headers.Location?.OriginalString, StringComparison.Ordinal);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(0, await db.ExternalIdentities.CountAsync());
+        Assert.Equal("Active", await db.ExternalIdentityInvitations.Select(item => item.Status).SingleAsync());
+    }
+
+    [Theory]
+    [InlineData("preferred_username")]
+    [InlineData("upn")]
+    public async Task Profile_login_names_without_email_do_not_block_valid_invitation(string claimType)
+    {
+        await using var factory = new MockEntraFactory();
+        var token = await factory.SeedInvitationAsync();
+        factory.Backchannel.IncludeEmail = false;
+        if (claimType == "preferred_username") factory.Backchannel.PreferredUsername = "different@example.test";
+        else factory.Backchannel.Upn = "different@example.test";
+        using var client = factory.CreateOidcClient();
+        var callback = await factory.AuthenticateAsync(client, token);
+        Assert.Equal("/", callback.Headers.Location?.OriginalString);
+    }
+
+    [Theory]
+    [InlineData("expired")]
+    [InlineData("consumed")]
+    public async Task Expired_or_consumed_invitation_is_safely_rejected(string state)
+    {
+        await using var factory = new MockEntraFactory();
+        var token = await factory.SeedInvitationAsync();
+        await using (var scope = factory.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var invitation = await db.ExternalIdentityInvitations.SingleAsync();
+            if (state == "expired") invitation.ExpiresAt = DateTimeOffset.UtcNow.AddMinutes(-1);
+            else { invitation.Status = "Consumed"; invitation.ConsumedAt = DateTimeOffset.UtcNow; }
+            await db.SaveChangesAsync();
+        }
+        using var client = factory.CreateOidcClient();
+        var callback = await factory.AuthenticateAsync(client, token);
+        Assert.Equal("/login?error=authentication.external_login_failed", callback.Headers.Location?.OriginalString);
+        await using var verification = factory.Services.CreateAsyncScope();
+        var verified = verification.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(0, await verified.ExternalIdentities.CountAsync());
+        Assert.Equal(0, await verified.AuthenticationSessions.CountAsync());
+    }
+
+    [Fact]
+    public async Task Concurrent_callbacks_consume_invitation_once_and_create_one_session()
+    {
+        await using var factory = new MockEntraFactory();
+        var token = await factory.SeedInvitationAsync();
+        using var first = factory.CreateOidcClient();
+        using var second = factory.CreateOidcClient();
+        var results = await Task.WhenAll(factory.AuthenticateAsync(first, token), factory.AuthenticateAsync(second, token));
+        Assert.Single(results, item => item.Headers.Location?.OriginalString == "/");
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(1, await db.ExternalIdentities.CountAsync());
+        Assert.Equal(1, await db.AuthenticationSessions.CountAsync());
+        Assert.Equal("Consumed", await db.ExternalIdentityInvitations.Select(item => item.Status).SingleAsync());
+    }
+
+    [Fact]
+    public async Task Failed_commit_rolls_back_link_and_never_issues_application_cookie()
+    {
+        await using var factory = new MockEntraFactory();
+        var token = await factory.SeedInvitationAsync();
+        factory.CommitFailure.FailAuthenticationCommit = true;
+        using var client = factory.CreateOidcClient();
+        var callback = await factory.AuthenticateAsync(client, token);
+        Assert.DoesNotContain(callback.Headers.TryGetValues("Set-Cookie", out var cookies) ? cookies : [],
+            value => value.Contains(ConvoLabAuthentication.SessionCookie, StringComparison.Ordinal));
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        Assert.Equal(0, await db.ExternalIdentities.CountAsync());
+        Assert.Equal(0, await db.AuthenticationSessions.CountAsync());
+        Assert.Equal("Active", await db.ExternalIdentityInvitations.Select(item => item.Status).SingleAsync());
+        Assert.DoesNotContain(await db.WorkspaceAuditEvents.AsNoTracking().ToListAsync(), item =>
+            item.Action is "Authentication.ExternalIdentityLinked" or "Authentication.ExternalIdentityInvitationConsumed"
+            || item.Action == "Authentication.EntraLogin" && item.Outcome == "Succeeded");
+        Assert.Empty(await db.AnalyticsOutbox.AsNoTracking().ToListAsync());
     }
 
     [Theory]
@@ -112,7 +226,9 @@ internal sealed class MockEntraFactory : WebApplicationFactory<Program>, IAsyncD
     private readonly string _database = Path.Combine(Path.GetTempPath(), $"convolab-oidc-{Guid.NewGuid():N}.db");
     private readonly string _email = $"approved-{Guid.NewGuid():N}@example.test";
     public StubOidcBackchannel Backchannel { get; } = new();
+    public AuthenticationCommitFailureInterceptor CommitFailure { get; } = new();
     public string Subject => "stable-subject-1";
+    public string InvitedEmail => _email;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -133,7 +249,8 @@ internal sealed class MockEntraFactory : WebApplicationFactory<Program>, IAsyncD
         {
             services.RemoveAll<ApplicationDbContext>();
             services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
-            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite($"Data Source={_database}"));
+            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite($"Data Source={_database}")
+                .AddInterceptors(CommitFailure));
             services.RemoveAll<ISecretStore>();
             services.AddSingleton<ISecretStore, StubSecretStore>();
             services.PostConfigure<OpenIdConnectOptions>(EntraAuthentication.Scheme, options =>
@@ -167,14 +284,15 @@ internal sealed class MockEntraFactory : WebApplicationFactory<Program>, IAsyncD
         var redirect = await client.SendAsync(challenge);
         Assert.Equal(HttpStatusCode.Redirect, redirect.StatusCode);
         var query = QueryHelpers.ParseQuery(redirect.Headers.Location!.Query);
-        Backchannel.Nonce = query["nonce"].ToString();
+        var code = $"deterministic-code-{Guid.NewGuid():N}";
+        Backchannel.Register(code, query["nonce"].ToString());
         var state = query["state"].ToString();
         if (tamperState) state += "tampered";
         using var callback = new HttpRequestMessage(HttpMethod.Post, "/signin-oidc")
         {
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["code"] = "deterministic-code", ["state"] = state
+                ["code"] = code, ["state"] = state
             })
         };
         return await client.SendAsync(callback);
@@ -237,8 +355,12 @@ internal sealed class MockEntraFactory : WebApplicationFactory<Program>, IAsyncD
 internal sealed class StubOidcBackchannel : HttpMessageHandler
 {
     private readonly RSA _rsa = RSA.Create(2048);
-    public string Nonce { get; set; } = string.Empty;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _nonces = new();
     public string Scenario { get; set; } = "valid";
+    public bool IncludeEmail { get; set; } = true;
+    public string? EmailOverride { get; set; }
+    public string? PreferredUsername { get; set; }
+    public string? Upn { get; set; }
     private string _issuer = string.Empty; private string _clientId = string.Empty; private string _tenant = string.Empty;
     private string _email = string.Empty;
 
@@ -260,30 +382,63 @@ internal sealed class StubOidcBackchannel : HttpMessageHandler
         options.Backchannel = new HttpClient(this, disposeHandler: false);
     }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    public void Register(string code, string nonce) => _nonces[code] = nonce;
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        var form = request.Content is null ? "" : await request.Content.ReadAsStringAsync(cancellationToken);
+        var code = QueryHelpers.ParseQuery("?" + form)["code"].ToString();
         var now = DateTime.UtcNow;
         var issuer = Scenario == "invalid-issuer" ? "https://other-issuer.test/v2.0" : _issuer;
         var audience = Scenario == "invalid-audience" ? "wrong-client" : _clientId;
         var tenant = Scenario == "wrong-tenant" ? "33333333-3333-3333-3333-333333333333" : _tenant;
-        var nonce = Scenario == "invalid-nonce" ? "wrong-nonce" : Nonce;
+        var nonce = Scenario == "invalid-nonce" ? "wrong-nonce" : _nonces.GetValueOrDefault(code, "missing-nonce");
+        var claims = new List<Claim>
+        {
+            new("sub", "stable-subject-1"), new("tid", tenant), new("nonce", nonce), new("name", "Approved user")
+        };
+        if (IncludeEmail) claims.Add(new Claim("email", EmailOverride ?? _email));
+        if (!string.IsNullOrWhiteSpace(PreferredUsername)) claims.Add(new Claim("preferred_username", PreferredUsername));
+        if (!string.IsNullOrWhiteSpace(Upn)) claims.Add(new Claim("upn", Upn));
         var descriptor = new SecurityTokenDescriptor
         {
             Issuer = issuer, Audience = audience,
             NotBefore = Scenario == "expired" ? now.AddHours(-2) : now.AddMinutes(-1),
             Expires = Scenario == "expired" ? now.AddHours(-1) : now.AddMinutes(10),
-            Subject = new ClaimsIdentity([
-                new Claim("sub", "stable-subject-1"), new Claim("tid", tenant), new Claim("nonce", nonce),
-                new Claim("email", _email), new Claim("email_verified", "true"), new Claim("name", "Approved user")
-            ]),
+            Subject = new ClaimsIdentity(claims),
             SigningCredentials = new SigningCredentials(new RsaSecurityKey(_rsa) { KeyId = "stub-key" }, SecurityAlgorithms.RsaSha256)
         };
         var token = new JwtSecurityTokenHandler().CreateEncodedJwt(descriptor);
         var json = $$"""{"token_type":"Bearer","expires_in":600,"access_token":"stub-access-token","id_token":"{{token}}"}""";
-        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
-        });
+        };
+    }
+}
+
+internal sealed class AuthenticationCommitFailureInterceptor : DbTransactionInterceptor
+{
+    public bool FailAuthenticationCommit { get; set; }
+    public bool ObserveAuthenticationCommit { get; set; }
+    public bool AuthenticationCommitCompleted { get; private set; }
+
+    public override ValueTask<InterceptionResult> TransactionCommittingAsync(DbTransaction transaction,
+        TransactionEventData eventData, InterceptionResult result, CancellationToken cancellationToken = default)
+    {
+        if (FailAuthenticationCommit)
+        {
+            FailAuthenticationCommit = false;
+            throw new DbUpdateException("Deterministic authentication commit failure.");
+        }
+        return ValueTask.FromResult(result);
+    }
+
+    public override Task TransactionCommittedAsync(DbTransaction transaction, TransactionEndEventData eventData,
+        CancellationToken cancellationToken = default)
+    {
+        if (ObserveAuthenticationCommit) AuthenticationCommitCompleted = true;
+        return Task.CompletedTask;
     }
 }
 

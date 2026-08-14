@@ -7,7 +7,7 @@
 ## Current milestone
 
 - **Platform Core / Studio:** `v1.0.0-alpha.14`
-- **Current workstream:** `alpha.15 — Microsoft Entra ID and Hybrid Authentication` (release metadata remains alpha.14)
+- **Current workstream:** `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` (release metadata remains alpha.14)
 - **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`

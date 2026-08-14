@@ -1,6 +1,8 @@
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.EvaluationStudio;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace ConvoLab.Infrastructure.IntegrationTests.Data;
 
@@ -95,7 +97,8 @@ public sealed class MigrationTests
             "202607250001_PlatformAnalyticsCompletionV1",
             "202608030001_OperationalFoundationV1",
             "202608030002_OperationalFoundationCorrectionsV1",
-            "202608040001_EntraHybridAuthenticationV1"
+            "202608040001_EntraHybridAuthenticationV1",
+            "202608050001_EntraHybridAuthenticationCorrectionsV1"
         ], migrations);
 
         await db.Database.MigrateAsync();
@@ -112,6 +115,43 @@ public sealed class MigrationTests
 
             Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
         }
+    }
+
+    [Fact]
+    public async Task Entra_correction_upgrade_preserves_local_credentials_and_initializes_break_glass_state()
+    {
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
+        var userId = Guid.NewGuid();
+        await using (var before = new ApplicationDbContext(options))
+        {
+            var migrator = before.Database.GetService<IMigrator>();
+            var entraMigration = before.Database.GetMigrations()
+                .Single(id => id.EndsWith("_EntraHybridAuthenticationV1", StringComparison.Ordinal));
+            await migrator.MigrateAsync(before.Database.GetService<IMigrationsIdGenerator>().GetName(entraMigration));
+            await before.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "IdentityUsers"
+                    ("Id", "Email", "NormalizedEmail", "DisplayName", "Status", "IsPlatformAdministrator",
+                     "CreatedAt", "UpdatedAt", "Revision")
+                VALUES ({userId}, {"preserved@example.test"}, {"PRESERVED@EXAMPLE.TEST"}, {"Preserved user"},
+                        {"Active"}, {true}, {DateTimeOffset.UtcNow}, {DateTimeOffset.UtcNow}, {7});
+                INSERT INTO "LocalCredentials"
+                    ("UserId", "PasswordHash", "FailedAttempts", "LockedUntil", "UpdatedAt")
+                VALUES ({userId}, {"preserved-hash-sentinel"}, {2}, {DateTimeOffset.UtcNow.AddMinutes(5)},
+                        {DateTimeOffset.UtcNow});
+                """);
+        }
+
+        await using var corrected = new ApplicationDbContext(options);
+        await corrected.Database.MigrateAsync();
+        var credential = await corrected.LocalCredentials.AsNoTracking().SingleAsync();
+        Assert.Equal("preserved-hash-sentinel", credential.PasswordHash);
+        Assert.Equal(2, credential.FailedAttempts);
+        Assert.Equal(0, credential.BreakGlassFailedAttempts);
+        Assert.Null(credential.BreakGlassLockedUntil);
+        Assert.Null(credential.BreakGlassLastFailedAt);
+        Assert.Equal(1, credential.BreakGlassRevision);
     }
 
     [Fact]

@@ -4,10 +4,12 @@ import type { PlatformStatus } from "../types/platform";
 interface StatusBarProps {
   status?: PlatformStatus;
   isFetching: boolean;
+  statusStale?: boolean;
 }
 
-export function StatusBar({ status, isFetching }: StatusBarProps) {
-  const apiOnline = status?.apiHealth === "Healthy";
+export function StatusBar({ status, isFetching, statusStale = false }: StatusBarProps) {
+  const apiOnline = !statusStale
+    && (status?.apiHealth === "Healthy" || status?.apiHealth === "Responding");
   return (
     <footer className="status-bar">
       <div className="status-bar-group">
@@ -24,7 +26,7 @@ export function StatusBar({ status, isFetching }: StatusBarProps) {
       <div className="status-bar-group">
         <span className={apiOnline ? "status-online" : "status-muted"}>
           {apiOnline ? <Server size={13} /> : <CloudOff size={13} />}
-          {isFetching ? "checking API" : apiOnline ? "API connected" : "design-time mode"}
+          {isFetching ? "checking API" : apiOnline ? "API connected" : "API unavailable"}
         </span>
         <span>{status?.version ?? "1.0.0-alpha"}</span>
       </div>

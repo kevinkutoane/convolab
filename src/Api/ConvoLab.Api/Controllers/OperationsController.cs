@@ -30,7 +30,6 @@ public sealed class OperationsController(
     IConfiguration configuration,
     IOptions<OperationsThresholdOptions> thresholdOptions,
     IOptions<BuildOptions> buildOptions,
-    EntraDependencyEvidence entraEvidence,
     IHostEnvironment environment,
     ILogger<OperationsController> logger) : ControllerBase
 {
@@ -192,43 +191,32 @@ public sealed class OperationsController(
     public async Task<ActionResult> Authentication(CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
-        var sessionExpiries = await db.AuthenticationSessions.AsNoTracking()
-            .Where(item => item.RevokedAt == null).Select(item => item.ExpiresAt).ToListAsync(ct);
-        var activeSessions = sessionExpiries.Count(expiresAt => expiresAt > now);
         var authenticationAudits = await db.WorkspaceAuditEvents.AsNoTracking()
-            .Where(item => item.Action == "Authentication.Login" || item.Action == "Authentication.EntraLogin"
-                           || item.Action == "Authentication.BreakGlassLogin")
+            .Where(item => item.Action == "Authentication.BreakGlassLogin"
+                           || item.Action == "Authentication.BreakGlassFailure")
             .Select(item => new { item.Action, item.Outcome, item.OccurredAt }).ToListAsync(ct);
         var since = now.AddHours(-24);
-        var recentFailures = authenticationAudits.Count(item => item.Outcome == "Failed" && item.OccurredAt >= since);
-        var externalIdentityCount = await db.ExternalIdentities.AsNoTracking().CountAsync(ct);
-        var linkedActiveUsers = await db.ExternalIdentities.AsNoTracking().Where(item => item.IsActive)
-            .Select(item => item.UserId).Distinct().CountAsync(ct);
-        var externalSuccesses = authenticationAudits.Count(item => item.Action == "Authentication.EntraLogin"
-            && item.Outcome == "Succeeded" && item.OccurredAt >= since);
-        var breakGlassUses = authenticationAudits.Count(item => item.Action == "Authentication.BreakGlassLogin"
-            && item.Outcome == "Succeeded" && item.OccurredAt >= since);
-        var evidence = entraEvidence.Snapshot();
-        var secretReference = configuration["Authentication:Entra:ClientSecretReference"] ?? string.Empty;
-        var secretScheme = secretReference.Split(':', 2)[0];
+        var breakGlassFailures = authenticationAudits.Count(item => item.Action == "Authentication.BreakGlassFailure"
+            && item.OccurredAt >= since);
+        var lastBreakGlassSuccess = authenticationAudits
+            .Where(item => item.Action == "Authentication.BreakGlassLogin" && item.Outcome == "Succeeded")
+            .Select(item => (DateTimeOffset?)item.OccurredAt).OrderByDescending(item => item).FirstOrDefault();
+        var breakGlassEnabled = configuration.GetValue<bool>("Authentication:Local:BreakGlassEnabled");
+        var authorisedLockouts = await db.IdentityUsers.AsNoTracking()
+            .Where(item => item.Status == "Active" && item.IsPlatformAdministrator)
+            .Join(db.LocalCredentials.AsNoTracking(), user => user.Id, credential => credential.UserId,
+                (_, credential) => credential.BreakGlassLockedUntil).ToListAsync(ct);
+        var breakGlassState = !breakGlassEnabled ? "Disabled"
+            : authorisedLockouts.Count == 0 ? "Unavailable"
+            : authorisedLockouts.Any(item => !item.HasValue || item <= now) ? "Available"
+            : "Locked";
         return Ok(new
         {
-            mode = configuration["Authentication:Mode"] ?? "Local",
-            localLoginEnabled = configuration.GetValue("Authentication:Local:Enabled", true),
-            entraEnabled = configuration.GetValue<bool>("Authentication:Entra:Enabled"),
-            breakGlassEnabled = configuration.GetValue<bool>("Authentication:Local:BreakGlassEnabled"),
-            tenantConfigurationState = string.IsNullOrWhiteSpace(configuration["Authentication:Entra:TenantId"]) ? "NotConfigured" : "Configured",
-            clientAuthentication = new { configured = !string.IsNullOrWhiteSpace(secretReference), secretProviderScheme = string.IsNullOrWhiteSpace(secretReference) ? null : secretScheme },
-            state = evidence.State,
-            lastValidationAt = evidence.CheckedAt,
-            lastFailureCode = evidence.FailureCode,
-            externalIdentityCount,
-            linkedActiveUsers,
-            externalLoginSuccessesLast24Hours = externalSuccesses,
-            externalLoginFailuresLast24Hours = recentFailures,
-            breakGlassUsesLast24Hours = breakGlassUses,
-            activeSessions,
-            failuresLast24Hours = recentFailures,
+            breakGlassEnabled,
+            breakGlassAvailable = breakGlassState == "Available",
+            breakGlassState,
+            breakGlassFailuresLast24Hours = breakGlassFailures,
+            lastBreakGlassSuccessfulUseAt = lastBreakGlassSuccess,
             correlationId = HttpContext.TraceIdentifier
         });
     }

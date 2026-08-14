@@ -124,18 +124,22 @@
 }
 
 .workflow-studio-layout {
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 22px;
+  grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) minmax(270px, 300px);
+  gap: 18px;
 }
 
 .workflow-library,
 .workflow-workspace {
+  min-width: 0;
   min-height: 700px;
 }
 
 .workflow-inspector {
-  min-height: 0;
-  grid-column: 1 / -1;
+  min-width: 0;
+  min-height: 700px;
+  max-height: 700px;
+  grid-column: auto;
+  overflow: auto;
 }
 
 .workflow-palette {

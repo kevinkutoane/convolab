@@ -82,6 +82,13 @@ test("platform administrator can navigate every Operations Center panel", async 
   await expect(telemetry.getByText("OTLP dependency state", { exact: true })).toBeVisible();
   await expect(telemetry.getByText("Endpoint configured", { exact: true })).toBeVisible();
   await expect(telemetry).not.toContainText(/Authorization|header|credential/i);
+
+  const authentication = page.locator("article", { hasText: "Authentication" });
+  await authentication.getByRole("button", { name: "Load evidence" }).click();
+  await expect(authentication.getByText("Break-glass state", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("Break-glass failures (24h)", { exact: true })).toBeVisible();
+  await expect(authentication.getByText("Last break-glass success", { exact: true })).toBeVisible();
+  await expect(authentication).not.toContainText(/account|email|credential|hash|failed at/i);
 });
 
 test("workspace roles do not receive Operations navigation or route access", async ({ page }) => {

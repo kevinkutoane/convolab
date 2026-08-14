@@ -114,16 +114,33 @@ public sealed class ConvoLabOpenIdConnectEvents(
         }
 
         var now = DateTimeOffset.UtcNow;
+        await using var transaction = await db.Database.BeginTransactionAsync(context.HttpContext.RequestAborted);
+        try
+        {
         var identity = await db.ExternalIdentities.SingleOrDefaultAsync(item =>
-            item.Provider == "Entra" && item.Issuer == issuer && item.Subject == subject,
+            item.Provider == "Entra" && item.Issuer == issuer && item.Subject == subject && item.TenantId == tenant,
             context.HttpContext.RequestAborted);
         IdentityUserRecord? user;
         var linked = false;
         if (identity is not null)
         {
+            if (context.Properties?.Items.TryGetValue("invitation_hash", out var presentedInvitationHash) == true
+                && !string.IsNullOrWhiteSpace(presentedInvitationHash))
+            {
+                var presentedInvitation = await db.ExternalIdentityInvitations.SingleOrDefaultAsync(
+                    item => item.TokenHash == presentedInvitationHash, context.HttpContext.RequestAborted);
+                if (presentedInvitation is null || presentedInvitation.Status != "Active"
+                    || presentedInvitation.ConsumedAt.HasValue || presentedInvitation.RevokedAt.HasValue)
+                {
+                    await RejectAsync(context, "authentication.invitation_consumed");
+                    await transaction.CommitAsync(context.HttpContext.RequestAborted);
+                    return;
+                }
+            }
             if (!identity.IsActive)
             {
                 await RejectAsync(context, "authentication.external_identity_disabled");
+                await transaction.CommitAsync(context.HttpContext.RequestAborted);
                 return;
             }
             user = await db.IdentityUsers.SingleOrDefaultAsync(item => item.Id == identity.UserId,
@@ -131,13 +148,18 @@ public sealed class ConvoLabOpenIdConnectEvents(
             if (user?.Status != "Active")
             {
                 await RejectAsync(context, "authentication.user_inactive");
+                await transaction.CommitAsync(context.HttpContext.RequestAborted);
                 return;
             }
         }
         else
         {
             identity = await LinkInvitationAsync(context, issuer, subject, tenant!, now);
-            if (identity is null) return;
+            if (identity is null)
+            {
+                await transaction.CommitAsync(context.HttpContext.RequestAborted);
+                return;
+            }
             user = await db.IdentityUsers.SingleAsync(item => item.Id == identity.UserId,
                 context.HttpContext.RequestAborted);
             linked = true;
@@ -191,7 +213,9 @@ public sealed class ConvoLabOpenIdConnectEvents(
             }
         }
         await db.SaveChangesAsync(context.HttpContext.RequestAborted);
+        await transaction.CommitAsync(context.HttpContext.RequestAborted);
 
+        // Session material becomes eligible for cookie issuance only after the database commit succeeds.
         context.Properties!.Items["convolab_session_token"] = sessionToken;
         context.Properties.Items["convolab_session_expires"] = session.ExpiresAt.ToString("O");
         AddMetric(ConvoLabTelemetry.EntraLoginSuccesses, "succeeded");
@@ -201,6 +225,34 @@ public sealed class ConvoLabOpenIdConnectEvents(
         dependencyEvidence.Record(isMicrosoftAuthority
             ? OperationalDependencyState.LiveValidated
             : OperationalDependencyState.StubValidated);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            try
+            {
+                await transaction.RollbackAsync(context.HttpContext.RequestAborted);
+            }
+            catch (Exception rollbackException) when (rollbackException is not OperationCanceledException)
+            {
+                logger.LogWarning("Entra authentication transaction rollback did not complete cleanly");
+            }
+            db.ChangeTracker.Clear();
+            context.Properties?.Items.Remove("convolab_session_token");
+            context.Properties?.Items.Remove("convolab_session_expires");
+            var failureCode = exception is DbUpdateConcurrencyException or DbUpdateException
+                ? "authentication.invitation_consumed"
+                : "authentication.session_creation_failed";
+            logger.LogWarning("Entra authentication transaction was safely rejected with {FailureCode}", failureCode);
+            try
+            {
+                await RejectAsync(context, failureCode);
+            }
+            catch (Exception evidenceException) when (evidenceException is not OperationCanceledException)
+            {
+                db.ChangeTracker.Clear();
+                context.Fail(failureCode);
+            }
+        }
     }
 
     public override Task TicketReceived(TicketReceivedContext context)
@@ -242,24 +294,44 @@ public sealed class ConvoLabOpenIdConnectEvents(
             await RejectAsync(context, "authentication.external_identity_not_linked");
             return null;
         }
-        var email = SafeEmail(context.Principal!);
-        var verified = string.Equals(context.Principal!.FindFirstValue("email_verified"), "true", StringComparison.OrdinalIgnoreCase);
-        if (email is null || !verified)
-        {
-            await RejectAsync(context, "authentication.invitation_verified_email_required");
-            return null;
-        }
-        var normalizedEmail = email.Trim().ToUpperInvariant();
         var invitation = await db.ExternalIdentityInvitations.SingleOrDefaultAsync(item =>
-            item.TokenHash == invitationHash && item.Status == "Active" && item.RevokedAt == null,
+            item.TokenHash == invitationHash,
             context.HttpContext.RequestAborted);
-        if (invitation is null
-            || invitation.ExpiresAt <= now
-            || !string.Equals(invitation.ExpectedProvider, "Entra", StringComparison.Ordinal)
-            || !string.Equals(invitation.ExpectedTenant, tenant, StringComparison.OrdinalIgnoreCase)
-            || !string.Equals(invitation.NormalizedEmail, normalizedEmail, StringComparison.Ordinal))
+        if (invitation is null)
         {
             await RejectAsync(context, "authentication.external_identity_not_linked");
+            return null;
+        }
+        if (invitation.Status == "Consumed" || invitation.ConsumedAt.HasValue)
+        {
+            await RejectAsync(context, "authentication.invitation_consumed");
+            return null;
+        }
+        if (invitation.Status != "Active" || invitation.RevokedAt.HasValue)
+        {
+            await RejectAsync(context, "authentication.external_identity_not_linked");
+            return null;
+        }
+        if (invitation.ExpiresAt <= now)
+        {
+            await RejectAsync(context, "authentication.invitation_expired");
+            return null;
+        }
+        if (!string.Equals(invitation.ExpectedProvider, "Entra", StringComparison.Ordinal))
+        {
+            await RejectAsync(context, "authentication.external_identity_not_linked");
+            return null;
+        }
+        if (!string.Equals(invitation.ExpectedTenant, tenant, StringComparison.OrdinalIgnoreCase))
+        {
+            await RejectAsync(context, "authentication.tenant_mismatch");
+            return null;
+        }
+        var email = SafeEmail(context.Principal!);
+        if (email is not null
+            && !string.Equals(invitation.NormalizedEmail, email.ToUpperInvariant(), StringComparison.Ordinal))
+        {
+            await RejectAsync(context, "authentication.invitation_email_mismatch");
             return null;
         }
         var user = await db.IdentityUsers.SingleAsync(item => item.Id == invitation.UserId,
@@ -311,8 +383,16 @@ public sealed class ConvoLabOpenIdConnectEvents(
         context.Fail(code);
     }
 
-    private static string? SafeEmail(ClaimsPrincipal principal) =>
-        principal.FindFirstValue("email")?.Trim() is { Length: > 0 } email ? email : null;
+    private static string? SafeEmail(ClaimsPrincipal principal)
+    {
+        var email = principal.FindFirstValue("email")?.Trim();
+        if (string.IsNullOrWhiteSpace(email) || email.Length > 320 || email.Any(char.IsWhiteSpace)
+            || email.Any(char.IsControl)) return null;
+        var separator = email.IndexOf('@');
+        return separator > 0 && separator == email.LastIndexOf('@') && separator < email.Length - 1
+            ? email
+            : null;
+    }
 
     private static void AddMetric(System.Diagnostics.Metrics.Counter<long> counter, string outcome)
     {

@@ -59,9 +59,26 @@ try
     });
     builder.Services.AddHttpsRedirection(options =>
         options.HttpsPort = builder.Configuration.GetValue<int?>("Http:HttpsPort"));
-    builder.Services.AddRateLimiter(options => options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
-        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 })));
+    var localAuthentication = builder.Configuration.GetSection("Authentication:Local")
+        .Get<LocalAuthenticationOptions>() ?? new();
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+        options.AddPolicy("login", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = localAuthentication.LoginRateLimitPerMinute,
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+            }));
+        options.AddPolicy("break-glass-login", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = localAuthentication.BreakGlass.RateLimitPerMinute,
+                Window = TimeSpan.FromMinutes(1), QueueLimit = 0
+            }));
+    });
     builder.Services.AddScoped<WorkspaceIdentityBootstrapper>();
     builder.Services.AddScoped<ConvoLab.Infrastructure.Settings.SettingsBootstrapper>();
 
@@ -307,6 +324,8 @@ static void AddOperationalOptions(IServiceCollection services, IConfiguration co
         .ValidateOnStart();
     services.AddOptions<LocalAuthenticationOptions>()
         .Bind(configuration.GetSection("Authentication:Local"))
+        .Validate(LocalAuthenticationOptions.IsValid,
+            "Authentication local and break-glass limits are outside their supported ranges.")
         .ValidateOnStart();
     services.AddOptions<DataProtectionOptions>()
         .Bind(configuration.GetSection("DataProtection"))

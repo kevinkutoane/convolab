@@ -16,7 +16,7 @@ docker-secret:convolab-entra-client-secret
 azure-key-vault:https://example-vault.vault.azure.net/secrets/convolab-entra-client-secret
 ```
 
-The secret is resolved asynchronously when the authorization code is redeemed. Operations output shows only whether client authentication is configured and the provider scheme.
+The secret is resolved asynchronously when the authorization code is redeemed. It is never returned by authentication or Operations APIs.
 
 ## Linking an approved user
 
@@ -24,9 +24,9 @@ The secret is resolved asynchronously when the authorization code is redeemed. O
 2. A Platform Administrator calls `POST /api/platform/users/{userId}/external-identities/invitations`.
 3. Deliver the returned token through an approved confidential channel; the plaintext value is returned once and stored only as a SHA-256 hash.
 4. The browser posts it to `/api/auth/entra/prepare-invitation` with the antiforgery token, then starts `/api/auth/entra/login`.
-5. ConvoLab consumes the invitation and creates the identity and application session in one database save. Concurrent reuse is rejected by optimistic concurrency and identity uniqueness.
+5. ConvoLab creates the identity, consumes the invitation, persists the opaque application session, and writes audit/outbox evidence in one database transaction. The application cookie is issued only after that transaction commits. Concurrent reuse produces one successful link and one safe rejection.
 
-The verified token email must match the invited email after trimming and invariant case normalization. `preferred_username` is never an identity key. Issuer and subject are never returned by broad Operations APIs.
+If the ID token contains a syntactically usable `email` claim, it must match the invited email after trimming and invariant case normalization. A missing or unusable `email` claim does not prevent linking: the valid single-use invitation plus validated tenant, issuer, and subject remain authoritative. `preferred_username` and `upn` are profile metadata only and never invitation-email evidence. `email_verified` is not consulted. Email never locates an account or becomes standalone linking authority. Issuer and subject are never returned by broad Operations APIs.
 
 ## Validation evidence
 

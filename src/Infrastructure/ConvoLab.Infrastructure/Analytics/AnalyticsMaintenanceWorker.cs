@@ -218,12 +218,19 @@ public sealed class AnalyticsMaintenanceWorker(
                 if (!await db.AnalyticsEvents.AnyAsync(value => value.EventKey == item.EventKey, ct))
                 {
                     db.AnalyticsEvents.Add(analyticsEvent);
-                    var checkpoints = await db.AnalyticsAggregationCheckpoints
-                        .Where(value => value.WorkspaceId == analyticsEvent.WorkspaceId).ToListAsync(ct);
                     foreach (var granularity in new[] { "hour", "day" })
                     {
-                        var checkpoint = checkpoints.SingleOrDefault(value =>
-                            value.Granularity == granularity);
+                        // A single dispatch batch can contain several events for the same
+                        // workspace. Prefer an Added/tracked checkpoint before querying the
+                        // database so the batch cannot stage duplicate unique keys prior to
+                        // its single SaveChanges call.
+                        var checkpoint = db.AnalyticsAggregationCheckpoints.Local
+                            .SingleOrDefault(value =>
+                                value.WorkspaceId == analyticsEvent.WorkspaceId
+                                && value.Granularity == granularity)
+                            ?? await db.AnalyticsAggregationCheckpoints.SingleOrDefaultAsync(value =>
+                                value.WorkspaceId == analyticsEvent.WorkspaceId
+                                && value.Granularity == granularity, ct);
                         if (checkpoint is null)
                         {
                             checkpoint = new AnalyticsAggregationCheckpointRecord
@@ -234,7 +241,6 @@ public sealed class AnalyticsMaintenanceWorker(
                                 Status = "Pending"
                             };
                             db.AnalyticsAggregationCheckpoints.Add(checkpoint);
-                            checkpoints.Add(checkpoint);
                         }
 
                         checkpoint.DirtyFromUtc = !checkpoint.DirtyFromUtc.HasValue

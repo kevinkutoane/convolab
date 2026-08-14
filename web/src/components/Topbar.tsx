@@ -2,10 +2,13 @@ import {
   Bell,
   CheckCheck,
   ClipboardCheck,
+  CloudOff,
   Command,
+  LoaderCircle,
   Menu,
   Moon,
   Search,
+  Server,
   ShieldAlert,
   Sun,
   LogOut,
@@ -17,6 +20,7 @@ import { navigationItems } from "../data/platform";
 import type { PlatformStatus } from "../types/platform";
 import { useAuth } from "../contexts/useAuth";
 import { useEnvironment } from "../contexts/EnvironmentContext";
+import { StatusPill } from "./StatusPill";
 
 interface TopbarProps {
   theme: "dark" | "light";
@@ -24,6 +28,8 @@ interface TopbarProps {
   onOpenPalette: () => void;
   onOpenMobile: () => void;
   status?: PlatformStatus;
+  isFetchingStatus: boolean;
+  statusStale: boolean;
 }
 
 export function Topbar({
@@ -31,12 +37,18 @@ export function Topbar({
   onToggleTheme,
   onOpenPalette,
   onOpenMobile,
+  status,
+  isFetchingStatus,
+  statusStale,
 }: TopbarProps) {
   const location = useLocation();
+  const navigationPath = location.pathname === "/evaluations"
+    ? "/evaluation"
+    : location.pathname;
   const current = navigationItems.find(item =>
     item.path === "/"
-      ? location.pathname === "/"
-      : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`),
+      ? navigationPath === "/"
+      : navigationPath === item.path || navigationPath.startsWith(`${item.path}/`),
   );
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [hasUnread, setHasUnread] = useState(true);
@@ -46,6 +58,9 @@ export function Topbar({
   const activeWorkspace = auth.session?.workspaces.find(item => item.id === auth.session?.activeWorkspaceId);
   const workspaces = auth.session?.workspaces ?? [];
   const activeEnvironments = environment.environments.filter(item => item.status === "Active");
+  const apiOnline = !statusStale
+    && (status?.apiHealth === "Healthy" || status?.apiHealth === "Responding");
+  const apiState = isFetchingStatus ? "checking" : apiOnline ? "online" : "offline";
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -66,9 +81,12 @@ export function Topbar({
         >
           <Menu size={20} />
         </button>
-        <div>
+        <div className="topbar-page-identity">
           <span className="topbar-eyebrow">Build · test · govern</span>
-          <h1>{current?.label ?? "ConvoLab Studio"}</h1>
+          <div className="topbar-heading-row">
+            <h1>{current?.label ?? "ConvoLab Studio"}</h1>
+            {current?.status && <StatusPill status={current.status} compact />}
+          </div>
         </div>
       </div>
 
@@ -81,6 +99,25 @@ export function Topbar({
       </button>
 
       <div className="topbar-actions">
+        <span
+          className={`api-connectivity api-${apiState}`}
+          role="status"
+          aria-live="polite"
+          aria-label={`Platform API ${apiState}`}
+          data-testid="api-connectivity"
+          title={apiState === "online"
+            ? "The Platform API is responding normally."
+            : apiState === "checking"
+              ? "Checking Platform API connectivity."
+              : "The Platform API is unavailable; displayed data may be stale."}
+        >
+          {apiState === "checking"
+            ? <LoaderCircle className="api-connectivity-spinner" size={14} />
+            : apiOnline
+              ? <Server size={14} />
+              : <CloudOff size={14} />}
+          <span>API {apiState}</span>
+        </span>
         {workspaces.length > 1 ? (
           <select className="workspace-switcher" aria-label="Switch workspace" value={activeWorkspace?.id ?? ""} onChange={event => auth.switchWorkspace(event.target.value)}>{workspaces.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
         ) : activeWorkspace ? (

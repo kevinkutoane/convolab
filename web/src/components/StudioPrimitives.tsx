@@ -128,6 +128,7 @@ export function AdaptiveWorkspace({
   rightLabel = "Inspector",
   hasLeft = true,
   hasRight = true,
+  compactBreakpoint = 1179,
   children,
   className = "",
 }: {
@@ -136,11 +137,12 @@ export function AdaptiveWorkspace({
   rightLabel?: string;
   hasLeft?: boolean;
   hasRight?: boolean;
+  compactBreakpoint?: number;
   children: ReactNode;
   className?: string;
 }) {
   const regionId = useId();
-  const compactAtMount = () => window.matchMedia("(max-width: 1179px)").matches;
+  const compactAtMount = () => window.matchMedia(`(max-width: ${compactBreakpoint}px)`).matches;
   const [leftOpen, setLeftOpen] = useState(() => compactAtMount() ? false : storedPaneState(storageKey, "left", true));
   const [rightOpen, setRightOpen] = useState(() => compactAtMount() ? false : storedPaneState(storageKey, "right", true));
 

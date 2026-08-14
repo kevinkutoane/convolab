@@ -57,6 +57,10 @@ public sealed class LocalCredentialRecord
     public string PasswordHash { get; set; } = string.Empty;
     public int FailedAttempts { get; set; }
     public DateTimeOffset? LockedUntil { get; set; }
+    public int BreakGlassFailedAttempts { get; set; }
+    public DateTimeOffset? BreakGlassLockedUntil { get; set; }
+    public DateTimeOffset? BreakGlassLastFailedAt { get; set; }
+    public long BreakGlassRevision { get; set; } = 1;
     public DateTimeOffset UpdatedAt { get; set; }
 }
 

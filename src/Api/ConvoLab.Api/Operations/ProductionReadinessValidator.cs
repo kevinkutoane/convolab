@@ -127,6 +127,22 @@ public sealed class ProductionReadinessValidator(
             "production.authentication.hybrid_local_unacknowledged", "Authentication:Local:HybridAccessAcknowledged",
             "Hybrid local access requires explicit operational acknowledgement.");
         var breakGlass = configuration.GetValue<bool>("Authentication:Local:BreakGlassEnabled");
+        var localLoginRate = configuration.GetValue("Authentication:Local:LoginRateLimitPerMinute", 10);
+        var breakGlassAttempts = configuration.GetValue("Authentication:Local:BreakGlass:MaximumAttempts", 5);
+        var breakGlassLockout = configuration.GetValue("Authentication:Local:BreakGlass:LockoutMinutes", 15);
+        var breakGlassRate = configuration.GetValue("Authentication:Local:BreakGlass:RateLimitPerMinute", 3);
+        Reject(localLoginRate is < 1 or > 100,
+            "production.authentication.local_rate_limit_invalid", "Authentication:Local:LoginRateLimitPerMinute",
+            "The ordinary login rate limit must be between 1 and 100 attempts per minute.");
+        Reject(breakGlassAttempts is < 3 or > 10,
+            "production.authentication.break_glass_attempts_invalid", "Authentication:Local:BreakGlass:MaximumAttempts",
+            "Break-glass maximum attempts must be between 3 and 10.");
+        Reject(breakGlassLockout is < 1 or > 1440,
+            "production.authentication.break_glass_lockout_invalid", "Authentication:Local:BreakGlass:LockoutMinutes",
+            "Break-glass lockout must be between 1 and 1440 minutes.");
+        Reject(breakGlassRate is < 1 or > 60,
+            "production.authentication.break_glass_rate_limit_invalid", "Authentication:Local:BreakGlass:RateLimitPerMinute",
+            "The break-glass rate limit must be between 1 and 60 attempts per minute.");
         Reject(breakGlass && !entraMode && !hybridMode,
             "production.authentication.break_glass_mode_invalid", "Authentication:Local:BreakGlassEnabled",
             "Break-glass is permitted only in Entra or Hybrid mode.");

@@ -69,6 +69,8 @@ public static class AnalyticsOutboxFactory
             "Authentication.ExternalIdentityEnabled" => "ExternalIdentityEnabled",
             "Authentication.ExternalIdentityRemoved" => "ExternalIdentityRemoved",
             "Authentication.BreakGlassLogin" => "BreakGlassLogin",
+            "Authentication.BreakGlassFailure" => "BreakGlassLoginFailed",
+            "Authentication.BreakGlassLocked" => "BreakGlassLocked",
             "Workspace.Selected" => "WorkspaceSelected",
             "Trace.SensitiveContentRevealed" => "SensitiveTraceRevealed",
             "Plugin.Activated" => "PluginActivated",

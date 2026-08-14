@@ -1543,7 +1543,7 @@ kbd {
 
 @media (max-width: 1280px) {
   .topbar {
-    grid-template-columns: minmax(170px, 1fr) minmax(240px, 390px) minmax(190px, 1fr);
+    grid-template-columns: minmax(260px, 1fr) minmax(200px, 330px) minmax(190px, 1fr);
     gap: 14px;
     padding: 0 18px;
   }
@@ -3768,6 +3768,158 @@ input[type="radio"]:focus-visible {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Workflow Designer needs its drawers earlier because the persistent Studio
+   sidebar reduces the editor's usable width well before the global breakpoint. */
+@media (min-width: 1180px) and (max-width: 1350px) {
+  .workflow-adaptive-workspace .workflow-studio-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workflow-adaptive-workspace :is(.workflow-library, .workflow-inspector) {
+    display: none;
+  }
+
+  .workflow-adaptive-workspace.pane-left-open .workflow-library,
+  .workflow-adaptive-workspace.pane-right-open .workflow-inspector {
+    position: fixed;
+    z-index: 62;
+    top: calc(var(--topbar-height) + 16px);
+    bottom: calc(var(--statusbar-height) + 16px);
+    display: block;
+    width: min(390px, calc(100vw - 32px));
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+    box-shadow: var(--shadow);
+  }
+
+  .workflow-adaptive-workspace.pane-left-open .workflow-library { left: 16px; }
+  .workflow-adaptive-workspace.pane-right-open .workflow-inspector { right: 16px; }
+
+  .workflow-adaptive-workspace.pane-left-open .adaptive-pane-backdrop,
+  .workflow-adaptive-workspace.pane-right-open .adaptive-pane-backdrop {
+    position: fixed;
+    z-index: 61;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgba(3, 5, 10, 0.62);
+    color: transparent;
+    backdrop-filter: blur(4px);
+  }
+
+  .workflow-adaptive-workspace.pane-left-open .adaptive-drawer-close,
+  .workflow-adaptive-workspace.pane-right-open .adaptive-drawer-close {
+    position: fixed;
+    z-index: 64;
+    top: calc(var(--topbar-height) + 26px);
+    display: grid;
+  }
+
+  .workflow-adaptive-workspace.pane-left-open .adaptive-drawer-close {
+    left: min(352px, calc(100vw - 70px));
+  }
+
+  .workflow-adaptive-workspace.pane-right-open .adaptive-drawer-close { right: 26px; }
+}
+
+/* Platform shell overhaul: every route carries its maturity in the global
+   page identity, and API connectivity remains visible from every screen. */
+.topbar-page-identity {
+  min-width: 0;
+}
+
+.topbar-heading-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+}
+
+.topbar-heading-row h1 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-heading-row .status-pill {
+  min-height: 22px;
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  font-size: 9px;
+}
+
+.api-connectivity {
+  display: inline-flex;
+  height: 36px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--glass-strong) 86%, transparent);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .015em;
+  white-space: nowrap;
+  box-shadow: inset 0 1px rgba(255, 255, 255, .045), 0 8px 22px rgba(0, 0, 0, .07);
+}
+
+.api-online {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+  background: color-mix(in srgb, var(--success) 8%, var(--glass-strong));
+  color: var(--success);
+}
+
+.api-offline {
+  border-color: color-mix(in srgb, var(--danger) 42%, var(--border));
+  background: color-mix(in srgb, var(--danger) 9%, var(--glass-strong));
+  color: var(--danger);
+}
+
+.api-checking {
+  border-color: color-mix(in srgb, var(--warning) 38%, var(--border));
+  color: var(--warning);
+}
+
+.api-connectivity-spinner {
+  animation: api-connectivity-spin 900ms linear infinite;
+}
+
+@keyframes api-connectivity-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (min-width: 1281px) {
+  .topbar {
+    grid-template-columns: minmax(245px, .85fr) minmax(220px, 360px) minmax(430px, 1.25fr);
+  }
+}
+
+@media (max-width: 1280px) {
+  .topbar {
+    grid-template-columns: minmax(260px, 1fr) minmax(200px, 330px) minmax(190px, 1fr);
+  }
+
+  .api-connectivity {
+    width: 36px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .api-connectivity > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 

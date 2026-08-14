@@ -746,6 +746,31 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         Assert.DoesNotContain("tenantId", payload, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("clientSecret", payload, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("authority", payload, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("lock", payload, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Operations_authentication_exposes_only_aggregate_break_glass_evidence()
+    {
+        using var client = _factory.CreateClient();
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            email = "admin@convolab.test",
+            password = "Ephemeral-Alpha12!"
+        })).StatusCode);
+        var response = await client.GetAsync("/api/operations/authentication");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var payload = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var properties = payload.RootElement.EnumerateObject().Select(item => item.Name).OrderBy(item => item).ToArray();
+        Assert.Equal([
+            "breakGlassAvailable", "breakGlassEnabled", "breakGlassFailuresLast24Hours",
+            "breakGlassState", "correlationId", "lastBreakGlassSuccessfulUseAt"
+        ], properties);
+        var serialized = payload.RootElement.GetRawText();
+        Assert.DoesNotContain("email", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("credential", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("hash", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("account", serialized, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -785,7 +810,7 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             var status = await ReadJsonAsync(statusResponse);
             Assert.Equal("1.0.0-alpha.14", status.RootElement.GetProperty("version").GetString());
             Assert.Equal(
-                "alpha.15 — Microsoft Entra ID and Hybrid Authentication",
+                "alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication",
                 status.RootElement.GetProperty("workstream").GetString());
         }
         Assert.Equal(readinessBefore, Baseline("Operations.ReadinessEvidenceViewed"));

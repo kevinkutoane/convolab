@@ -1,6 +1,6 @@
 # Production security checklist
 
-This checklist applies to `alpha.15 — Microsoft Entra ID and Hybrid Authentication` while active release metadata remains `1.0.0-alpha.14`.
+This checklist applies to `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` while active release metadata remains `1.0.0-alpha.14`.
 
 - Supply PostgreSQL credentials externally; reject SQLite, placeholders, and automatic Production migrations.
 - Set explicit non-wildcard hosts, keep HTTPS redirection and HSTS enabled, and suppress server headers.
@@ -21,8 +21,10 @@ This checklist applies to `alpha.15 — Microsoft Entra ID and Hybrid Authentica
 - [ ] Entra uses a specific tenant v2 authority; `common` and `organizations` are absent.
 - [ ] Tenant, client, HTTPS public origin, callback paths, trusted proxy boundary, and AllowedHosts agree.
 - [ ] Client authentication uses an `env:`, `docker-secret:`, or `azure-key-vault:` reference; no plaintext secret is present.
-- [ ] Unknown identities are rejected and linking requires a verified-email, expected-tenant, single-use invitation.
+- [ ] Unknown identities are rejected and linking requires an expected-tenant, single-use invitation; usable `email` must match, while `preferred_username`, `upn`, and `email_verified` provide no authority.
 - [ ] OIDC state, nonce, correlation, issuer, audience, signature, and lifetime validation remain enabled.
 - [ ] Application sessions store only a token hash, provider, and external identity reference; raw provider tokens are absent.
 - [ ] Break glass is disabled or has an active authorised Platform Administrator, vault ownership, alerting, and a completed runbook exercise.
+- [ ] Dedicated break-glass attempts, lockout, rate limit, concurrency, generic denial, reset, and ordinary-login isolation have been verified.
+- [ ] Operations authentication evidence exposes only aggregate break-glass state, availability, last success, and recent failure count.
 - [ ] Operations evidence distinguishes `StubValidated` from `LiveValidated` and exposes no authority, subject, email, token, or secret reference.

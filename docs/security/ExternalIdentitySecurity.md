@@ -2,7 +2,9 @@
 
 The permanent key is `(Provider, Issuer, Subject)`. Email and display name are mutable profile observations recorded only at last login. ConvoLab never infers platform or workspace roles from Entra groups, token roles, job title, department, domain, or tenant membership.
 
-Unknown identities cannot create users or memberships. Linking requires a cryptographically random, hashed, expiring, revocable, single-use invitation for the configured provider and tenant plus a verified matching email. Existing local users are not linked by email alone.
+Unknown identities cannot create users or memberships. Linking requires a cryptographically random, hashed, expiring, revocable, single-use invitation for the configured provider and tenant. A usable `email` claim is optional corroboration and must match; its absence is allowed. `preferred_username`, `upn`, and `email_verified` are not linking evidence. Existing local users are never located or linked by email alone.
+
+The external identity key is persisted as provider, issuer, subject, and tenant. Identity creation, invitation consumption, opaque-session persistence, audit, and outbox evidence share one transaction. Cookie issuance occurs only after commit, and concurrency or commit failure rolls back the link and issues no application cookie.
 
 External identity mutations require `PlatformAdministrator` and optimistic concurrency. Disablement revokes all related sessions. Disabling the final usable method requires explicit confirmation, and administrators cannot remove their own final usable method. Identity evidence is retained rather than cascade-deleted with user lifecycle changes.
 
