@@ -23,14 +23,29 @@ public static class EntraAuthentication
     public static bool IsSafeReturnUrl(string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return false;
-        string decoded;
-        try { decoded = Uri.UnescapeDataString(value.Trim()); }
+        var decoded = value.Trim();
+        var stable = false;
+        try
+        {
+            // Canonicalize nested escaping before applying the structural checks so an
+            // encoded protocol-relative URL cannot become unsafe after another decode.
+            for (var pass = 0; pass < 8; pass++)
+            {
+                var next = Uri.UnescapeDataString(decoded);
+                if (string.Equals(next, decoded, StringComparison.Ordinal))
+                {
+                    stable = true;
+                    break;
+                }
+                decoded = next;
+            }
+        }
         catch (UriFormatException) { return false; }
         return decoded.StartsWith("/", StringComparison.Ordinal)
                && !decoded.StartsWith("//", StringComparison.Ordinal)
-               && !decoded.StartsWith("/\\", StringComparison.Ordinal)
+               && !decoded.Contains('\\')
                && !decoded.Any(char.IsControl)
-               && !Uri.TryCreate(decoded, UriKind.Absolute, out _);
+               && stable;
     }
 
     public static string SafeReturnUrl(string? value) => IsSafeReturnUrl(value) ? value!.Trim() : "/";

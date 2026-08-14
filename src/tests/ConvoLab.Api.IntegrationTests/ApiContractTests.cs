@@ -804,6 +804,9 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
     [InlineData("https://evil.example/")]
     [InlineData("//evil.example/")]
     [InlineData("/%2f%2fevil.example")]
+    [InlineData("/%252f%252fevil.example")]
+    [InlineData("/%5cevil.example")]
+    [InlineData("/safe%0d%0aLocation:%20https://evil.example")]
     [InlineData("javascript:alert(1)")]
     public void External_or_encoded_return_urls_are_rejected(string value) => Assert.False(EntraAuthentication.IsSafeReturnUrl(value));
 
