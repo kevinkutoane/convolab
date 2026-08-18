@@ -1,25 +1,43 @@
 # Changelog
 
-## In progress — alpha.15 Microsoft Entra ID, External Identities & Hybrid Authentication
+## 1.0.0-alpha.15 — 2026-08-18
 
-Active version metadata remains `1.0.0-alpha.14`; this is not an alpha.15 release declaration.
-
+### Microsoft Entra ID & Hybrid Authentication
+- Added standards-based Microsoft Entra authentication (OIDC with authorization code flow & PKCE).
 - Added strongly typed Local, Entra, and Hybrid authentication modes with a safe public options endpoint and mode-aware Studio login.
-- Added tenant-specific authorization-code OIDC with PKCE, framework state/nonce/correlation validation, asynchronously resolved client-secret references, and no token persistence.
-- Added stable provider/issuer/subject/tenant identity records, tenant-bound single-use invitation linking with optional authoritative `email` corroboration, opaque Entra sessions, external logout, and identity-administration session revocation.
-- Added disabled-by-default Platform Administrator break glass, high-severity audit/telemetry, Production startup validation, Operations evidence, readiness semantics, focused migration, tests, and runbooks.
-- Incidental acceptance defect correction (scope-limited): added global Studio maturity labels plus API checking/online/offline notification and outage-recovery coverage.
-- Incidental acceptance defect correction (scope-limited): corrected Workflow Designer sizing with a bounded desktop three-pane workbench and earlier compact Inspector/Definitions drawers.
-- Incidental acceptance defect correction (scope-limited): prevented a multi-event Analytics outbox batch from staging duplicate workspace/granularity checkpoints during restart recovery.
-- Live Microsoft Entra validation has not been executed in this repository evidence; deterministic and framework tests must not be described as live validation.
+- Added external identity persistence using provider/issuer/subject tuples.
+- Added secure invitation-based first-login linking.
+- Removed dependency on `email_verified` claim for invitation linking while enforcing tenant authority validation.
+- Added tenant-aware identity validation, OIDC state, nonce, and correlation validation.
+- Added opaque application sessions persisted prior to issuing session cookies.
+- Added external logout and identity-administration session revocation.
 
-- Corrected Analytics readiness so fresh pending work stays Healthy while aged pending, failed outbox work, failed checkpoints, aggregation lag, and partial worker failures affect status through shared typed thresholds.
+### Security & Break-Glass Hardening
+- Hardened break-glass emergency authentication with dedicated failure protection and concurrency control.
+- Added dedicated break-glass rate limiting.
+- Added temporary account-level break-glass lockout.
+- Added safe framework-level Entra failure evidence.
+- Added failure-event deduplication.
+- Preserved sensitive-token/credential protections (no raw tokens, codes, or secrets in persistence/logs).
+
+### Operations & Analytics
+- Restored and expanded authentication evidence in Operations Center.
+- Added external login success/failure evidence.
+- Added break-glass operational evidence.
+- Added trusted Analytics failure-event mapping.
+- Added database-backed operational gauges, bounded provider-cost evidence, truthful OTLP dependency states, and Telemetry Operations evidence.
 - Replaced raw required-secret scanning with active-scope effective-configuration validation and sanitized dependency evidence.
 - Added continuous PostgreSQL-server-time lease renewal, fencing tokens, stale-owner rejection, and atomic retryable Analytics export claims.
-- Persisted component-specific iteration results and removed the synthetic processed-per-iteration count.
-- Added database-backed operational gauges, bounded provider-cost evidence, truthful OTLP dependency states, Telemetry Operations evidence, and cross-session safe-mode refresh.
-- Expanded PostgreSQL, secret-store, safe-mode, Operations authorization, and Playwright acceptance while preserving alpha.14 Analytics reconciliation, isolation, and policy-denial guarantees.
-- Backup/restore, deployment promotion, supply-chain controls, and the final readiness report remain required later workstreams.
+
+### Verification
+- Completed authentication regression coverage.
+- Completed Playwright lifecycle verification.
+- Verified restart persistence.
+- Verified Docker rebuild behaviour.
+
+### Validation Status
+- Microsoft Entra live tenant validation remains pending (`Not executed`).
+- Deterministic/stub provider validation is complete (`StubValidated`).
 
 ## 1.0.0-alpha.14 — 2026-07-28
 

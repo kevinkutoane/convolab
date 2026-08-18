@@ -1,6 +1,6 @@
 # Operational health checks
 
-ConvoLab remains versioned `1.0.0-alpha.14`. Entra dependency evidence is extended by the in-progress `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` workstream.
+ConvoLab is versioned `1.0.0-alpha.15`. Entra dependency evidence is supported by the `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` delivery.
 
 ## Endpoints
 

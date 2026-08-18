@@ -1,8 +1,8 @@
 # ConvoLab Roadmap
 
-Current release candidate: `v1.0.0-alpha.14`.
+Current release: `v1.0.0-alpha.15`.
 
-Current workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`. This does not advance release metadata. The in-progress scope covers tenant-specific OIDC, explicit identity linking, opaque application sessions, hybrid/local policy, break glass, and truthful identity-provider Operations evidence. Live tenant validation is still required before organisational SSO readiness can be claimed.
+Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`. The scope covers tenant-specific OIDC, explicit identity linking (provider + issuer + subject), opaque application sessions, hybrid/local policy, break glass, and truthful identity-provider Operations evidence. Live tenant validation is not executed (provider acceptance is StubValidated) and remains an environment gate before live enterprise tenant readiness can be claimed.
 
 ## Phase 1 — Platform Core
 

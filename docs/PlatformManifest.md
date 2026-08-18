@@ -52,7 +52,7 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 
 ## Current release
 
-Platform Core and Studio are at `v1.0.0-alpha.14`. Existing functional v1 capabilities remain stable. Platform Analytics adds trusted environment attribution, safe operational evidence, cost classification, restart-safe processing, and permission-filtered workspace views. Managed secret providers and production SSO remain beta blockers.
+Platform Core and Studio are at `v1.0.0-alpha.15`. Existing functional v1 capabilities remain stable. Microsoft Entra ID OIDC integration, external identities, hybrid authentication, invitation-based linking, and hardened break glass are delivered (provider acceptance: StubValidated; live Entra validation: Not executed). Managed secret providers and production SSO enterprise tenant verification remain beta work.
 
 ## Planned products
 
@@ -111,4 +111,4 @@ Platform Core is not:
 
 ## Current maturity
 
-Platform Core and Studio are at `v1.0.0-alpha.14`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, managed environments, trusted runtime attribution, and workspace/environment Platform Analytics are functional persisted v1 capabilities. Production SSO, managed vault adapters, enterprise operational rehearsal, and UAT sign-off remain beta work.
+Platform Core and Studio are at `v1.0.0-alpha.15`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, managed environments, trusted runtime attribution, workspace/environment Platform Analytics, and Entra/Hybrid Authentication with external identities are functional persisted capabilities. Production live enterprise SSO validation, managed vault adapters, enterprise operational rehearsal, and UAT sign-off remain beta work.

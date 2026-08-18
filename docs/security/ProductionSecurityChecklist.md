@@ -1,6 +1,6 @@
 # Production security checklist
 
-This checklist applies to `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` while active release metadata remains `1.0.0-alpha.14`.
+This checklist applies to `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` with active release metadata `1.0.0-alpha.15`.
 
 - Supply PostgreSQL credentials externally; reject SQLite, placeholders, and automatic Production migrations.
 - Set explicit non-wildcard hosts, keep HTTPS redirection and HSTS enabled, and suppress server headers.

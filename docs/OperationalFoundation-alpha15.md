@@ -1,8 +1,8 @@
-# alpha.15 Operational Foundation — Final Sign-Off
+# alpha.15 Operational Foundation & Authentication — Sign-Off
 
-This repository remains versioned `1.0.0-alpha.14`. The changes described here are the in-progress alpha.15 Operational Foundation tranche and do not constitute an alpha.15 release.
+The alpha.15 workstream (Operational Foundation & Microsoft Entra ID / Hybrid Authentication) is complete with active release metadata `1.0.0-alpha.15`.
 
-The tranche adds static Production configuration validation, explicit forwarded-header trust, secure centralized cookies, filesystem/X.509 data protection, asynchronous environment/Docker/Azure Key Vault secret providers, optional OTLP export, sanitized operational health, PostgreSQL-authoritative Analytics worker leases, persisted safe mode, and the administrator-only Operations Center. The correction sprint makes pipeline failures, effective required secrets, continuous lease ownership, worker results, database-backed gauges, OTLP evidence, and Studio safe-mode freshness truthful and testable.
+The tranche adds static Production configuration validation, explicit forwarded-header trust, secure centralized cookies, filesystem/X.509 data protection, asynchronous environment/Docker/Azure Key Vault secret providers, optional OTLP export, sanitized operational health, PostgreSQL-authoritative Analytics worker leases, persisted safe mode, Microsoft Entra ID OIDC integration, external identity linking, and the administrator-only Operations Center. The correction sprint makes pipeline failures, effective required secrets, continuous lease ownership, worker results, database-backed gauges, OTLP evidence, and Studio safe-mode freshness truthful and testable.
 
 ## Production configuration boundary
 

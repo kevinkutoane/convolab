@@ -586,9 +586,9 @@ gzip_min_length 1000;
 - See `README.md` for quick start
 - See `ARCHITECTURE.md` for architecture overview
 - See `.github/workflows/ci.yml` for CI/CD workflow
-# Operational Foundation correction-sprint deployment notes
+# Operational Foundation & Authentication deployment notes
 
-Active application/package metadata remains `1.0.0-alpha.14`; `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` is an in-progress workstream label, not a releasable alpha.15 promotion.
+Active application/package metadata is `1.0.0-alpha.15`; `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` is completed and verified (StubValidated; live Entra validation not executed).
 
 Before deploying this workstream, review [ProductionSecurityChecklist.md](docs/security/ProductionSecurityChecklist.md) and the operational runbooks in [docs/operations](docs/operations/OperationsCenter.md). Production requires external PostgreSQL values, explicit trusted proxies/hosts, acknowledged local authentication, shared filesystem/X.509 data protection, and an explicit `SafeMode__BlockAnalyticsExports=true|false` decision. UAT/Production Key Vault authentication is restricted to workload or managed identity.
 

@@ -88,7 +88,7 @@ export function Sidebar({
           {!collapsed && (
             <div className="workspace-card">
               <span className="workspace-kicker">Conversation engineering</span>
-              <strong>v1.0.0-alpha.14</strong>
+              <strong>v1.0.0-alpha.15</strong>
               <span>Design, test, govern, and understand every intelligent conversation.</span>
             </div>
           )}

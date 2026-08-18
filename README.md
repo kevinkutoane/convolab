@@ -6,8 +6,8 @@
 
 ## Current milestone
 
-- **Platform Core / Studio:** `v1.0.0-alpha.14`
-- **Current workstream:** `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication` (release metadata remains alpha.14)
+- **Platform Core / Studio:** `v1.0.0-alpha.15`
+- **Delivered workstream:** `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`
 - **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
@@ -20,9 +20,9 @@
 - **Database adapter:** PostgreSQL-ready infrastructure
 - **Architecture:** Clean Architecture and Domain-Driven Design
 
-The current in-progress tranche adds optional single-tenant Microsoft Entra OIDC, explicit external-identity linking, opaque ConvoLab sessions, Local/Entra/Hybrid modes, and controlled break-glass access. ConvoLab remains authoritative for roles and memberships. Backup/restore, deployment promotion, supply-chain controls, and live channel integrations remain deferred.
+The alpha.15 release delivers optional single-tenant Microsoft Entra OIDC, explicit external-identity linking (provider + issuer + subject), opaque ConvoLab sessions, Local/Entra/Hybrid modes, and controlled break-glass access. ConvoLab remains authoritative for roles and memberships. Live Microsoft Entra validation is not executed (provider acceptance is StubValidated). Backup/restore, deployment promotion, supply-chain controls, and live channel integrations remain deferred.
 
-Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Active package and release metadata remain `1.0.0-alpha.14`.
+Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Active package and release metadata are `1.0.0-alpha.15`.
 
 ## Platform capabilities
 

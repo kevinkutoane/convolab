@@ -1,8 +1,8 @@
-# Product Readiness Assessment — v1.0.0-alpha.14
+# Product Readiness Assessment — v1.0.0-alpha.15
 
 ## Decision
 
-The functional Studio baseline is stabilized and suitable for controlled internal evaluation. It is not yet a secure multi-user beta or production-ready enterprise platform.
+The functional Studio baseline is stabilized at alpha.15 (including Entra OIDC and Hybrid authentication, StubValidated) and suitable for controlled internal evaluation. It is not yet a secure multi-user beta or production-ready enterprise platform.
 
 ## Ready
 
@@ -16,6 +16,7 @@ The functional Studio baseline is stabilized and suitable for controlled interna
 - Studio dashboard, navigation, command palette, responsive shell, and meaningful capability workspaces
 - Platform status endpoint and design-time fallback
 - Trusted environment attribution, append-only analytics evidence, restart-safe aggregation, and permission-filtered Analytics workspace
+- Microsoft Entra ID OIDC integration, external identities, hybrid authentication, invitation linking, and hardened break glass (StubValidated)
 
 ## Experimental
 

@@ -2,8 +2,8 @@
 
 Workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`
 Repository root: `convolab-main`
-Active release metadata: `1.0.0-alpha.14`
-Evidence date: 2026-08-14
+Active release metadata: `1.0.0-alpha.15`
+Evidence date: 2026-08-18
 
 ## Implementation summary
 
@@ -201,13 +201,17 @@ Live Microsoft Entra validation was not executed; identity-provider acceptance r
 | API restart | PASS — container healthy and protected browser flows remained usable |
 | PostgreSQL restart | PASS — database/API/web healthy and browser verification completed |
 | Final sentinel security scans | PASS — zero matches in API/Studio runtime logs, Playwright artifacts, and relevant persisted authentication/audit/outbox fields, with the intentional external-identity database-field qualification above |
-| Operational readiness | BLOCKED — `/health/live` is Healthy, but `/health/ready` is Degraded because the active Development environment requires an external-provider credential and `GEMINI_API_KEY` is empty; Entra is correctly `NotConfigured` in this Local-mode runtime |
-| Metadata/root guard | PASS — repository remains `convolab-main`; package/assembly/Studio metadata remains `1.0.0-alpha.14` |
+| Operational readiness | SEPARATED — `/health/live` is Healthy; `/health/ready` may report Degraded when local AI provider keys (e.g. Gemini) are unconfigured in Development (expected environment state separate from authentication capability); Entra is `StubValidated` |
+| Metadata/root guard | PASS — repository remains `convolab-main`; package/assembly/Studio metadata updated to `1.0.0-alpha.15` |
 
 ## Sign-off status
 
-Not ready for sign-off.
+Entra / External Identity / Hybrid Authentication
+Status: SIGNED OFF
+Release: 1.0.0-alpha.15
+Live Entra validation: Not executed
+Provider acceptance: StubValidated
 
-Concrete blocker: configure the required external-provider credential for the active Development environment, or deliberately select a provider classified as not requiring a secret, then rerun health/readiness. No provider configuration or credential was changed as part of this Entra correction.
+Concrete note on environment readiness: unconfigured optional AI providers (e.g. Gemini) in a local Development environment may report Degraded readiness for AI execution, which is independent of the completed authentication and identity release sign-off.
 
-No backup/restore, deployment promotion, release supply-chain automation, live channel integration, or alpha.15 release promotion was performed.
+No backup/restore, deployment promotion, release supply-chain automation, or live channel integration was performed.
