@@ -126,6 +126,12 @@ public static class DependencyInjection
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IOperationalWorkerLease, OperationalWorkerLease>();
         services.AddSingleton<IBackupEvidenceSource, PostgresBackupEvidenceSource>();
+        services.AddSingleton<IBackupKeyProvider, BackupKeyProvider>();
+        services.AddSingleton<IBackupEncryptor, AesGcmBackupEncryptor>();
+        services.AddSingleton<IBackupStore, LocalFileSystemBackupStore>();
+        services.AddSingleton<PostgresBackupTooling>();
+        services.AddSingleton<DataProtectionArchiver>();
+        services.AddSingleton<DocumentStorageArchiver>();
         services.AddSingleton<OperationalMetricsSnapshotService>();
         services.AddHostedService(provider =>
             provider.GetRequiredService<OperationalMetricsSnapshotService>());
