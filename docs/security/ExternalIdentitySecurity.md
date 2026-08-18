@@ -4,7 +4,7 @@ The permanent key is `(Provider, Issuer, Subject)`. Email and display name are m
 
 Unknown identities cannot create users or memberships. Linking requires a cryptographically random, hashed, expiring, revocable, single-use invitation for the configured provider and tenant. A usable `email` claim is optional corroboration and must match; its absence is allowed. `preferred_username`, `upn`, and `email_verified` are not linking evidence. Existing local users are never located or linked by email alone.
 
-The external identity key is persisted as provider, issuer, subject, and tenant. Identity creation, invitation consumption, opaque-session persistence, audit, and outbox evidence share one transaction. Cookie issuance occurs only after commit, and concurrency or commit failure rolls back the link and issues no application cookie.
+The external identity key is persisted as provider, issuer, subject, and tenant. The callback requires the framework's already matched nonce evidence before any application database transaction begins. Identity creation, invitation consumption, opaque-session persistence, audit, and outbox evidence share one transaction. Cookie issuance occurs only after commit, and concurrency or commit failure rolls back the link and issues no application cookie.
 
 External identity mutations require `PlatformAdministrator` and optimistic concurrency. Disablement revokes all related sessions. Disabling the final usable method requires explicit confirmation, and administrators cannot remove their own final usable method. Identity evidence is retained rather than cascade-deleted with user lifecycle changes.
 

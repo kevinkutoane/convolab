@@ -1,7 +1,9 @@
 using System.Diagnostics;
 using System.Security.Claims;
+using System.Text.Json;
 using ConvoLab.Application.Operations;
 using ConvoLab.Application.Settings;
+using ConvoLab.Domain.WorkspaceIdentity;
 using ConvoLab.Infrastructure.Analytics;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
@@ -91,6 +93,8 @@ public sealed class ConvoLabOpenIdConnectEvents(
     EntraDependencyEvidence dependencyEvidence,
     ILogger<ConvoLabOpenIdConnectEvents> logger) : OpenIdConnectEvents
 {
+    private static readonly object ExternalLoginFailureEvidenceMarker = new();
+
     public override Task RedirectToIdentityProvider(RedirectContext context)
     {
         using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("authentication.entra.challenge");
@@ -105,6 +109,9 @@ public sealed class ConvoLabOpenIdConnectEvents(
         if (!result.IsResolved)
         {
             dependencyEvidence.Record(OperationalDependencyState.Degraded, "authentication.entra.client_secret_unavailable");
+            await TryPersistExternalLoginFailureEvidenceAsync(
+                context.HttpContext,
+                "authentication.entra.client_authentication_unavailable");
             context.Fail("authentication.entra.client_authentication_unavailable");
             return;
         }
@@ -121,6 +128,11 @@ public sealed class ConvoLabOpenIdConnectEvents(
         var issuer = principal.FindFirstValue("iss")?.Trim();
         var subject = principal.FindFirstValue("sub")?.Trim();
         var tenant = principal.FindFirstValue("tid")?.Trim();
+        if (context.Options.ProtocolValidator.RequireNonce && string.IsNullOrWhiteSpace(context.Nonce))
+        {
+            await RejectAsync(context, "authentication.entra.remote_failure");
+            return;
+        }
         if (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(subject)
             || !string.Equals(tenant, options.TenantId, StringComparison.OrdinalIgnoreCase))
         {
@@ -252,6 +264,7 @@ public sealed class ConvoLabOpenIdConnectEvents(
                 logger.LogWarning("Entra authentication transaction rollback did not complete cleanly");
             }
             db.ChangeTracker.Clear();
+            ClearExternalLoginFailureEvidenceMarker(context.HttpContext);
             context.Properties?.Items.Remove("convolab_session_token");
             context.Properties?.Items.Remove("convolab_session_expires");
             var failureCode = exception is DbUpdateConcurrencyException or DbUpdateException
@@ -292,9 +305,11 @@ public sealed class ConvoLabOpenIdConnectEvents(
         logger.LogWarning("Entra authentication failed with safe code {FailureCode}", "authentication.entra.remote_failure");
         AddMetric(ConvoLabTelemetry.EntraLoginFailures, "remote_failure");
         dependencyEvidence.Record(OperationalDependencyState.Degraded, "authentication.entra.remote_failure");
+        await TryPersistExternalLoginFailureEvidenceAsync(
+            context.HttpContext,
+            "authentication.entra.remote_failure");
         context.Response.Redirect("/login?error=authentication.external_login_failed");
         context.HandleResponse();
-        await Task.CompletedTask;
     }
 
     private async Task<ExternalIdentityRecord?> LinkInvitationAsync(
@@ -390,13 +405,62 @@ public sealed class ConvoLabOpenIdConnectEvents(
         AddMetric(ConvoLabTelemetry.EntraLoginFailures, code);
         if (code == "authentication.external_identity_not_linked")
             AddMetric(ConvoLabTelemetry.ExternalIdentityUnlinked, "rejected");
-        var audit = Controllers.AuthController.Audit("Platform", null, null, "Anonymous", null,
-            "External identity", "Authentication.EntraLogin", "ExternalIdentity", null, "Failed",
-            context.HttpContext.TraceIdentifier);
-        db.WorkspaceAuditEvents.Add(audit);
-        await db.SaveChangesAsync(context.HttpContext.RequestAborted);
+        await PersistExternalLoginFailureEvidenceAsync(context.HttpContext, code);
         context.Fail(code);
     }
+
+    private async Task TryPersistExternalLoginFailureEvidenceAsync(HttpContext httpContext, string code)
+    {
+        try
+        {
+            await PersistExternalLoginFailureEvidenceAsync(httpContext, code);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            db.ChangeTracker.Clear();
+            logger.LogWarning("Entra failed-login evidence could not be persisted");
+        }
+    }
+
+    private async Task PersistExternalLoginFailureEvidenceAsync(HttpContext httpContext, string code)
+    {
+        if (httpContext.Items.ContainsKey(ExternalLoginFailureEvidenceMarker)) return;
+
+        var safeCode = BoundedExternalLoginFailureCode(code);
+        var audit = Controllers.AuthController.Audit("Platform", null, null, "Anonymous", null,
+            "External identity", "Authentication.EntraLogin", "ExternalIdentity", null, "Failed",
+            httpContext.TraceIdentifier);
+        // The trusted Analytics schema is workspace/environment based. Failed callbacks
+        // have no authenticated identity, so attribute only to the stable platform
+        // bootstrap scope; no tenant or claim values are used.
+        audit.OrganisationId = WorkspaceIdentityDefaults.OrganisationId;
+        audit.WorkspaceId = WorkspaceIdentityDefaults.WorkspaceId;
+        audit.DetailJson = JsonSerializer.Serialize(new { failureCode = safeCode });
+        db.WorkspaceAuditEvents.Add(audit);
+        await AnalyticsOutboxFactory.EnqueueAuditAsync(db, audit, cancellationToken: httpContext.RequestAborted);
+        await db.SaveChangesAsync(httpContext.RequestAborted);
+        httpContext.Items[ExternalLoginFailureEvidenceMarker] = true;
+    }
+
+    private static void ClearExternalLoginFailureEvidenceMarker(HttpContext httpContext) =>
+        httpContext.Items.Remove(ExternalLoginFailureEvidenceMarker);
+
+    private static string BoundedExternalLoginFailureCode(string code) => code switch
+    {
+        "authentication.entra.remote_failure" => "authentication.entra.remote_failure",
+        "authentication.entra.client_authentication_unavailable" => "authentication.entra.client_authentication_unavailable",
+        "authentication.entra.claims_invalid" => "authentication.entra.claims_invalid",
+        "authentication.external_identity_not_linked" => "authentication.external_identity_not_linked",
+        "authentication.external_identity_disabled" => "authentication.external_identity_disabled",
+        "authentication.user_inactive" => "authentication.user_inactive",
+        "authentication.invitation_consumed" => "authentication.invitation_consumed",
+        "authentication.invitation_expired" => "authentication.invitation_expired",
+        "authentication.tenant_mismatch" => "authentication.tenant_mismatch",
+        "authentication.invitation_email_mismatch" => "authentication.invitation_email_mismatch",
+        "authentication.external_identity_conflict" => "authentication.external_identity_conflict",
+        "authentication.session_creation_failed" => "authentication.session_creation_failed",
+        _ => "authentication.entra.remote_failure"
+    };
 
     private static string? SafeEmail(ClaimsPrincipal principal)
     {

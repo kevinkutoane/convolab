@@ -11,11 +11,12 @@ Evidence date: 2026-08-14
 - ASP.NET Core OpenID Connect uses tenant-specific authorization-code flow, PKCE, framework state/nonce/correlation validation, strict issuer/audience/signature/lifetime validation, secure temporary cookies, and asynchronous client-secret resolution.
 - External identities are keyed uniquely by provider, issuer, and subject. Email is mutable profile/invitation evidence and is never the permanent identity key.
 - Existing linked identities resolve only to active ConvoLab users. Unknown identities are denied unless a valid tenant-bound, single-use invitation is present. A usable `email` claim must match; a missing claim is allowed. `preferred_username`, `upn`, and `email_verified` provide no linking authority, and email equality alone never links a local account.
-- Successful OIDC callbacks atomically create the identity when needed, consume the invitation, persist the opaque hashed-token ConvoLab session, audit, and outbox evidence. Only the post-commit ticket event can issue the application cookie. Entra tokens are not saved.
+- Successful OIDC callbacks require the framework's already matched `TokenValidatedContext.Nonce` evidence before beginning database work, then atomically create the identity when needed, consume the invitation, persist the opaque hashed-token ConvoLab session, audit, and outbox evidence. Only the post-commit ticket event can issue the application cookie. Entra tokens are not saved.
 - Local logout always revokes the ConvoLab session; an Entra session can additionally initiate framework-managed external logout.
 - Break glass is off by default, uses a separate endpoint, limiter, failure counter, optimistic-concurrency revision, and lockout state, and is restricted to an active Platform Administrator with a local credential. It creates a one-hour `BreakGlass` session and emits bounded audit/metric evidence without changing ordinary local lockout state.
 - Platform Administrators can list, invite, enable, disable, and logically remove external identities. Disablement revokes associated sessions, uses revision checks, requires final-method confirmation, and prevents self-lockout.
 - The Operations authentication endpoint exposes sanitized mode/configuration/dependency classifications and aggregate external-identity, linked-active-user, external-login, active-session, and break-glass evidence together. It returns no tenant ID, authority, secret reference, identity claim, account identity, or credential material.
+- Every genuine failed Entra callback uses one persisted evidence path. Framework failures before token validation, application rejections, token-exchange failures, and unavailable client authentication each create one sanitized `Authentication.EntraLogin`/`Failed` audit and one trusted `UserLoginFailed` Analytics outbox event. A request-local marker prevents `RemoteFailure` from duplicating evidence already written by the application rejection path.
 - PostgreSQL and SQLite are supported by the original `202608040001_EntraHybridAuthenticationV1` migration and correction migration `202608050001_EntraHybridAuthenticationCorrectionsV1`. The correction adds only four dedicated break-glass columns and preserves existing authentication data.
 
 Known limitations: group-to-role mapping, multi-tenant Entra, SCIM, automatic onboarding, certificate client authentication, and authenticated self-linking are deferred. Live tenant validation has not been performed. ConvoLab remains the sole role and workspace authorization authority.
@@ -107,16 +108,17 @@ The deterministic invitation flow asserted one new external identity, consumed i
 |---|---|
 | Unknown identity | Safe external-login denial; no session |
 | Wrong tenant | Token/callback rejected; no session |
-| Invalid issuer | Framework token validation rejected it |
-| Invalid audience | Framework token validation rejected it |
-| Expired token | Framework lifetime validation rejected it |
-| Invalid state | Framework state/correlation validation rejected it |
-| Invalid nonce | Framework nonce validation rejected it |
+| Invalid issuer | Framework token validation rejected it; exactly one safe failed-login audit/outbox event persisted |
+| Invalid audience | Framework token validation rejected it; exactly one safe failed-login audit/outbox event persisted |
+| Expired token | Framework lifetime validation rejected it; exactly one safe failed-login audit/outbox event persisted |
+| Invalid state | Framework state/correlation validation rejected it; exactly one safe failed-login audit/outbox event persisted |
+| Invalid nonce | Framework nonce validation rejected it; exactly one safe failed-login audit/outbox event persisted |
+| Token exchange/client authentication | Safe bounded failure evidence persisted once; no code, token, secret, or reference persisted |
 | Disabled identity | Callback rejected it |
 | Inactive user | Callback rejected it |
 | Open redirect | Absolute, protocol-relative, backslash, control-character, and encoded bypass cases defaulted to `/` |
 
-All external callback failures use `/login?error=authentication.external_login_failed`; response bodies do not disclose subject or account-existence information.
+All external callback failures use `/login?error=authentication.external_login_failed`; response bodies do not disclose subject or account-existence information. Persisted failure detail is restricted to an allow-listed internal classification such as `authentication.entra.remote_failure` or `authentication.entra.client_authentication_unavailable`. Raw exception text, tokens, authorization codes, state, nonce, issuer, subject, email, tenant ID, client-secret material, references, and callback query data are excluded. Existing dependency-state updates and bounded failure metrics remain intact.
 
 ## Break-glass evidence
 
@@ -160,6 +162,7 @@ The correction implementation and deterministic focused tests cover:
 - threshold-only `Authentication.BreakGlassLocked` transition evidence and continued `Authentication.BreakGlassFailure` evidence with `lockoutState=Locked` for attempts during the active lockout;
 - correction migration discovery and SQLite preservation coverage, with PostgreSQL preservation coverage included in the disposable-database suite;
 - combined sanitized Entra/identity and break-glass Operations contract, database-side aggregate queries, and serial Playwright configuration (`workers: 1`, `retries: 0`).
+- one persisted Entra failure-evidence path across framework `RemoteFailure`, unavailable client authentication, and application `RejectAsync`; request-local deduplication proves unknown identity and invitation-email mismatch produce one audit/outbox event rather than two, and Operations counts the same persisted failures.
 
 ## Incidental acceptance defects
 
@@ -177,8 +180,8 @@ Live Microsoft Entra validation was not executed; identity-provider acceptance r
 |---|---|
 | `dotnet restore` | PASS |
 | `dotnet build --configuration Release --no-restore` | PASS — 0 warnings, 0 errors |
-| `dotnet test` | PASS — 419/419 (Domain 188, Application 42, Architecture 16, Infrastructure 86, API 87) |
-| Deterministic authentication corrections | PASS — 54 focused OIDC, invitation, transaction, break-glass, Operations, and security tests |
+| `dotnet test` | PASS — 423/423 (Domain 188, Application 42, Architecture 16, Infrastructure 86, API 91) |
+| Deterministic external-authentication correction | PASS — 24/24 focused mock-OIDC tests, including framework failures, application-rejection deduplication, trusted outbox mapping, Operations aggregation, and sensitive sentinels |
 | Final combined authentication Operations contract | PASS — sanitized Entra/identity and break-glass evidence returned together; relational `COUNT`/`MAX` aggregation; forbidden configuration, claim, account, and credential fields absent |
 | PostgreSQL fresh/upgrade migration | PASS — 9/9 tests against disposable PostgreSQL 16, including correction-upgrade preservation |
 | PostgreSQL persistence/restart | PASS — persisted state survived restart; the final application and complete browser suite remained usable after database restart |
@@ -198,11 +201,13 @@ Live Microsoft Entra validation was not executed; identity-provider acceptance r
 | API restart | PASS — container healthy and protected browser flows remained usable |
 | PostgreSQL restart | PASS — database/API/web healthy and browser verification completed |
 | Final sentinel security scans | PASS — zero matches in API/Studio runtime logs, Playwright artifacts, and relevant persisted authentication/audit/outbox fields, with the intentional external-identity database-field qualification above |
-| Operational readiness | PASS — `/health/live` Healthy and `/health/ready` Healthy in final Local-mode runtime; Entra correctly `NotConfigured` there |
+| Operational readiness | BLOCKED — `/health/live` is Healthy, but `/health/ready` is Degraded because the active Development environment requires an external-provider credential and `GEMINI_API_KEY` is empty; Entra is correctly `NotConfigured` in this Local-mode runtime |
 | Metadata/root guard | PASS — repository remains `convolab-main`; package/assembly/Studio metadata remains `1.0.0-alpha.14` |
 
 ## Sign-off status
 
-Ready for sign-off.
+Not ready for sign-off.
+
+Concrete blocker: configure the required external-provider credential for the active Development environment, or deliberately select a provider classified as not requiring a secret, then rerun health/readiness. No provider configuration or credential was changed as part of this Entra correction.
 
 No backup/restore, deployment promotion, release supply-chain automation, live channel integration, or alpha.15 release promotion was performed.
