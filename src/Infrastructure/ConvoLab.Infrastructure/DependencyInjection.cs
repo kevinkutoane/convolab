@@ -125,6 +125,7 @@ public static class DependencyInjection
             provider.GetRequiredService<PlatformOperationalStateService>());
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IOperationalWorkerLease, OperationalWorkerLease>();
+        services.AddSingleton<IBackupEvidenceSource, PostgresBackupEvidenceSource>();
         services.AddSingleton<OperationalMetricsSnapshotService>();
         services.AddHostedService(provider =>
             provider.GetRequiredService<OperationalMetricsSnapshotService>());

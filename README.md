@@ -7,6 +7,7 @@
 ## Current milestone
 
 - **Platform Core / Studio:** `v1.0.0-alpha.15`
+- **Current workstream:** `alpha.16 — Backup, Restore & Disaster Recovery`
 - **Delivered workstream:** `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`
 - **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`

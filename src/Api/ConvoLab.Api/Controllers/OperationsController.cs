@@ -27,6 +27,7 @@ public sealed class OperationsController(
     IRequiredSecretReadinessEvaluator requiredSecrets,
     ITelemetryDependencyEvidenceSource telemetryEvidence,
     IAnalyticsOperationalEvidenceReader analyticsEvidence,
+    IBackupEvidenceSource backupEvidence,
     OperationalReadinessSummary readinessSummary,
     HealthCheckService healthChecks,
     IOptions<AuthenticationOptions> authenticationOptions,
@@ -362,12 +363,20 @@ public sealed class OperationsController(
     }
 
     [HttpGet("backups")]
-    public ActionResult Backups() => Ok(new
+    public ActionResult Backups()
     {
-        state = OperationalDependencyState.NotConfigured,
-        message = "Backup and restore tooling is deferred to a later alpha.15 workstream.",
-        correlationId = HttpContext.TraceIdentifier
-    });
+        var evidence = backupEvidence.Snapshot();
+        return Ok(new
+        {
+            state = evidence.State,
+            message = evidence.Message,
+            lastBackupCompletedAt = evidence.LastBackupCompletedAt,
+            lastBackupVerifiedAt = evidence.LastBackupVerifiedAt,
+            lastBackupSizeBytes = evidence.LastBackupSizeBytes,
+            configuredRpo = evidence.ConfiguredRpo,
+            correlationId = HttpContext.TraceIdentifier
+        });
+    }
 
     [HttpGet("telemetry")]
     public ActionResult Telemetry()

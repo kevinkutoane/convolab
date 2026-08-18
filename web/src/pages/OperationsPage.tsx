@@ -163,8 +163,21 @@ function Evidence({ value }: { value: unknown }) {
     {(record.providers as Array<Record<string, unknown>>).map(provider => <div key={String(provider.provider)} data-dependency={String(provider.provider)}><strong>{String(provider.provider)}</strong><State value={String(provider.state) as DependencyState} /><span>{String(provider.lastErrorCode ?? "No failure")}</span></div>)}
     {(record.requiredEnvironments as Array<Record<string, unknown>> | undefined)?.map(environment => <div key={String(environment.environmentId)}><strong>{String(environment.environmentName)} · {String(environment.provider)}</strong><State value={String(environment.dependencyState) as DependencyState} /><span>{environment.required ? "Required" : "Not required"} · {String(environment.secretProviderScheme ?? "No secret provider")}</span></div>)}
   </div>;
+  if ("configuredRpo" in record && String(record.state) !== "NotConfigured") return <dl className="operations-facts">
+    <Fact label="State" value={String(record.state)} />
+    <Fact label="Status message" value={String(record.message)} />
+    <Fact label="Last backup completed" value={Timestamp(record.lastBackupCompletedAt)} />
+    <Fact label="Last backup verified" value={Timestamp(record.lastBackupVerifiedAt)} />
+    <Fact label="Configured RPO (minutes)" value={record.configuredRpo ? String(TimeSpanToMinutes(String(record.configuredRpo))) : "Not configured"} />
+    <Fact label="Last backup size (bytes)" value={record.lastBackupSizeBytes ? String(record.lastBackupSizeBytes) : "Unknown"} />
+  </dl>;
   if (String(record.state) === "NotConfigured") return <div className="not-configured"><DatabaseBackup size={18} /><strong>NotConfigured</strong><p>{String(record.message || "No backend is configured.")}</p></div>;
   return <pre className="operations-json">{JSON.stringify(value, null, 2)}</pre>;
+}
+
+function TimeSpanToMinutes(timeSpan: string): number {
+  const [hours, minutes] = timeSpan.split(':').map(Number);
+  return (hours || 0) * 60 + (minutes || 0);
 }
 
 function State({ value }: { value: DependencyState }) { return <span className={`dependency-state state-${value.toLowerCase()}`}>{value}</span>; }

@@ -45,6 +45,19 @@ public interface ISecretProviderEvidenceSource
     IReadOnlyList<SecretProviderEvidence> Snapshot();
 }
 
+public sealed record BackupEvidence(
+    OperationalDependencyState State,
+    string Message,
+    DateTimeOffset? LastBackupCompletedAt,
+    DateTimeOffset? LastBackupVerifiedAt,
+    long? LastBackupSizeBytes,
+    TimeSpan? ConfiguredRpo);
+
+public interface IBackupEvidenceSource
+{
+    BackupEvidence Snapshot();
+}
+
 public sealed record RequiredSecretEvidence(
     Guid EnvironmentId,
     string EnvironmentName,

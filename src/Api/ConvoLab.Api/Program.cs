@@ -348,6 +348,10 @@ static void AddOperationalOptions(IServiceCollection services, IConfiguration co
     services.AddOptions<RequiredSecretReadinessOptions>()
         .Bind(configuration.GetSection("Operations:RequiredSecrets"))
         .ValidateOnStart();
+
+    services.AddOptions<OperationalBackupOptions>()
+        .Bind(configuration.GetSection("Operations:Backups"))
+        .ValidateOnStart();
     services.AddOptions<TelemetryOptions>()
         .Bind(configuration.GetSection("Telemetry"))
         .Validate(value => value.OperationalSnapshotSeconds is >= 5 and <= 300

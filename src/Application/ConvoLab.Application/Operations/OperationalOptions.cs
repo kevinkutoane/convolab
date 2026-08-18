@@ -126,6 +126,12 @@ public sealed class RequiredSecretReadinessOptions
     public string[] ProvidersWithoutSecrets { get; init; } = ["Deterministic", "ConvoLab Deterministic"];
 }
 
+public sealed class OperationalBackupOptions
+{
+    public string? DirectoryPath { get; init; }
+    public int? ExpectedRpoMinutes { get; init; }
+}
+
 public sealed class TelemetryOptions
 {
     public ConsoleTelemetryOptions ConsoleExporter { get; init; } = new();
