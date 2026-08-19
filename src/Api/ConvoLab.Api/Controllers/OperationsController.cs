@@ -390,9 +390,12 @@ public sealed class OperationsController(
     }
 
     [HttpPost("backups/{id}/verify")]
-    public ActionResult VerifyBackup(string id)
+    public async Task<ActionResult> VerifyBackup(string id, CancellationToken ct)
     {
-        return StatusCode(StatusCodes.Status501NotImplemented, "Verification execution is deferred to a later iteration.");
+        var verifier = serviceProvider.GetService<IRecoveryVerifier>();
+        if (verifier == null) return StatusCode(StatusCodes.Status501NotImplemented, "Recovery verification is not configured in this environment.");
+        var result = await verifier.VerifyRecoveryAsync(ct);
+        return Ok(result);
     }
 
     [HttpPost("backups/{id}/restore")]

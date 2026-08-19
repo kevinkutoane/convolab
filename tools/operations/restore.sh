@@ -1,46 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ConvoLab Operational Restore Script
-# Restores state into a clean or designated database target.
+# ConvoLab Canonical Restore Tool
+# Restores backup archives with explicit isolated vs destructive mode enforcement.
 
-BACKUP_PATH="${1:-}"
-ALLOW_DESTRUCTIVE="${2:-false}"
+BACKUP_ID="${1:-}"
+MODE="${2:---isolated}"
+API_URL="${CONVOLAB_API_URL:-http://localhost:5000}"
 
-if [ -z "${BACKUP_PATH}" ] || [ ! -d "${BACKUP_PATH}" ]; then
-    echo "Error: Backup path does not exist or was not specified."
-    echo "Usage: ./restore.sh <path-to-backup-dir> [--allow-destructive]"
+if [ -z "${BACKUP_ID}" ]; then
+    echo "Usage: ./restore.sh <backup-id> [--isolated | --allow-destructive]"
     exit 1
 fi
 
-if [ "${ALLOW_DESTRUCTIVE}" != "--allow-destructive" ]; then
-    echo "Safety check failed: You must specify --allow-destructive to perform a database and storage restore."
-    exit 1
-fi
+echo "Initiating restore for backup ${BACKUP_ID} (Mode: ${MODE})..."
 
-echo "Verifying checksums..."
-cd "${BACKUP_PATH}"
-if command -v sha256sum &> /dev/null; then
-    sha256sum -c checksums.sha256
+if [ "${MODE}" == "--allow-destructive" ]; then
+    echo "WARNING: Executing in DESTRUCTIVE mode. Active database and storage will be overwritten."
+    RESPONSE=$(curl -sSf -X POST "${API_URL}/api/operations/backups/${BACKUP_ID}/restore?allowDestructive=true")
+elif [ "${MODE}" == "--isolated" ]; then
+    echo "Executing in ISOLATED target mode."
+    RESPONSE=$(curl -sSf -X POST "${API_URL}/api/operations/backups/${BACKUP_ID}/restore?allowDestructive=false") || {
+        echo "Error: Restore rejected by server. To restore over an active environment, specify --allow-destructive."
+        exit 1
+    }
 else
-    shasum -a 256 -c checksums.sha256
+    echo "Invalid mode specified: ${MODE}. Must be --isolated or --allow-destructive."
+    exit 1
 fi
 
-echo "Restoring database..."
-if [ -f "database.dump" ] && command -v pg_restore &> /dev/null; then
-    pg_restore -c -d "${DATABASE_URL:-postgresql://postgres:postgres@localhost:5432/convolab}" "database.dump" || true
-fi
-
-echo "Restoring documents..."
-if [ -f "documents.tar" ]; then
-    mkdir -p "../../data/knowledge-documents"
-    tar -xf "documents.tar" -C "../../data/knowledge-documents"
-fi
-
-echo "Restoring data protection keys..."
-if [ -f "dataprotection.tar" ]; then
-    mkdir -p "../../data/keys"
-    tar -xf "dataprotection.tar" -C "../../data/keys"
-fi
-
-echo "Restore operation complete."
+echo "Restore operation accepted: ${RESPONSE}"

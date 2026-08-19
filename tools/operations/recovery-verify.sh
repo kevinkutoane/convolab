@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ConvoLab Disaster Recovery Post-Restore Verification Script
-# Verifies health, readiness, and document reconciliation.
+# ConvoLab Deep Recovery Verification Tool
+# Invokes the canonical IRecoveryVerifier to validate DB, documents, and Data Protection integrity.
 
-API_URL="${1:-http://localhost:5000}"
+API_URL="${CONVOLAB_API_URL:-http://localhost:5000}"
+BACKUP_ID="${1:-current}"
 
-echo "Checking /health/live..."
-curl -sSf "${API_URL}/health/live" > /dev/null
-echo "Live check: OK"
+echo "Executing deep recovery verification via ${API_URL}..."
 
-echo "Checking /health/ready..."
-curl -sSf "${API_URL}/health/ready" > /dev/null || echo "Readiness check reported non-200 (expected if AI provider keys are omitted in Development/Recovery)."
+RESPONSE=$(curl -sSf -X POST "${API_URL}/api/operations/backups/${BACKUP_ID}/verify")
 
-echo "Verifying document storage reconciliation..."
-if [ -d "./data/knowledge-documents" ]; then
-    DOC_COUNT=$(find ./data/knowledge-documents -type f ! -name ".*" | wc -l)
-    echo "Restored physical documents count: ${DOC_COUNT}"
+echo "Verification Response:"
+echo "${RESPONSE}"
+
+IS_HEALTHY=$(echo "${RESPONSE}" | grep -o '"isHealthy":true' || true)
+
+if [ -z "${IS_HEALTHY}" ]; then
+    echo "FAILED: Recovery verification detected inconsistencies."
+    exit 1
 fi
 
-echo "Disaster recovery verification finished."
+echo "SUCCESS: Deep recovery verification passed."

@@ -1,5 +1,4 @@
 using System;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ConvoLab.Application.Operations.Backups;
@@ -10,6 +9,7 @@ namespace ConvoLab.Infrastructure.Operations.Backups;
 
 internal sealed class BackupKeyProvider : IBackupKeyProvider
 {
+    private const string KeyReference = "env:BACKUP_ENCRYPTION_KEY";
     private readonly ISecretStore _secretStore;
     private readonly ILogger<BackupKeyProvider> _logger;
 
@@ -21,36 +21,33 @@ internal sealed class BackupKeyProvider : IBackupKeyProvider
 
     public async Task<byte[]> GetKeyAsync(CancellationToken cancellationToken = default)
     {
-        // By architecture spec, the backup key should be resolved via the existing SecretStore mechanism.
-        // We will look for an environment secret called BACKUP_ENCRYPTION_KEY or a vault secret.
-        // For local development, we fallback to a hardcoded development key to prevent blocking.
-        // In production, the SecretStore configuration MUST provide this value.
+        var result = await _secretStore.ResolveAsync(KeyReference, cancellationToken);
 
-        var reference = "env:BACKUP_ENCRYPTION_KEY";
-        var result = await _secretStore.ResolveAsync(reference, cancellationToken);
-
-        if (!result.IsResolved)
+        if (!result.IsResolved || string.IsNullOrWhiteSpace(result.RevealValue()))
         {
-            _logger.LogWarning("BACKUP_ENCRYPTION_KEY not found in ISecretStore or resolution failed. Falling back to an insecure development key. Do not use this in production.");
-            // 32-byte key for AES-256
-            return Encoding.UTF8.GetBytes("Development_Backup_Key_Not_Safe_".PadRight(32, '0'));
+            _logger.LogError("Backup encryption key '{Reference}' could not be resolved from ISecretStore.", KeyReference);
+            throw new InvalidOperationException($"Backup encryption key '{KeyReference}' is required but not configured or resolution failed. Insecure key fallbacks are strictly prohibited.");
         }
 
-        var secretValue = result.RevealValue() ?? string.Empty;
+        var secretValue = result.RevealValue()!.Trim();
 
+        byte[] keyBytes;
         try
         {
-            // Expect the key to be Base64 encoded in the secret store
-            return Convert.FromBase64String(secretValue);
+            keyBytes = Convert.FromBase64String(secretValue);
         }
-        catch (FormatException)
+        catch (FormatException ex)
         {
-            _logger.LogError("BACKUP_ENCRYPTION_KEY is not a valid Base64 string. Falling back to UTF8 bytes.");
-            // Fallback to UTF8 bytes, padding or truncating to 32 bytes
-            var bytes = Encoding.UTF8.GetBytes(secretValue);
-            var key = new byte[32];
-            Array.Copy(bytes, key, Math.Min(bytes.Length, 32));
-            return key;
+            _logger.LogError(ex, "Backup encryption key '{Reference}' is not valid Base64.", KeyReference);
+            throw new InvalidOperationException($"Backup encryption key '{KeyReference}' must be a valid Base64 encoded string.", ex);
         }
+
+        if (keyBytes.Length != 32)
+        {
+            _logger.LogError("Backup encryption key '{Reference}' has invalid length {Length} bytes.", KeyReference, keyBytes.Length);
+            throw new InvalidOperationException($"Backup encryption key '{KeyReference}' must decode to exactly 32 bytes (256 bits). Received {keyBytes.Length} bytes.");
+        }
+
+        return keyBytes;
     }
 }

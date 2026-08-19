@@ -15,7 +15,6 @@ internal sealed class DataProtectionArchiver
 
     public DataProtectionArchiver(IConfiguration configuration, ILogger<DataProtectionArchiver> logger)
     {
-        // Must match exactly what the DataProtection setup uses in Program.cs
         _keyRingPath = configuration["DataProtection:KeyRingPath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "keys");
         _logger = logger;
     }
@@ -25,7 +24,6 @@ internal sealed class DataProtectionArchiver
         if (!Directory.Exists(_keyRingPath))
         {
             _logger.LogWarning("Data protection key ring path {Path} does not exist. Nothing to archive.", _keyRingPath);
-            // Write an empty zip to satisfy the stream contract
             using (var emptyZip = new ZipArchive(destinationStream, ZipArchiveMode.Create, leaveOpen: true))
             {
             }
@@ -39,14 +37,20 @@ internal sealed class DataProtectionArchiver
             using (var zip = new ZipArchive(destinationStream, ZipArchiveMode.Create, leaveOpen: true))
             {
                 var directoryInfo = new DirectoryInfo(_keyRingPath);
-                // Data Protection keys are typically XML files
                 var files = directoryInfo.GetFiles("*.xml", SearchOption.TopDirectoryOnly);
 
                 foreach (var file in files)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var entry = zip.CreateEntry(file.Name, CompressionLevel.Fastest);
+                    // Skip reparse points/symlinks
+                    if ((file.Attributes & FileAttributes.ReparsePoint) != 0)
+                    {
+                        _logger.LogWarning("Skipping symlink key in key ring: {File}", file.FullName);
+                        continue;
+                    }
+
+                    var entry = zip.CreateEntry(file.Name, CompressionLevel.Optimal);
                     await using var entryStream = entry.Open();
                     await using var fileStream = File.OpenRead(file.FullName);
                     await fileStream.CopyToAsync(entryStream, cancellationToken);
@@ -69,33 +73,34 @@ internal sealed class DataProtectionArchiver
             _logger.LogInformation("Restoring data protection keys to {Path}", _keyRingPath);
 
             Directory.CreateDirectory(_keyRingPath);
+            var fullRootPath = Path.GetFullPath(_keyRingPath);
+            if (!fullRootPath.EndsWith(Path.DirectorySeparatorChar))
+            {
+                fullRootPath += Path.DirectorySeparatorChar;
+            }
 
             using var zip = new ZipArchive(sourceStream, ZipArchiveMode.Read, leaveOpen: true);
             foreach (var entry in zip.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Path traversal protection
-                var fullDestinationPath = Path.GetFullPath(Path.Combine(_keyRingPath, entry.FullName));
-                var fullRootPath = Path.GetFullPath(_keyRingPath) + Path.DirectorySeparatorChar;
+                var targetPath = Path.GetFullPath(Path.Combine(_keyRingPath, entry.FullName));
 
-                if (!fullDestinationPath.StartsWith(fullRootPath, StringComparison.Ordinal))
+                if (!targetPath.StartsWith(fullRootPath, StringComparison.Ordinal))
                 {
-                    _logger.LogError("Path traversal attempt detected in data protection archive: {EntryName}", entry.FullName);
+                    _logger.LogError("Path traversal attempt in key ring archive: {EntryName}", entry.FullName);
                     return false;
                 }
 
-                // Data protection only uses top-level XML files, directories are unexpected
                 if (string.IsNullOrEmpty(entry.Name)) continue;
 
-                // Only allow .xml files to be restored to prevent dropping arbitrary executables
                 if (!entry.Name.EndsWith(".xml", StringComparison.OrdinalIgnoreCase))
                 {
                     _logger.LogWarning("Skipping non-XML file in data protection archive: {EntryName}", entry.FullName);
                     continue;
                 }
 
-                await using var destinationStream = File.Create(fullDestinationPath);
+                await using var destinationStream = File.Create(targetPath);
                 await using var entryStream = entry.Open();
                 await entryStream.CopyToAsync(destinationStream, cancellationToken);
             }

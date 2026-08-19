@@ -134,6 +134,7 @@ public static class DependencyInjection
         services.AddSingleton<PostgresBackupTooling>();
         services.AddSingleton<DataProtectionArchiver>();
         services.AddSingleton<DocumentStorageArchiver>();
+        services.AddScoped<IRecoveryVerifier, RecoveryVerifier>();
         services.AddSingleton<OperationalMetricsSnapshotService>();
         services.AddHostedService(provider =>
             provider.GetRequiredService<OperationalMetricsSnapshotService>());

@@ -17,6 +17,7 @@ internal sealed class DocumentStorageArchiver
     {
         _storageRoot = configuration["Knowledge:StoragePath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "knowledge-documents");
         _logger = logger;
+        Directory.CreateDirectory(_storageRoot);
     }
 
     public async Task<bool> ArchiveDocumentsAsync(Stream destinationStream, CancellationToken cancellationToken = default)
@@ -24,7 +25,6 @@ internal sealed class DocumentStorageArchiver
         if (!Directory.Exists(_storageRoot))
         {
             _logger.LogWarning("Knowledge storage path {Path} does not exist. Nothing to archive.", _storageRoot);
-            // We write an empty zip to satisfy the stream contract, indicating 0 documents
             using (var emptyZip = new ZipArchive(destinationStream, ZipArchiveMode.Create, leaveOpen: true))
             {
             }
@@ -35,7 +35,6 @@ internal sealed class DocumentStorageArchiver
         {
             _logger.LogInformation("Archiving documents from {Path}", _storageRoot);
 
-            // Using ZipArchive to package all files, preserving the relative 'yyyy/MM/file.ext' folder structure
             using (var zip = new ZipArchive(destinationStream, ZipArchiveMode.Create, leaveOpen: true))
             {
                 var directoryInfo = new DirectoryInfo(_storageRoot);
@@ -45,13 +44,17 @@ internal sealed class DocumentStorageArchiver
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    // Create the relative path that matches the Knowledge document storage keys
-                    var relativePath = Path.GetRelativePath(_storageRoot, file.FullName).Replace('\\', '/');
+                    // Reject symlinks/reparse points during archive creation
+                    if ((file.Attributes & FileAttributes.ReparsePoint) != 0)
+                    {
+                        _logger.LogWarning("Skipping symlink or reparse point during archiving: {File}", file.FullName);
+                        continue;
+                    }
 
-                    // Skip the .probe test files that LocalKnowledgeDocumentStorage creates
+                    var relativePath = Path.GetRelativePath(_storageRoot, file.FullName).Replace('\\', '/');
                     if (relativePath.StartsWith(".probe-", StringComparison.OrdinalIgnoreCase)) continue;
 
-                    var entry = zip.CreateEntry(relativePath, CompressionLevel.Fastest);
+                    var entry = zip.CreateEntry(relativePath, CompressionLevel.Optimal);
                     await using var entryStream = entry.Open();
                     await using var fileStream = File.OpenRead(file.FullName);
                     await fileStream.CopyToAsync(entryStream, cancellationToken);
@@ -74,31 +77,44 @@ internal sealed class DocumentStorageArchiver
             _logger.LogInformation("Restoring documents to {Path}", _storageRoot);
 
             Directory.CreateDirectory(_storageRoot);
+            var fullRootPath = Path.GetFullPath(_storageRoot);
+            if (!fullRootPath.EndsWith(Path.DirectorySeparatorChar))
+            {
+                fullRootPath += Path.DirectorySeparatorChar;
+            }
 
             using var zip = new ZipArchive(sourceStream, ZipArchiveMode.Read, leaveOpen: true);
             foreach (var entry in zip.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Path traversal protection: Ensure the extracted path stays within the intended root
-                var fullDestinationPath = Path.GetFullPath(Path.Combine(_storageRoot, entry.FullName));
-                var fullRootPath = Path.GetFullPath(_storageRoot) + Path.DirectorySeparatorChar;
+                var targetPath = Path.GetFullPath(Path.Combine(_storageRoot, entry.FullName));
 
-                if (!fullDestinationPath.StartsWith(fullRootPath, StringComparison.Ordinal))
+                // Strict path traversal protection
+                if (!targetPath.StartsWith(fullRootPath, StringComparison.Ordinal))
                 {
-                    _logger.LogError("Path traversal attempt detected in backup archive: {EntryName}", entry.FullName);
+                    _logger.LogError("Path traversal attempt detected in document archive entry: {EntryName}", entry.FullName);
                     return false;
                 }
 
                 if (string.IsNullOrEmpty(entry.Name))
                 {
-                    // It's a directory
-                    Directory.CreateDirectory(fullDestinationPath);
+                    Directory.CreateDirectory(targetPath);
                     continue;
                 }
 
-                Directory.CreateDirectory(Path.GetDirectoryName(fullDestinationPath)!);
-                await using var destinationStream = File.Create(fullDestinationPath);
+                var parentDir = Path.GetDirectoryName(targetPath)!;
+                Directory.CreateDirectory(parentDir);
+
+                // Verify parent directory is not a symlink/reparse point
+                var parentInfo = new DirectoryInfo(parentDir);
+                if ((parentInfo.Attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    _logger.LogError("Refusing to extract into reparse point / symlink directory: {Directory}", parentDir);
+                    return false;
+                }
+
+                await using var destinationStream = File.Create(targetPath);
                 await using var entryStream = entry.Open();
                 await entryStream.CopyToAsync(destinationStream, cancellationToken);
             }
