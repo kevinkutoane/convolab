@@ -13,6 +13,11 @@ import {
   Cpu,
   Layers,
   Lock,
+  Play,
+  RotateCcw,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from "lucide-react";
 import { ErrorState, LoadingState } from "../components/AsyncStates";
 import { MetricCard } from "../components/MetricCard";
@@ -21,6 +26,8 @@ import {
   getAnalyticsPipeline,
   getAuthenticationEvidence,
   getBackups,
+  createBackup,
+  verifyBackup,
   getBuildEvidence,
   getOperationsStatus,
   getReadiness,
@@ -49,6 +56,23 @@ export function OperationsPage() {
   const backups = useQuery({ queryKey: ["operations", "backups"], queryFn: getBackups, staleTime: 30_000 });
   const build = useQuery({ queryKey: ["operations", "build"], queryFn: getBuildEvidence, staleTime: 30_000 });
   const telemetry = useQuery({ queryKey: ["operations", "telemetry"], queryFn: getTelemetryEvidence, staleTime: 30_000 });
+
+  const [verificationResult, setVerificationResult] = useState<Record<string, unknown> | null>(null);
+
+  const backupMutation = useMutation({
+    mutationFn: createBackup,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["operations", "backups"] });
+      await queryClient.invalidateQueries({ queryKey: ["operations", "status"] });
+    },
+  });
+
+  const verifyMutation = useMutation({
+    mutationFn: () => verifyBackup("current"),
+    onSuccess: (data) => {
+      setVerificationResult(data as Record<string, unknown>);
+    },
+  });
 
   const mutation = useMutation({
     mutationFn: updateSafeMode,
@@ -175,17 +199,122 @@ export function OperationsPage() {
       {/* Tab Content: Backup & DR */}
       {activeTab === "backups" && (
         <div className="tab-pane">
-          <section className="panel">
-            <div className="panel-header">
-              <div>
-                <span className="panel-eyebrow">PostgreSQL, Documents & Data Protection</span>
-                <h3>Backup & Disaster Recovery Status</h3>
-              </div>
-              <DatabaseBackup size={18} />
+          {/* Action Toolbar */}
+          <div className="backup-action-bar panel">
+            <div className="backup-action-info">
+              <span className="panel-eyebrow">Interactive Operations</span>
+              <h3>Backup & Recovery Orchestration</h3>
+              <p>Trigger on-demand cryptographic snapshots or run deep recovery verification.</p>
             </div>
-            {backups.isLoading && <LoadingState label="Loading backup telemetry…" />}
-            {backups.data && <Evidence value={backups.data} />}
-          </section>
+            <div className="backup-action-buttons">
+              <button
+                className="primary-button"
+                onClick={() => backupMutation.mutate()}
+                disabled={backupMutation.isPending}
+              >
+                <Play size={16} className={backupMutation.isPending ? "spin" : ""} />
+                {backupMutation.isPending ? "Creating Snapshot…" : "Create Snapshot Now"}
+              </button>
+              <button
+                className="secondary-button"
+                onClick={() => verifyMutation.mutate()}
+                disabled={verifyMutation.isPending}
+              >
+                <RotateCcw size={16} className={verifyMutation.isPending ? "spin" : ""} />
+                {verifyMutation.isPending ? "Verifying…" : "Run Deep Verification Drill"}
+              </button>
+            </div>
+          </div>
+
+          {backupMutation.error && (
+            <div className="provider-warning">
+              <AlertTriangle size={16} />
+              <span>{getApiErrorMessage(backupMutation.error)}</span>
+            </div>
+          )}
+
+          {verifyMutation.error && (
+            <div className="provider-warning">
+              <AlertTriangle size={16} />
+              <span>{getApiErrorMessage(verifyMutation.error)}</span>
+            </div>
+          )}
+
+          {/* Verification Results Modal / Card */}
+          {verificationResult && (
+            <section className="panel verification-result-panel">
+              <div className="panel-header">
+                <div>
+                  <span className="panel-eyebrow">Automated Drill Evaluation</span>
+                  <h3>Deep Recovery Verification Results</h3>
+                </div>
+                {verificationResult.isHealthy ? (
+                  <span className="status-pill status-healthy"><CheckCircle2 size={13} /> Reconciled & Healthy</span>
+                ) : (
+                  <span className="status-pill status-danger"><XCircle size={13} /> Inconsistencies Found</span>
+                )}
+              </div>
+              <div className="verification-details">
+                <dl className="operations-facts">
+                  <div>
+                    <dt>Database State</dt>
+                    <dd>{(verificationResult.database as Record<string, unknown>)?.canConnect ? "Connected & Verified" : "Failed"}</dd>
+                  </div>
+                  <div>
+                    <dt>Document Reconciliation</dt>
+                    <dd>{(verificationResult.documents as Record<string, unknown>)?.reconciled ? "0 Missing / 0 Orphans" : "Mismatch Detected"}</dd>
+                  </div>
+                  <div>
+                    <dt>Data Protection Key Ring</dt>
+                    <dd>{(verificationResult.dataProtection as Record<string, unknown>)?.protectUnprotectVerified ? "Verified (Roundtrip OK)" : "Failed"}</dd>
+                  </div>
+                </dl>
+                {Array.isArray(verificationResult.inconsistencies) && (verificationResult.inconsistencies as string[]).length > 0 && (
+                  <div className="inconsistency-list">
+                    <strong>Reported Discrepancies:</strong>
+                    <ul>
+                      {(verificationResult.inconsistencies as string[]).map((inc, i) => (
+                        <li key={i}>{inc}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Policy & Cadence Summary */}
+          <div className="operations-grid-two">
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <span className="panel-eyebrow">PostgreSQL, Documents & Keys</span>
+                  <h3>Live Backup Evidence</h3>
+                </div>
+                <DatabaseBackup size={18} />
+              </div>
+              {backups.isLoading && <LoadingState label="Loading backup telemetry…" />}
+              {backups.data && <Evidence value={backups.data} />}
+            </section>
+
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <span className="panel-eyebrow">Configured SLAs & Retention</span>
+                  <h3>Disaster Recovery Policies</h3>
+                </div>
+                <Clock size={18} />
+              </div>
+              <dl className="operations-facts">
+                <div><dt>Target RPO</dt><dd>24 hours (1440 min)</dd></div>
+                <div><dt>Target RTO</dt><dd>&lt; 4 hours</dd></div>
+                <div><dt>Daily Retention</dt><dd>14 days</dd></div>
+                <div><dt>Weekly Retention</dt><dd>8 weeks</dd></div>
+                <div><dt>Monthly Retention</dt><dd>6 months</dd></div>
+                <div><dt>Encryption</dt><dd>AES-256-GCM</dd></div>
+              </dl>
+            </section>
+          </div>
         </div>
       )}
 

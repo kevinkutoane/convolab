@@ -68,6 +68,54 @@
   gap: 1.25rem;
 }
 
+/* Backup Actions & Verification Styling */
+.backup-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.backup-action-info h3 {
+  margin: 0.25rem 0 0.15rem;
+}
+
+.backup-action-info p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.backup-action-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.verification-result-panel {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--panel));
+}
+
+.verification-details {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.inconsistency-list {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.inconsistency-list ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+}
+
 .safe-mode-panel {
   border-color: color-mix(in srgb, var(--border-color) 75%, #e0a12f);
 }

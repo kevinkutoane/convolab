@@ -68,6 +68,14 @@ export async function getAnalyticsPipeline() { return (await api.get("/api/opera
 export async function getAuthenticationEvidence() { return (await api.get<AuthenticationEvidence>("/api/operations/authentication")).data; }
 export async function getSecretProviders() { return (await api.get("/api/operations/secret-providers")).data; }
 export async function getBackups() { return (await api.get("/api/operations/backups")).data; }
+export async function createBackup() { return (await api.post("/api/operations/backups")).data; }
+export async function verifyBackup(id: string = "current") { return (await api.post(`/api/operations/backups/${id}/verify`)).data; }
+export async function restoreBackup(id: string, allowDestructive: boolean = false) {
+  return (await api.post(`/api/operations/backups/${id}/restore?allowDestructive=${allowDestructive}`)).data;
+}
+export async function getRecoveryStatus(operationId: string) {
+  return (await api.get(`/api/operations/recovery/${operationId}`)).data;
+}
 export async function getBuildEvidence() { return (await api.get("/api/operations/build")).data; }
 export async function getTelemetryEvidence() { return (await api.get("/api/operations/telemetry")).data; }
 export async function updateSafeMode(input: { enabled: boolean; expectedRevision: number; reason: string; confirmation: string }) {
