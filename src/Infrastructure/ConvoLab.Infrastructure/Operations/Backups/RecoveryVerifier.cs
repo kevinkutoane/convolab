@@ -19,6 +19,7 @@ internal sealed class RecoveryVerifier : IRecoveryVerifier
     private readonly IDataProtectionProvider _dataProtectionProvider;
     private readonly string _documentStoragePath;
     private readonly string _keyRingPath;
+    private readonly string _dataProtectionProviderType;
     private readonly ILogger<RecoveryVerifier> _logger;
 
     public RecoveryVerifier(
@@ -31,6 +32,7 @@ internal sealed class RecoveryVerifier : IRecoveryVerifier
         _dataProtectionProvider = dataProtectionProvider;
         _documentStoragePath = configuration["Knowledge:StoragePath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "knowledge-documents");
         _keyRingPath = configuration["DataProtection:KeyRingPath"] ?? Path.Combine(AppContext.BaseDirectory, "data", "keys");
+        _dataProtectionProviderType = configuration["DataProtection:Provider"] ?? "LocalFileSystem";
         _logger = logger;
     }
 
@@ -80,7 +82,7 @@ internal sealed class RecoveryVerifier : IRecoveryVerifier
             inconsistencies.Add($"Database query exception: {ex.Message}");
         }
 
-        // 2. Document Storage Reconciliation
+        // 2. Document Storage Reconciliation (Strict: Both missingFiles == 0 AND orphanFiles == 0)
         long dbDocumentCount = 0;
         long physicalFileCount = 0;
         long missingFiles = 0;
@@ -129,7 +131,13 @@ internal sealed class RecoveryVerifier : IRecoveryVerifier
                     inconsistencies.Add($"Document storage reconciliation mismatch: {missingFiles} documents referenced in database are missing on disk.");
                 }
 
-                documentsReconciled = missingFiles == 0;
+                if (orphanFiles > 0)
+                {
+                    inconsistencies.Add($"Document storage reconciliation mismatch: {orphanFiles} unreferenced orphan documents found on disk.");
+                }
+
+                // Strict rule: No missing files AND no orphan files
+                documentsReconciled = (missingFiles == 0) && (orphanFiles == 0);
             }
         }
         catch (Exception ex)
@@ -138,8 +146,16 @@ internal sealed class RecoveryVerifier : IRecoveryVerifier
             inconsistencies.Add($"Document reconciliation exception: {ex.Message}");
         }
 
-        // 3. Data Protection Key Verification
+        // 3. Data Protection Key Verification (Provider-Aware)
+        var isFilesystemProvider = string.Equals(_dataProtectionProviderType, "LocalFileSystem", StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(_dataProtectionProviderType, "SharedFileSystem", StringComparison.OrdinalIgnoreCase);
+
         var keyRingAccessible = Directory.Exists(_keyRingPath);
+        if (isFilesystemProvider && !keyRingAccessible)
+        {
+            inconsistencies.Add($"Data Protection key ring path '{_keyRingPath}' does not exist or is inaccessible for provider '{_dataProtectionProviderType}'.");
+        }
+
         var protectUnprotectVerified = false;
 
         try
@@ -161,7 +177,13 @@ internal sealed class RecoveryVerifier : IRecoveryVerifier
             inconsistencies.Add($"Data Protection cryptographic verification failed: {ex.Message}");
         }
 
-        var isHealthy = canConnect && migrationsUpToDate && documentsReconciled && protectUnprotectVerified && inconsistencies.Count == 0;
+        var dataProtectionHealthy = protectUnprotectVerified && (!isFilesystemProvider || keyRingAccessible);
+
+        var isHealthy = canConnect
+                        && migrationsUpToDate
+                        && documentsReconciled
+                        && dataProtectionHealthy
+                        && inconsistencies.Count == 0;
 
         return new RecoveryVerificationResult(
             IsHealthy: isHealthy,

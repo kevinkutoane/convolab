@@ -143,4 +143,72 @@ public sealed class BackupEncryptionAndArchiverTests
         Assert.False(decResult.Success);
         Assert.Contains("Authentication tag mismatch", decResult.ErrorMessage);
     }
+
+    [Fact]
+    public void PostgresBackupTooling_allowlists_clean_target_nonfatal_warnings()
+    {
+        const string benignStderr = """
+            pg_restore: while PROCESSING TOC:
+            pg_restore: from TOC entry 215; 1259 16401 TABLE Users postgres
+            pg_restore: error: could not execute query: ERROR:  table "Users" does not exist, skipping
+            pg_restore: warning: errors ignored on restore: 1
+            """;
+
+        var isBenign = PostgresBackupTooling.IsOnlyAllowlistedBenignWarnings(benignStderr, cleanTarget: true);
+        Assert.True(isBenign);
+    }
+
+    [Fact]
+    public void PostgresBackupTooling_fails_on_unknown_fatal_errors_during_restore()
+    {
+        const string fatalStderr = """
+            pg_restore: error: connection to server at "localhost" (127.0.0.1), port 5432 failed: Connection refused
+            pg_restore: error: could not connect to database: Connection refused
+            """;
+
+        var isBenign = PostgresBackupTooling.IsOnlyAllowlistedBenignWarnings(fatalStderr, cleanTarget: true);
+        Assert.False(isBenign);
+    }
+
+    [Fact]
+    public async Task DataProtectionArchiver_archives_and_restores_xml_keyring_successfully()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "convolab-dp-test-" + Guid.NewGuid().ToString("N"));
+        var keyDir = Path.Combine(tempDir, "keys");
+        Directory.CreateDirectory(keyDir);
+
+        try
+        {
+            var key1 = Path.Combine(keyDir, "key-1.xml");
+            var key2 = Path.Combine(keyDir, "key-2.xml");
+            await File.WriteAllTextAsync(key1, "<key id=\"1\"><data>test-1</data></key>");
+            await File.WriteAllTextAsync(key2, "<key id=\"2\"><data>test-2</data></key>");
+
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(new[] { new System.Collections.Generic.KeyValuePair<string, string?>("DataProtection:KeyRingPath", keyDir) })
+                .Build();
+
+            var archiver = new DataProtectionArchiver(config, NullLogger<DataProtectionArchiver>.Instance);
+
+            using var archiveStream = new MemoryStream();
+            var archiveSuccess = await archiver.ArchiveKeyRingAsync(archiveStream);
+            Assert.True(archiveSuccess);
+
+            // Clean original files
+            File.Delete(key1);
+            File.Delete(key2);
+
+            archiveStream.Position = 0;
+            var restoreSuccess = await archiver.RestoreKeyRingAsync(archiveStream);
+            Assert.True(restoreSuccess);
+
+            Assert.True(File.Exists(key1));
+            Assert.True(File.Exists(key2));
+            Assert.Equal("<key id=\"1\"><data>test-1</data></key>", await File.ReadAllTextAsync(key1));
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir)) Directory.Delete(tempDir, true);
+        }
+    }
 }

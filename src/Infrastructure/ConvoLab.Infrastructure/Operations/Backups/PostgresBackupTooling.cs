@@ -203,21 +203,23 @@ internal sealed class PostgresBackupTooling
             await process.WaitForExitAsync(cancellationToken);
             var stderr = await stderrTask;
 
-            // pg_restore returns exit code 1 when there are non-fatal warnings (e.g., table already dropped with -c).
-            // We treat non-zero as failure unless stderr contains only known ignorable warnings.
-            if (process.ExitCode != 0)
+            if (process.ExitCode == 0)
             {
-                if (IsFatalPgRestoreError(stderr))
-                {
-                    _logger.LogError("pg_restore failed with fatal exit code {ExitCode}. Standard Error: {Stderr}", process.ExitCode, stderr);
-                    return false;
-                }
-
-                _logger.LogWarning("pg_restore completed with non-fatal warnings. ExitCode: {ExitCode}, Details: {Stderr}", process.ExitCode, stderr);
+                _logger.LogInformation("pg_restore completed with exit code 0 from {InputPath}", inputPath);
+                return true;
             }
 
-            _logger.LogInformation("pg_restore completed successfully from {InputPath}", inputPath);
-            return true;
+            // Strict Fail-Closed Policy:
+            // Non-zero is ALWAYS a failure unless EVERY line in stderr matches an explicitly allow-listed benign clean warning.
+            if (IsOnlyAllowlistedBenignWarnings(stderr, cleanTarget))
+            {
+                _logger.LogWarning("pg_restore exited with code {ExitCode} containing only allow-listed benign clean warnings. Stderr: {Stderr}",
+                    process.ExitCode, stderr);
+                return true;
+            }
+
+            _logger.LogError("pg_restore failed closed. ExitCode: {ExitCode}. Standard Error: {Stderr}", process.ExitCode, stderr);
+            return false;
         }
         catch (Exception ex)
         {
@@ -226,13 +228,32 @@ internal sealed class PostgresBackupTooling
         }
     }
 
-    private static bool IsFatalPgRestoreError(string stderr)
+    public static bool IsOnlyAllowlistedBenignWarnings(string stderr, bool cleanTarget)
     {
         if (string.IsNullOrWhiteSpace(stderr)) return false;
-        // Check for genuine fatal errors like connection failure, auth failure, syntax errors
-        return stderr.Contains("FATAL:", StringComparison.OrdinalIgnoreCase) ||
-               stderr.Contains("could not connect", StringComparison.OrdinalIgnoreCase) ||
-               stderr.Contains("password authentication failed", StringComparison.OrdinalIgnoreCase) ||
-               stderr.Contains("database \"", StringComparison.OrdinalIgnoreCase) && stderr.Contains("does not exist", StringComparison.OrdinalIgnoreCase);
+
+        // Clean target restoration on an empty database produces benign warnings like:
+        // "pg_restore: warning: errors ignored on restore: 2"
+        // "pg_restore: while PROCESSING TOC: ... table ... does not exist, skipping"
+        var lines = stderr.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (lines.Length == 0) return false;
+
+        foreach (var line in lines)
+        {
+            var isAllowlisted =
+                (cleanTarget && line.Contains("while PROCESSING TOC:", StringComparison.OrdinalIgnoreCase)) ||
+                (cleanTarget && line.Contains("from TOC entry", StringComparison.OrdinalIgnoreCase)) ||
+                (cleanTarget && line.Contains("does not exist, skipping", StringComparison.OrdinalIgnoreCase)) ||
+                (cleanTarget && Regex.IsMatch(line, @"errors ignored on restore:\s*\d+", RegexOptions.IgnoreCase)) ||
+                line.StartsWith("pg_restore: hint:", StringComparison.OrdinalIgnoreCase);
+
+            if (!isAllowlisted)
+            {
+                // Any line that isn't an explicit allow-listed benign warning causes the entire restore to fail closed
+                return false;
+            }
+        }
+
+        return true;
     }
 }
