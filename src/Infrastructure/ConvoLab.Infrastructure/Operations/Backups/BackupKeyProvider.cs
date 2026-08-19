@@ -26,15 +26,17 @@ internal sealed class BackupKeyProvider : IBackupKeyProvider
         // For local development, we fallback to a hardcoded development key to prevent blocking.
         // In production, the SecretStore configuration MUST provide this value.
 
-        var reference = new SecretReference("env", "BACKUP_ENCRYPTION_KEY");
-        var secretValue = await _secretStore.GetSecretAsync(reference, cancellationToken);
+        var reference = "env:BACKUP_ENCRYPTION_KEY";
+        var result = await _secretStore.ResolveAsync(reference, cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(secretValue))
+        if (!result.IsResolved)
         {
-            _logger.LogWarning("BACKUP_ENCRYPTION_KEY not found in ISecretStore. Falling back to an insecure development key. Do not use this in production.");
+            _logger.LogWarning("BACKUP_ENCRYPTION_KEY not found in ISecretStore or resolution failed. Falling back to an insecure development key. Do not use this in production.");
             // 32-byte key for AES-256
             return Encoding.UTF8.GetBytes("Development_Backup_Key_Not_Safe_".PadRight(32, '0'));
         }
+
+        var secretValue = result.RevealValue() ?? string.Empty;
 
         try
         {

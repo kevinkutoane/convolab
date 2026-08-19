@@ -1,0 +1,52 @@
+# ConvoLab Studio — Isolated Disaster Recovery Drill Profile
+# Uses separate ports, isolated PostgreSQL volumes, and non-production defaults.
+
+services:
+  recovery-postgres:
+    image: postgres:16-alpine
+    container_name: convolab-recovery-postgres
+    environment:
+      POSTGRES_DB: convolab_recovery
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: recovery_password_local_only
+    ports:
+      - "5433:5432"
+    volumes:
+      - recovery_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d convolab_recovery"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  recovery-api:
+    build:
+      context: .
+      dockerfile: src/Api/ConvoLab.Api/Dockerfile
+    container_name: convolab-recovery-api
+    depends_on:
+      recovery-postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=recovery-postgres;Port=5432;Database=convolab_recovery;Username=postgres;Password=recovery_password_local_only"
+      Database__Provider: "PostgreSql"
+      Database__ApplyMigrationsOnStartup: "true"
+      Authentication__Mode: "Local"
+      SafeMode__AllowDeterministicVerification: "true"
+      DataProtection__Provider: "LocalFileSystem"
+      DataProtection__KeyRingPath: "/app/data/recovery-keys"
+      Operations__Backups__DirectoryPath: "/app/data/recovery-backups"
+      Knowledge__StoragePath: "/app/data/recovery-documents"
+    ports:
+      - "5001:5000"
+    volumes:
+      - recovery_keys:/app/data/recovery-keys
+      - recovery_backups:/app/data/recovery-backups
+      - recovery_documents:/app/data/recovery-documents
+
+volumes:
+  recovery_pgdata:
+  recovery_keys:
+  recovery_backups:
+  recovery_documents:

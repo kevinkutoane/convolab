@@ -34,6 +34,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using ConvoLab.Application.Operations.Backups;
+using ConvoLab.Infrastructure.Operations.Backups;
 
 namespace ConvoLab.Infrastructure;
 
