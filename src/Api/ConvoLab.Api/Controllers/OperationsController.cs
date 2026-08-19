@@ -4,6 +4,7 @@ using System.Data;
 using System.Globalization;
 using ConvoLab.Api.Health;
 using ConvoLab.Application.Operations;
+using ConvoLab.Application.Operations.Backups;
 using ConvoLab.Domain.Analytics;
 using ConvoLab.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -35,7 +36,8 @@ public sealed class OperationsController(
     IOptions<OperationsThresholdOptions> thresholdOptions,
     IOptions<BuildOptions> buildOptions,
     IHostEnvironment environment,
-    ILogger<OperationsController> logger) : ControllerBase
+    ILogger<OperationsController> logger,
+    IServiceProvider serviceProvider) : ControllerBase
 {
     [HttpGet("status")]
     public async Task<ActionResult> Status(CancellationToken ct)
@@ -376,6 +378,53 @@ public sealed class OperationsController(
             configuredRpo = evidence.ConfiguredRpo,
             correlationId = HttpContext.TraceIdentifier
         });
+    }
+
+    [HttpPost("backups")]
+    public async Task<ActionResult> CreateBackup(CancellationToken ct)
+    {
+        var executor = serviceProvider.GetService<IBackupExecutor>();
+        if (executor == null) return StatusCode(StatusCodes.Status501NotImplemented, "Backup execution is not configured in this environment.");
+        var artifact = await executor.ExecuteBackupAsync(ct);
+        return Ok(artifact);
+    }
+
+    [HttpPost("backups/{id}/verify")]
+    public ActionResult VerifyBackup(string id)
+    {
+        return StatusCode(StatusCodes.Status501NotImplemented, "Verification execution is deferred to a later iteration.");
+    }
+
+    [HttpPost("backups/{id}/restore")]
+    public async Task<ActionResult> RestoreBackup(string id, [FromQuery] bool allowDestructive = false, CancellationToken ct = default)
+    {
+        var executor = serviceProvider.GetService<IRestoreExecutor>();
+        if (executor == null) return StatusCode(StatusCodes.Status501NotImplemented, "Restore execution is not configured in this environment.");
+        if (!allowDestructive)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Type = "urn:convolab:operations:restore-destructive",
+                Title = "Destructive Restore Required",
+                Detail = "This environment is active. A restore will overwrite the database and document storage. You must explicitly set allowDestructive=true.",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        var options = new RestoreOptions(id, allowDestructive, SessionRecoveryMode.Invalidate);
+        var operationId = await executor.EnqueueRestoreAsync(options, ct);
+
+        return Accepted($"/api/operations/recovery/{operationId}", new { operationId });
+    }
+
+    [HttpGet("recovery/{operationId}")]
+    public async Task<ActionResult> GetRecoveryStatus(Guid operationId, CancellationToken ct)
+    {
+        var executor = serviceProvider.GetService<IRestoreExecutor>();
+        if (executor == null) return StatusCode(StatusCodes.Status501NotImplemented, "Restore execution is not configured in this environment.");
+        var status = await executor.GetRestoreStatusAsync(operationId, ct);
+        if (status == null) return NotFound();
+        return Ok(status);
     }
 
     [HttpGet("telemetry")]
