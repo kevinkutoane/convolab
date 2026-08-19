@@ -1,8 +1,8 @@
 # ConvoLab Backup, Restore & Disaster Recovery v1 — Final Verification & Rehearsal Report
 
 **Workstream:** `alpha.16 — Backup, Restore & Disaster Recovery`  
-**Active Release Metadata:** `1.0.0-alpha.15` (locked until formal release promotion)  
-**Status:** `ALL CORRECTIONS VERIFIED & REHEARSAL PASSED`
+**Active Release Metadata:** `1.0.0-alpha.16`  
+**Status:** `SIGNED OFF & OPERATIONAL`
 
 ---
 

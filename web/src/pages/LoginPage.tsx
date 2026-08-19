@@ -36,7 +36,7 @@ export function LoginPage() {
   function entraLogin() { window.location.assign(`${options?.entraLoginPath ?? "/api/auth/entra/login"}?returnUrl=${encodeURIComponent(safeReturn)}`); }
 
   return <main className="login-page"><section className="login-card panel">
-    <div className="login-brand"><span><Hexagon size={28} /></span><div><strong>ConvoLab</strong><small>Studio · v1.0.0-alpha.15</small></div></div>
+    <div className="login-brand"><span><Hexagon size={28} /></span><div><strong>ConvoLab</strong><small>Studio · v1.0.0-alpha.16</small></div></div>
     <div className="login-copy"><span className="panel-eyebrow">Secure workspace</span><h1>Welcome back</h1>
       <p>{options?.entraLoginAvailable ? "Use your approved corporate identity to enter ConvoLab Studio." : "Sign in with your local ConvoLab identity."}</p></div>
     {options?.entraLoginAvailable && <button className="primary-button login-sso" onClick={entraLogin} disabled={busy}>Sign in with Microsoft</button>}

@@ -5,8 +5,8 @@ namespace ConvoLab.Application.Operations;
 
 public static class OperationalWorkstream
 {
-    public const string Label = "alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication";
-    public const string Marker = "alpha.15-entra-hybrid-authentication";
+    public const string Label = "alpha.16 — Backup, Restore & Disaster Recovery";
+    public const string Marker = "alpha.16-backup-restore-disaster-recovery";
 }
 
 public enum OperationalDependencyState

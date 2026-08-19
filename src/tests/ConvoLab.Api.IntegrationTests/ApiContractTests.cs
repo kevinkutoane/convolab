@@ -833,9 +833,9 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             var statusResponse = await _client.GetAsync("/api/operations/status");
             Assert.Equal(HttpStatusCode.OK, statusResponse.StatusCode);
             var status = await ReadJsonAsync(statusResponse);
-            Assert.Equal("1.0.0-alpha.15", status.RootElement.GetProperty("version").GetString());
+            Assert.Equal("1.0.0-alpha.16", status.RootElement.GetProperty("version").GetString());
             Assert.Equal(
-                "alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication",
+                "alpha.16 — Backup, Restore & Disaster Recovery",
                 status.RootElement.GetProperty("workstream").GetString());
         }
         Assert.Equal(readinessBefore, Baseline("Operations.ReadinessEvidenceViewed"));

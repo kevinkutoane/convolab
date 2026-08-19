@@ -29,8 +29,8 @@ import type {
 export const designTimePlatformStatus: PlatformStatus = {
   platformName: "ConvoLab Platform",
   productName: "ConvoLab Studio",
-  version: "1.0.0-alpha.15",
-  workstream: "alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication",
+  version: "1.0.0-alpha.16",
+  workstream: "alpha.16 — Backup, Restore & Disaster Recovery",
   safeMode: false,
   environment: "Development",
   architectureHealth: "Healthy",

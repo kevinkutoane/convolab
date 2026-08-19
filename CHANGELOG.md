@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.0-alpha.16 — 2026-08-19
+
+### Backup, Restore & Disaster Recovery v1
+- Added active backup orchestration for PostgreSQL state, Knowledge documents, and Data Protection key rings.
+- Added authenticated chunked AES-256-GCM encryption with versioned envelopes (`CVLB_GCM_V1`), authenticated AAD metadata, and per-chunk tag verification.
+- Added strict `ISecretStore`-backed key resolution with zero insecure fallbacks.
+- Added asynchronous restore operations (`POST /api/operations/backups/{id}/restore`) with explicit destructive safeguards.
+- Added fail-closed `pg_restore` handling with explicit benign clean warning allow-listing.
+- Added deep `RecoveryVerifier` performing automated database, Data Protection, and strict document reconciliation (0 missing / 0 orphans).
+- Added isolated disaster recovery profile (`docker-compose.recovery.yml`) and operational tooling scripts (`tools/operations/`).
+- Overhauled the Operations Center Studio UI (`/operations`) with clean segmented tabs (Overview, Backup & DR, IAM, Telemetry, Build).
+
 ## 1.0.0-alpha.15 — 2026-08-18
 
 ### Microsoft Entra ID & Hybrid Authentication
