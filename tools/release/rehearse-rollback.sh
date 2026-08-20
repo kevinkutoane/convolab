@@ -15,8 +15,8 @@ CANDIDATE_STUDIO="ghcr.io/convolab/convolab-studio@sha256:4444444444444444444444
 echo "1. Promoting candidate release to UAT..."
 export CONVOLAB_API_IMAGE_DIGEST="$CANDIDATE_API"
 export CONVOLAB_STUDIO_IMAGE_DIGEST="$CANDIDATE_STUDIO"
-export UAT_DB_PASSWORD="uat_secure_db_pass_123"
-export BACKUP_ENCRYPTION_KEY="dGhpc2lzYTMyeWVhcndhcnJhbnR5a2V5MTIzNDU2Nzg="
+export UAT_DB_PASSWORD="${UAT_DB_PASSWORD:-drill-rehearsal-temp-db-pass}"
+export BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-$(openssl rand -base64 32 2>/dev/null || echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")}"
 
 echo "Candidate deployed to UAT profile."
 

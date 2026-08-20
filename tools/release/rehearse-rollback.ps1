@@ -11,8 +11,8 @@ $CandidateStudio = "ghcr.io/convolab/convolab-studio@sha256:44444444444444444444
 Write-Host "1. Promoting candidate release to UAT..."
 $env:CONVOLAB_API_IMAGE_DIGEST = $CandidateApi
 $env:CONVOLAB_STUDIO_IMAGE_DIGEST = $CandidateStudio
-$env:UAT_DB_PASSWORD = "uat_secure_db_pass_123"
-$env:BACKUP_ENCRYPTION_KEY = "dGhpc2lzYTMyeWVhcndhcnJhbnR5a2V5MTIzNDU2Nzg="
+$env:UAT_DB_PASSWORD = if ($env:UAT_DB_PASSWORD) { $env:UAT_DB_PASSWORD } else { "drill-rehearsal-temp-db-pass" }
+$env:BACKUP_ENCRYPTION_KEY = if ($env:BACKUP_ENCRYPTION_KEY) { $env:BACKUP_ENCRYPTION_KEY } else { [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32)) }
 
 Write-Host "Candidate deployed to UAT profile."
 
