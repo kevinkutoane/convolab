@@ -2,17 +2,17 @@ name: convolab-uat
 
 services:
   api:
-    image: ${CONVOLAB_API_IMAGE_DIGEST:-convolab-api:latest}
+    image: ${CONVOLAB_API_IMAGE_DIGEST:?CONVOLAB_API_IMAGE_DIGEST must be explicitly set to an immutable registry digest}
     container_name: convolab-uat-api
     ports:
       - "5001:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: UAT
-      ConnectionStrings__DefaultConnection: Host=uat-db;Database=convolab_uat;Username=postgres;Password=postgres
+      ConnectionStrings__DefaultConnection: Host=uat-db;Database=convolab_uat;Username=postgres;Password=${UAT_DB_PASSWORD:?UAT_DB_PASSWORD is required}
       Database__Provider: PostgreSql
       Knowledge__StoragePath: /app/data/knowledge-documents
       DataProtection__KeyRingPath: /app/data/data-protection
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-dGhpc2lzYTMyeWVhcndhcnJhbnR5a2V5MTIzNDU2Nzg=}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?BACKUP_ENCRYPTION_KEY is required}
     volumes:
       - ./data/backups:/app/data/backups
       - uat_knowledge_documents:/app/data/knowledge-documents
@@ -27,7 +27,7 @@ services:
         condition: service_healthy
 
   web:
-    image: ${CONVOLAB_STUDIO_IMAGE_DIGEST:-convolab-web:latest}
+    image: ${CONVOLAB_STUDIO_IMAGE_DIGEST:?CONVOLAB_STUDIO_IMAGE_DIGEST must be explicitly set to an immutable registry digest}
     container_name: convolab-uat-studio
     ports:
       - "3001:80"
@@ -41,7 +41,7 @@ services:
     environment:
       POSTGRES_DB: convolab_uat
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${UAT_DB_PASSWORD:?UAT_DB_PASSWORD is required}
     ports:
       - "5433:5432"
     volumes:

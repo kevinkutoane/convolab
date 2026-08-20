@@ -32,10 +32,13 @@ internal sealed class DeploymentService : IDeploymentService
         if (string.IsNullOrWhiteSpace(manifest.ApiImageDigest)) throw new ArgumentException("ApiImageDigest cannot be empty.");
         if (string.IsNullOrWhiteSpace(manifest.StudioImageDigest)) throw new ArgumentException("StudioImageDigest cannot be empty.");
 
-        var previous = await _dbContext.DeploymentRecords
+        var previousCandidates = await _dbContext.DeploymentRecords
             .Where(d => d.Environment == request.TargetEnvironment && d.Status == DeploymentStatus.Healthy)
-            .OrderByDescending(d => d.CompletedAt)
-            .FirstOrDefaultAsync(cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        var previous = previousCandidates
+            .OrderByDescending(d => d.CompletedAt ?? d.CreatedAt)
+            .FirstOrDefault();
 
         var record = DeploymentRecord.Create(
             releaseManifestId: manifest.ReleaseManifestId,
@@ -117,7 +120,8 @@ internal sealed class DeploymentService : IDeploymentService
             query = query.Where(d => d.Environment == environment);
         }
 
-        return await query.OrderByDescending(d => d.CreatedAt).Take(limit).ToListAsync(cancellationToken);
+        var all = await query.ToListAsync(cancellationToken);
+        return all.OrderByDescending(d => d.CreatedAt).Take(limit).ToList();
     }
 
     public async Task<IReadOnlyList<EnvironmentDeploymentState>> GetEnvironmentStatesAsync(CancellationToken cancellationToken = default)
@@ -125,12 +129,14 @@ internal sealed class DeploymentService : IDeploymentService
         var envs = new[] { "Development", "UAT", "Production" };
         var list = new List<EnvironmentDeploymentState>();
 
+        var allRecords = await _dbContext.DeploymentRecords.ToListAsync(cancellationToken);
+
         foreach (var env in envs)
         {
-            var active = await _dbContext.DeploymentRecords
+            var active = allRecords
                 .Where(d => d.Environment == env)
                 .OrderByDescending(d => d.CreatedAt)
-                .FirstOrDefaultAsync(cancellationToken);
+                .FirstOrDefault();
 
             list.Add(new EnvironmentDeploymentState(
                 Environment: env,
