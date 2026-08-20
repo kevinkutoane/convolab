@@ -398,6 +398,15 @@ public sealed class OperationsController(
         return Ok(result);
     }
 
+    [HttpGet("backups/list")]
+    public async Task<ActionResult> ListBackups(CancellationToken ct)
+    {
+        var store = serviceProvider.GetService<IBackupStore>();
+        if (store == null) return Ok(Array.Empty<object>());
+        var backups = await store.ListBackupsAsync(ct);
+        return Ok(backups);
+    }
+
     [HttpPost("backups/{id}/restore")]
     public async Task<ActionResult> RestoreBackup(string id, [FromQuery] bool allowDestructive = false, CancellationToken ct = default)
     {

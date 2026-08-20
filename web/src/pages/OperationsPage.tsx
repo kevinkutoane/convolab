@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  AlertOctagon,
 } from "lucide-react";
 import { ErrorState, LoadingState } from "../components/AsyncStates";
 import { MetricCard } from "../components/MetricCard";
@@ -28,6 +29,9 @@ import {
   getBackups,
   createBackup,
   verifyBackup,
+  listAvailableBackups,
+  restoreBackup,
+  getRecoveryStatus,
   getBuildEvidence,
   getOperationsStatus,
   getReadiness,
@@ -56,15 +60,41 @@ export function OperationsPage() {
   const backups = useQuery({ queryKey: ["operations", "backups"], queryFn: getBackups, staleTime: 30_000 });
   const build = useQuery({ queryKey: ["operations", "build"], queryFn: getBuildEvidence, staleTime: 30_000 });
   const telemetry = useQuery({ queryKey: ["operations", "telemetry"], queryFn: getTelemetryEvidence, staleTime: 30_000 });
+  const backupListQuery = useQuery({ queryKey: ["operations", "backups-list"], queryFn: listAvailableBackups, enabled: activeTab === "backups" });
 
   const [verificationResult, setVerificationResult] = useState<Record<string, unknown> | null>(null);
   const [snapshotResult, setSnapshotResult] = useState<Record<string, unknown> | null>(null);
+
+  // Restore State
+  const [showRestoreModal, setShowRestoreModal] = useState(false);
+  const [selectedRestoreBackupId, setSelectedRestoreBackupId] = useState("");
+  const [restoreConfirmText, setRestoreConfirmText] = useState("");
+  const [activeRestoreOpId, setActiveRestoreOpId] = useState<string | null>(null);
+
+  const restoreStatusQuery = useQuery({
+    queryKey: ["operations", "recovery", activeRestoreOpId],
+    queryFn: () => getRecoveryStatus(activeRestoreOpId!),
+    enabled: Boolean(activeRestoreOpId),
+    refetchInterval: (query) => {
+      const data = query.state.data as Record<string, unknown> | undefined;
+      if (data?.state === "Completed" || data?.state === "Failed") return false;
+      return 2000;
+    },
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: ({ backupId }: { backupId: string }) => restoreBackup(backupId, true),
+    onSuccess: (data) => {
+      setActiveRestoreOpId((data as { operationId: string }).operationId);
+    },
+  });
 
   const backupMutation = useMutation({
     mutationFn: createBackup,
     onSuccess: async (data) => {
       setSnapshotResult(data as Record<string, unknown>);
       await queryClient.invalidateQueries({ queryKey: ["operations", "backups"] });
+      await queryClient.invalidateQueries({ queryKey: ["operations", "backups-list"] });
       await queryClient.invalidateQueries({ queryKey: ["operations", "status"] });
     },
   });
@@ -219,10 +249,22 @@ export function OperationsPage() {
               </button>
               <button
                 className="secondary-button"
+                onClick={() => {
+                  if (Array.isArray(backupListQuery.data) && backupListQuery.data.length > 0) {
+                    setSelectedRestoreBackupId((backupListQuery.data[0] as { backupId: string }).backupId);
+                  }
+                  setShowRestoreModal(true);
+                }}
+              >
+                <RotateCcw size={16} />
+                Restore Snapshot…
+              </button>
+              <button
+                className="secondary-button"
                 onClick={() => verifyMutation.mutate()}
                 disabled={verifyMutation.isPending}
               >
-                <RotateCcw size={16} className={verifyMutation.isPending ? "spin" : ""} />
+                <ShieldCheck size={16} className={verifyMutation.isPending ? "spin" : ""} />
                 {verifyMutation.isPending ? "Verifying…" : "Run Deep Verification Drill"}
               </button>
             </div>
@@ -271,6 +313,62 @@ export function OperationsPage() {
                     <dd style={{ fontFamily: "monospace", fontSize: "11px" }}>{String((snapshotResult.database as Record<string, unknown>)?.sha256 ?? "N/A").slice(0, 16)}…</dd>
                   </div>
                 </dl>
+              </div>
+            </section>
+          )}
+
+          {/* Available Snapshots Table */}
+          {Array.isArray(backupListQuery.data) && backupListQuery.data.length > 0 && (
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <span className="panel-eyebrow">On-Disk Encrypted Archives</span>
+                  <h3>Discovered Backup Snapshots</h3>
+                </div>
+                <DatabaseBackup size={18} />
+              </div>
+              <div className="execution-table-wrap">
+                <table className="execution-table">
+                  <thead>
+                    <tr>
+                      <th>Backup ID</th>
+                      <th>Created At</th>
+                      <th>Version</th>
+                      <th>Database Size</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(backupListQuery.data as Array<{
+                      backupId: string;
+                      createdAt: string;
+                      platformVersion: string;
+                      database: { sizeBytes: number; sha256: string };
+                    }>).map((b) => (
+                      <tr key={b.backupId}>
+                        <td>
+                          <strong>{b.backupId}</strong>
+                          <span style={{ fontFamily: "monospace" }}>SHA: {b.database.sha256?.slice(0, 12)}…</span>
+                        </td>
+                        <td>{new Date(b.createdAt).toLocaleString()}</td>
+                        <td><span className="status-pill status-healthy">{b.platformVersion}</span></td>
+                        <td>{FormatBytes(b.database.sizeBytes)}</td>
+                        <td>
+                          <button
+                            className="secondary-button"
+                            style={{ minHeight: "28px", padding: "0 10px", fontSize: "11px" }}
+                            onClick={() => {
+                              setSelectedRestoreBackupId(b.backupId);
+                              setShowRestoreModal(true);
+                            }}
+                          >
+                            <RotateCcw size={12} /> Restore
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
           )}
@@ -413,6 +511,129 @@ export function OperationsPage() {
             {build.isLoading && <LoadingState label="Loading build evidence…" />}
             {build.data && <Evidence value={build.data} />}
           </section>
+        </div>
+      )}
+
+      {/* Restore Confirmation & Progress Modal */}
+      {showRestoreModal && (
+        <div className="restore-modal-backdrop">
+          <div className="restore-modal panel">
+            <div className="panel-header">
+              <div>
+                <span className="panel-eyebrow">Disaster Recovery Orchestration</span>
+                <h3>Restore System Snapshot</h3>
+              </div>
+              <AlertOctagon size={20} color="var(--danger)" />
+            </div>
+
+            <div className="restore-modal-body">
+              {!activeRestoreOpId ? (
+                <>
+                  <div className="restore-warning-banner">
+                    <AlertTriangle size={18} />
+                    <div>
+                      <strong>Destructive Environment Overwrite:</strong>
+                      <p>Restoring this snapshot will completely overwrite the active database tables and reconcile document storage to the exact snapshot state.</p>
+                    </div>
+                  </div>
+
+                  <div className="restore-form-group">
+                    <label>Target Snapshot to Restore</label>
+                    <select
+                      value={selectedRestoreBackupId}
+                      onChange={(e) => setSelectedRestoreBackupId(e.target.value)}
+                    >
+                      {(backupListQuery.data as Array<{ backupId: string; createdAt: string }>)?.map((b) => (
+                        <option key={b.backupId} value={b.backupId}>
+                          {b.backupId} ({new Date(b.createdAt).toLocaleString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="restore-form-group">
+                    <label>Type <code>RESTORE-CONFIRM</code> to unlock:</label>
+                    <input
+                      type="text"
+                      placeholder="RESTORE-CONFIRM"
+                      value={restoreConfirmText}
+                      onChange={(e) => setRestoreConfirmText(e.target.value)}
+                    />
+                  </div>
+
+                  {restoreMutation.error && (
+                    <div className="provider-warning">
+                      <AlertTriangle size={16} />
+                      <span>{getApiErrorMessage(restoreMutation.error)}</span>
+                    </div>
+                  )}
+
+                  <div className="restore-modal-actions">
+                    <button
+                      className="secondary-button"
+                      onClick={() => {
+                        setShowRestoreModal(false);
+                        setRestoreConfirmText("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="danger-button"
+                      disabled={restoreConfirmText !== "RESTORE-CONFIRM" || !selectedRestoreBackupId || restoreMutation.isPending}
+                      onClick={() => restoreMutation.mutate({ backupId: selectedRestoreBackupId })}
+                    >
+                      <RotateCcw size={16} className={restoreMutation.isPending ? "spin" : ""} />
+                      {restoreMutation.isPending ? "Starting Restore…" : "Execute Destructive Restore"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="restore-progress-container">
+                  <span className="panel-eyebrow">Asynchronous Restore Pipeline</span>
+                  <h3>Operation {activeRestoreOpId.slice(0, 8)}</h3>
+
+                  <div className="restore-state-card">
+                    {restoreStatusQuery.data?.state === "Completed" ? (
+                      <div className="restore-state-badge state-completed">
+                        <CheckCircle2 size={24} />
+                        <strong>Restore & Integrity Verification Succeeded</strong>
+                        <p>The database, documents, and key-ring were restored and verified healthy.</p>
+                      </div>
+                    ) : restoreStatusQuery.data?.state === "Failed" ? (
+                      <div className="restore-state-badge state-failed">
+                        <XCircle size={24} />
+                        <strong>Restore Failed</strong>
+                        <p>{restoreStatusQuery.data?.errorMessage}</p>
+                      </div>
+                    ) : (
+                      <div className="restore-state-badge state-running">
+                        <RefreshCw size={24} className="spin" />
+                        <strong>Status: {restoreStatusQuery.data?.state ?? "Queued"}…</strong>
+                        <p>Decrypting payload, executing PostgreSQL restore, and verifying recovery.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {(restoreStatusQuery.data?.state === "Completed" || restoreStatusQuery.data?.state === "Failed") && (
+                    <div className="restore-modal-actions">
+                      <button
+                        className="primary-button"
+                        onClick={() => {
+                          setShowRestoreModal(false);
+                          setActiveRestoreOpId(null);
+                          setRestoreConfirmText("");
+                          void queryClient.invalidateQueries({ queryKey: ["operations"] });
+                        }}
+                      >
+                        Close & Refresh Telemetry
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

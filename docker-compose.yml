@@ -31,6 +31,7 @@ services:
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-dGhpc2lzYTMyeWVhcndhcnJhbnR5a2V5MTIzNDU2Nzg=}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     volumes:
+      - ./data/backups:/app/data/backups
       - knowledge_documents:/app/data/knowledge-documents
       - data_protection_keys:/app/data/data-protection
     healthcheck:

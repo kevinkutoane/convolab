@@ -68,6 +68,7 @@ export async function getAnalyticsPipeline() { return (await api.get("/api/opera
 export async function getAuthenticationEvidence() { return (await api.get<AuthenticationEvidence>("/api/operations/authentication")).data; }
 export async function getSecretProviders() { return (await api.get("/api/operations/secret-providers")).data; }
 export async function getBackups() { return (await api.get("/api/operations/backups")).data; }
+export async function listAvailableBackups() { return (await api.get("/api/operations/backups/list")).data; }
 export async function createBackup() { return (await api.post("/api/operations/backups")).data; }
 export async function verifyBackup(id: string = "current") { return (await api.post(`/api/operations/backups/${id}/verify`)).data; }
 export async function restoreBackup(id: string, allowDestructive: boolean = false) {
