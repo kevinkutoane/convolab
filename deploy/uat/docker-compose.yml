@@ -8,10 +8,12 @@ services:
       - "5001:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: UAT
-      ConnectionStrings__DefaultConnection: Host=uat-db;Database=convolab_uat;Username=postgres;Password=${UAT_DB_PASSWORD:?UAT_DB_PASSWORD is required}
+      ConnectionStrings__DefaultConnection: Host=db;Database=convolab_uat;Username=postgres;Password=${UAT_DB_PASSWORD:?UAT_DB_PASSWORD is required}
       Database__Provider: PostgreSql
-      Knowledge__StoragePath: /app/data/knowledge-documents
+      Database__ApplyMigrationsOnStartup: "true"
+      DataProtection__Provider: SharedFileSystem
       DataProtection__KeyRingPath: /app/data/data-protection
+      Knowledge__StoragePath: /app/data/knowledge-documents
       BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:?BACKUP_ENCRYPTION_KEY is required}
     volumes:
       - ./data/backups:/app/data/backups

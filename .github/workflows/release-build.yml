@@ -99,14 +99,17 @@ jobs:
         id: sbom
         run: |
           mkdir -p artifacts/sbom artifacts/release
-          dotnet tool install --global CycloneDX || true
-          dotnet-CycloneDX ConvoLab.sln -o artifacts/sbom -fn convolab-api-sbom.json || echo "{}" > artifacts/sbom/convolab-api-sbom.json
+          dotnet tool install --global CycloneDX
+          dotnet-CycloneDX ConvoLab.sln -o artifacts/sbom -fn convolab-api-sbom.json
 
-          cd web && npx @cyclonedx/cyclonedx-npm --output-file ../artifacts/sbom/convolab-studio-sbom.json || echo "{}" > ../artifacts/sbom/convolab-studio-sbom.json
+          cd web
+          npx @cyclonedx/cyclonedx-npm --output-file ../artifacts/sbom/convolab-studio-sbom.json
           cd ..
 
-          SBOM_HASH=$(sha256sum artifacts/sbom/convolab-api-sbom.json | awk '{print $1}')
-          echo "sbom_sha256=${SBOM_HASH}" >> $GITHUB_OUTPUT
+          API_SBOM_HASH=$(sha256sum artifacts/sbom/convolab-api-sbom.json | awk '{print $1}')
+          STUDIO_SBOM_HASH=$(sha256sum artifacts/sbom/convolab-studio-sbom.json | awk '{print $1}')
+          echo "api_sbom_sha256=${API_SBOM_HASH}" >> $GITHUB_OUTPUT
+          echo "studio_sbom_sha256=${STUDIO_SBOM_HASH}" >> $GITHUB_OUTPUT
 
       - name: Scan API Container for Vulnerabilities (Trivy)
         uses: aquasecurity/trivy-action@master
@@ -140,7 +143,8 @@ jobs:
             "apiImageDigest": "${{ env.IMAGE_API }}@${{ steps.digests.outputs.api_digest }}",
             "studioImageDigest": "${{ env.IMAGE_STUDIO }}@${{ steps.digests.outputs.studio_digest }}",
             "migrationVersion": "202608200002_DeploymentPromotionV1",
-            "sbomSha256": "${{ steps.sbom.outputs.sbom_sha256 }}",
+            "apiSbomSha256": "${{ steps.sbom.outputs.api_sbom_sha256 }}",
+            "studioSbomSha256": "${{ steps.sbom.outputs.studio_sbom_sha256 }}",
             "provenanceReference": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
             "buildWorkflowId": "${{ github.run_id }}",
             "buildTimestamp": "${{ steps.meta.outputs.timestamp }}",

@@ -37,7 +37,8 @@ public sealed class DeploymentServiceTests
             ApiImageDigest: "ghcr.io/convolab/api@sha256:1111111111111111111111111111111111111111111111111111111111111111",
             StudioImageDigest: "ghcr.io/convolab/studio@sha256:2222222222222222222222222222222222222222222222222222222222222222",
             MigrationVersion: "202608200002_DeploymentPromotionV1",
-            SbomSha256: "3333333333333333333333333333333333333333333333333333333333333333",
+            ApiSbomSha256: "3333333333333333333333333333333333333333333333333333333333333333",
+            StudioSbomSha256: "4444444444444444444444444444444444444444444444444444444444444444",
             ProvenanceReference: "https://github.com/convolab/actions/runs/100",
             BuildWorkflowId: "100",
             BuildTimestamp: DateTimeOffset.UtcNow);
@@ -65,7 +66,8 @@ public sealed class DeploymentServiceTests
             ApiImageDigest: "ghcr.io/convolab/api@sha256:1111",
             StudioImageDigest: "ghcr.io/convolab/studio@sha256:2222",
             MigrationVersion: null,
-            SbomSha256: null,
+            ApiSbomSha256: null,
+            StudioSbomSha256: null,
             ProvenanceReference: null,
             BuildWorkflowId: "101",
             BuildTimestamp: DateTimeOffset.UtcNow);
@@ -92,7 +94,8 @@ public sealed class DeploymentServiceTests
             ApiImageDigest: "ghcr.io/convolab/api@sha256:1111",
             StudioImageDigest: "ghcr.io/convolab/studio@sha256:2222",
             MigrationVersion: null,
-            SbomSha256: null,
+            ApiSbomSha256: null,
+            StudioSbomSha256: null,
             ProvenanceReference: null,
             BuildWorkflowId: "102",
             BuildTimestamp: DateTimeOffset.UtcNow);

@@ -22,7 +22,8 @@ public sealed class DeploymentRecord
     public string ApiImageDigest { get; private set; } = string.Empty;
     public string StudioImageDigest { get; private set; } = string.Empty;
     public string? MigrationVersion { get; private set; }
-    public string? SbomSha256 { get; private set; }
+    public string? ApiSbomSha256 { get; private set; }
+    public string? StudioSbomSha256 { get; private set; }
     public string? ProvenanceReference { get; private set; }
     public string Environment { get; private set; } = string.Empty;
     public DeploymentStatus Status { get; private set; }
@@ -47,7 +48,8 @@ public sealed class DeploymentRecord
         string apiImageDigest,
         string studioImageDigest,
         string? migrationVersion,
-        string? sbomSha256,
+        string? apiSbomSha256,
+        string? studioSbomSha256,
         string? provenanceReference,
         string environment,
         string? previousReleaseManifestId = null)
@@ -68,7 +70,8 @@ public sealed class DeploymentRecord
             ApiImageDigest = apiImageDigest.Trim(),
             StudioImageDigest = studioImageDigest.Trim(),
             MigrationVersion = migrationVersion?.Trim(),
-            SbomSha256 = sbomSha256?.Trim(),
+            ApiSbomSha256 = apiSbomSha256?.Trim(),
+            StudioSbomSha256 = studioSbomSha256?.Trim(),
             ProvenanceReference = provenanceReference?.Trim(),
             Environment = environment.Trim(),
             Status = environment.Equals("Production", StringComparison.OrdinalIgnoreCase)

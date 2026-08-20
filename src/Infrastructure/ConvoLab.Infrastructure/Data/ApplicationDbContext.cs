@@ -948,6 +948,10 @@ public sealed class ApplicationDbContext : DbContext
             entity.Property(item => item.StudioImageDigest).HasMaxLength(200).IsRequired();
             entity.Property(item => item.Environment).HasMaxLength(60).IsRequired();
             entity.Property(item => item.Status).HasMaxLength(40).HasConversion<string>().IsRequired();
+            entity.Property(item => item.MigrationVersion).HasMaxLength(120);
+            entity.Property(item => item.ApiSbomSha256).HasMaxLength(120);
+            entity.Property(item => item.StudioSbomSha256).HasMaxLength(120);
+            entity.Property(item => item.ProvenanceReference).HasMaxLength(500);
             entity.Property(item => item.ApprovedBy).HasMaxLength(200);
             entity.Property(item => item.ApprovalReason).HasMaxLength(1000);
             entity.Property(item => item.BackupIdBeforeMigration).HasMaxLength(200);

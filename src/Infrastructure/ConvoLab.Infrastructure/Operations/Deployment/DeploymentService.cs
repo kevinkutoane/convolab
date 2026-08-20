@@ -48,7 +48,8 @@ internal sealed class DeploymentService : IDeploymentService
             apiImageDigest: manifest.ApiImageDigest,
             studioImageDigest: manifest.StudioImageDigest,
             migrationVersion: manifest.MigrationVersion,
-            sbomSha256: manifest.SbomSha256,
+            apiSbomSha256: manifest.ApiSbomSha256,
+            studioSbomSha256: manifest.StudioSbomSha256,
             provenanceReference: manifest.ProvenanceReference,
             environment: request.TargetEnvironment,
             previousReleaseManifestId: previous?.ReleaseManifestId);
