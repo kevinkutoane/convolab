@@ -38,12 +38,14 @@ jobs:
 
       - name: Validate Release Manifest Authority
         id: manifest-check
+        env:
+          CONTROL_PLANE_URL: ${{ secrets.CONVOLAB_CONTROL_PLANE_URL || 'https://api.convolab.io' }}
         run: |
           MANIFEST="artifacts/release/manifest.json"
           if [ ! -f "$MANIFEST" ]; then
-            echo "Manifest file not found in artifact cache. Fetching from control plane..."
+            echo "Manifest file not found in artifact cache. Fetching from control plane $CONTROL_PLANE_URL..."
             curl -fsSL -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_RUNNER_SECRET }}" \
-              "http://localhost:5000/api/operations/deployments/manifests/${{ github.event.inputs.release_manifest_id }}" -o "$MANIFEST" || true
+              "${CONTROL_PLANE_URL}/api/operations/deployments/manifests/${{ github.event.inputs.release_manifest_id }}" -o "$MANIFEST" || true
           fi
 
           if [ ! -f "$MANIFEST" ]; then
@@ -56,22 +58,49 @@ jobs:
           VERSION=$(grep -o '"releaseVersion": *"[^"]*"' "$MANIFEST" | cut -d'"' -f4)
           COMMIT=$(grep -o '"sourceCommitSha": *"[^"]*"' "$MANIFEST" | cut -d'"' -f4)
 
+          if [[ ! "$API_DIGEST" =~ @sha256: ]]; then
+            echo "Error: API Image digest is not an immutable registry digest reference: $API_DIGEST"
+            exit 1
+          fi
+
+          if [[ ! "$STUDIO_DIGEST" =~ @sha256: ]]; then
+            echo "Error: Studio Image digest is not an immutable registry digest reference: $STUDIO_DIGEST"
+            exit 1
+          fi
+
           echo "api_digest=${API_DIGEST}" >> $GITHUB_OUTPUT
           echo "studio_digest=${STUDIO_DIGEST}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
+      - name: Register Deployment Candidate to Control Plane
+        id: register-candidate
+        env:
+          CONTROL_PLANE_URL: ${{ secrets.CONVOLAB_CONTROL_PLANE_URL || 'https://api.convolab.io' }}
+        run: |
+          echo "Registering promotion candidate to Control Plane..."
+          REG_RESP=$(curl -fsSL -X POST -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_RUNNER_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --data-binary "@artifacts/release/manifest.json" \
+            "${CONTROL_PLANE_URL}/api/operations/deployments/candidates?targetEnvironment=${{ github.event.inputs.target_environment }}")
+
+          DEP_ID=$(echo "$REG_RESP" | grep -o '"id": *"[^"]*"' | head -n 1 | cut -d'"' -f4)
+          echo "deployment_id=${DEP_ID}" >> $GITHUB_OUTPUT
+          echo "Registered Deployment ID: $DEP_ID"
+
       - name: Pre-Migration Backup Gate (Production Only)
         if: github.event.inputs.target_environment == 'Production'
         id: backup-gate
+        env:
+          CONTROL_PLANE_URL: ${{ secrets.CONVOLAB_CONTROL_PLANE_URL || 'https://api.convolab.io' }}
         run: |
           echo "=== Executing Automated Pre-Migration Backup Gate ==="
           BACKUP_RESP=$(curl -fsSL -X POST -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_RUNNER_SECRET }}" \
-            "http://localhost:5000/api/operations/backups")
+            "${CONTROL_PLANE_URL}/api/operations/backups")
           BACKUP_ID=$(echo "$BACKUP_RESP" | grep -o '"backupId": *"[^"]*"' | cut -d'"' -f4)
 
           echo "Verifying backup snapshot $BACKUP_ID..."
           VERIFY_RESP=$(curl -fsSL -X POST -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_RUNNER_SECRET }}" \
-            "http://localhost:5000/api/operations/backups/${BACKUP_ID}/verify")
+            "${CONTROL_PLANE_URL}/api/operations/backups/${BACKUP_ID}/verify")
 
           IS_HEALTHY=$(echo "$VERIFY_RESP" | grep -o '"isHealthy": *true' || true)
           if [ -z "$IS_HEALTHY" ]; then
@@ -88,9 +117,12 @@ jobs:
           # Run ephemeral migration container using exact API image digest
           docker run --rm \
             --network convolab_default \
-            -e ConnectionStrings__DefaultConnection="${{ secrets.PROD_DB_CONNECTION || 'Host=db;Database=convolab;Username=postgres;Password=postgres' }}" \
+            -e ConnectionStrings__DefaultConnection="${{ secrets.TARGET_DB_CONNECTION }}" \
             -e Database__ApplyMigrationsOnly="true" \
-            "${{ steps.manifest-check.outputs.api_digest }}" || echo "Migration checked."
+            "${{ steps.manifest-check.outputs.api_digest }}" || {
+              echo "Database migration failed. Stopping deployment."
+              exit 1
+            }
 
       - name: Deploy Immutable Container Digest
         run: |
@@ -105,14 +137,33 @@ jobs:
           fi
 
       - name: Post-Deployment Readiness & Smoke Verification
+        env:
+          CONTROL_PLANE_URL: ${{ secrets.CONVOLAB_CONTROL_PLANE_URL || 'https://api.convolab.io' }}
         run: |
           echo "=== Verifying Health & Probing Readiness ==="
-          TARGET_PORT="5000"
-          if [ "${{ github.event.inputs.target_environment }}" = "UAT" ]; then TARGET_PORT="5001"; fi
+          # Probe health
+          curl -fsSL "${CONTROL_PLANE_URL}/health/ready" || {
+            echo "Readiness probe failed."
+            exit 1
+          }
 
-          # Wait for readiness
-          for i in {1..30}; do
-            if curl -fsSL "http://localhost:${TARGET_PORT}/health/ready"; then
+          # Safe non-destructive platform status smoke probe
+          curl -fsSL "${CONTROL_PLANE_URL}/api/platform/status"
+          echo "Smoke tests passed."
+
+      - name: Record Deployment Evidence to Control Plane
+        if: always()
+        env:
+          CONTROL_PLANE_URL: ${{ secrets.CONVOLAB_CONTROL_PLANE_URL || 'https://api.convolab.io' }}
+        run: |
+          echo "Reporting deployment completion to ConvoLab Control Plane for ${{ steps.register-candidate.outputs.deployment_id }}..."
+          SUCCESS=true
+          if [ "${{ job.status }}" != "success" ]; then SUCCESS=false; fi
+
+          curl -fsSL -X POST -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_RUNNER_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"isHealthy\": ${SUCCESS}, \"healthSummary\": \"/health/ready status: ${{ job.status }}\", \"smokeTestSummary\": \"Platform status verified.\"}" \
+            "${CONTROL_PLANE_URL}/api/operations/deployments/${{ steps.register-candidate.outputs.deployment_id }}/complete" || true
               echo "Readiness confirmed."
               break
             fi

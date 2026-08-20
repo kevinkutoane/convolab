@@ -26,11 +26,12 @@ internal sealed class DeploymentService : IDeploymentService
     {
         var manifest = request.Manifest;
 
-        // Verify binding of release manifest properties
+        // Cryptographic & structural verification of release manifest
         if (string.IsNullOrWhiteSpace(manifest.ReleaseManifestId)) throw new ArgumentException("ReleaseManifestId cannot be empty.");
-        if (string.IsNullOrWhiteSpace(manifest.SourceCommitSha)) throw new ArgumentException("SourceCommitSha cannot be empty.");
-        if (string.IsNullOrWhiteSpace(manifest.ApiImageDigest)) throw new ArgumentException("ApiImageDigest cannot be empty.");
-        if (string.IsNullOrWhiteSpace(manifest.StudioImageDigest)) throw new ArgumentException("StudioImageDigest cannot be empty.");
+        if (string.IsNullOrWhiteSpace(manifest.SourceCommitSha) || manifest.SourceCommitSha.Length < 7) throw new ArgumentException("SourceCommitSha must be a valid git commit hash.");
+        if (string.IsNullOrWhiteSpace(manifest.ApiImageDigest) || !manifest.ApiImageDigest.Contains("@sha256:")) throw new ArgumentException("ApiImageDigest must be an immutable @sha256:<hash> digest reference.");
+        if (string.IsNullOrWhiteSpace(manifest.StudioImageDigest) || !manifest.StudioImageDigest.Contains("@sha256:")) throw new ArgumentException("StudioImageDigest must be an immutable @sha256:<hash> digest reference.");
+        if (string.IsNullOrWhiteSpace(manifest.BuildWorkflowId)) throw new ArgumentException("BuildWorkflowId must be provided.");
 
         var previousCandidates = await _dbContext.DeploymentRecords
             .Where(d => d.Environment == request.TargetEnvironment && d.Status == DeploymentStatus.Healthy)
