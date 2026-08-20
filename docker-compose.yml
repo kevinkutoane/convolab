@@ -28,6 +28,7 @@ services:
       CONVOLAB_EVALUATION_MIN_OVERALL: ${CONVOLAB_EVALUATION_MIN_OVERALL:-0.82}
       CONVOLAB_EVALUATION_FAILURE_ACTION: ${CONVOLAB_EVALUATION_FAILURE_ACTION:-Review}
       DataProtection__KeyRingPath: /app/data/data-protection
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-dGhpc2lzYTMyeWVhcndhcnJhbnR5a2V5MTIzNDU2Nzg=}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     volumes:
       - knowledge_documents:/app/data/knowledge-documents
