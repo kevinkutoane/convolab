@@ -41,7 +41,7 @@ public sealed class BackupExecutorIntegrationTests
     }
 
     [Fact]
-    public async Task BackupExecutor_creates_manifest_and_encrypted_files()
+    public void BackupExecutor_creates_manifest_and_encrypted_files()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), "convolab-exec-test-" + Guid.NewGuid().ToString("N"));
         var backupDir = Path.Combine(tempDir, "backups");

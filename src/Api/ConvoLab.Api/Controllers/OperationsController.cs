@@ -439,6 +439,53 @@ public sealed class OperationsController(
         return Ok(status);
     }
 
+    [HttpGet("deployments")]
+    public async Task<ActionResult> ListDeployments(
+        [FromQuery] string? environment = null,
+        [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
+        CancellationToken ct = default)
+    {
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        var history = await deploymentService.ListDeploymentsAsync(environment, 50, ct);
+        var states = await deploymentService.GetEnvironmentStatesAsync(ct);
+        return Ok(new { environments = states, history });
+    }
+
+    [HttpPost("deployments/candidates")]
+    public async Task<ActionResult> RegisterCandidate(
+        [FromBody] ConvoLab.Application.Operations.Deployment.RegisterCandidateRequest request,
+        [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
+        CancellationToken ct = default)
+    {
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        var record = await deploymentService.RegisterCandidateAsync(request, ct);
+        return Ok(record);
+    }
+
+    [HttpPost("deployments/{id}/approve")]
+    public async Task<ActionResult> ApproveDeployment(
+        Guid id,
+        [FromBody] ConvoLab.Application.Operations.Deployment.ApprovePromotionRequest request,
+        [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
+        CancellationToken ct = default)
+    {
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        var record = await deploymentService.ApproveDeploymentAsync(id, request, ct);
+        return Ok(record);
+    }
+
+    [HttpPost("deployments/{id}/complete")]
+    public async Task<ActionResult> CompleteDeployment(
+        Guid id,
+        [FromBody] ConvoLab.Application.Operations.Deployment.CompleteDeploymentRequest request,
+        [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
+        CancellationToken ct = default)
+    {
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        var record = await deploymentService.CompleteDeploymentAsync(id, request, ct);
+        return Ok(record);
+    }
+
     [HttpGet("telemetry")]
     public ActionResult Telemetry()
     {

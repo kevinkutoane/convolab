@@ -19,6 +19,7 @@ import {
   XCircle,
   Clock,
   AlertOctagon,
+  Rocket,
 } from "lucide-react";
 import { ErrorState, LoadingState } from "../components/AsyncStates";
 import { MetricCard } from "../components/MetricCard";
@@ -32,6 +33,8 @@ import {
   listAvailableBackups,
   restoreBackup,
   getRecoveryStatus,
+  getDeployments,
+  approveDeployment,
   getBuildEvidence,
   getOperationsStatus,
   getReadiness,
@@ -43,7 +46,7 @@ import {
 import "../functional-workspaces.css";
 import "../operations.css";
 
-type TabKey = "overview" | "backups" | "auth" | "telemetry" | "build";
+type TabKey = "overview" | "deployments" | "backups" | "auth" | "telemetry" | "build";
 
 export function OperationsPage() {
   const queryClient = useQueryClient();
@@ -58,6 +61,7 @@ export function OperationsPage() {
   const authentication = useQuery({ queryKey: ["operations", "authentication"], queryFn: getAuthenticationEvidence, staleTime: 30_000 });
   const secrets = useQuery({ queryKey: ["operations", "secrets"], queryFn: getSecretProviders, staleTime: 30_000 });
   const backups = useQuery({ queryKey: ["operations", "backups"], queryFn: getBackups, staleTime: 30_000 });
+  const deployments = useQuery({ queryKey: ["operations", "deployments"], queryFn: () => getDeployments(), enabled: activeTab === "deployments", refetchInterval: 15_000 });
   const build = useQuery({ queryKey: ["operations", "build"], queryFn: getBuildEvidence, staleTime: 30_000 });
   const telemetry = useQuery({ queryKey: ["operations", "telemetry"], queryFn: getTelemetryEvidence, staleTime: 30_000 });
   const backupListQuery = useQuery({ queryKey: ["operations", "backups-list"], queryFn: listAvailableBackups, enabled: activeTab === "backups" });
@@ -155,6 +159,9 @@ export function OperationsPage() {
         <button className={`tab-button ${activeTab === "overview" ? "active" : ""}`} onClick={() => setActiveTab("overview")}>
           <Gauge size={16} /> Overview & Health
         </button>
+        <button className={`tab-button ${activeTab === "deployments" ? "active" : ""}`} onClick={() => setActiveTab("deployments")}>
+          <Rocket size={16} /> Deployments & Releases
+        </button>
         <button className={`tab-button ${activeTab === "backups" ? "active" : ""}`} onClick={() => setActiveTab("backups")}>
           <DatabaseBackup size={16} /> Backup & DR
         </button>
@@ -225,6 +232,130 @@ export function OperationsPage() {
               {analytics.data && <Evidence value={analytics.data} />}
             </article>
           </div>
+        </div>
+      )}
+
+      {/* Tab Content: Deployments & Releases */}
+      {activeTab === "deployments" && (
+        <div className="tab-pane">
+          {/* Environment Promotion Pipeline */}
+          <section className="panel">
+            <div className="panel-header">
+              <div>
+                <span className="panel-eyebrow">Immutable Artifact Promotion</span>
+                <h3>Active Environment State & Promotion Pipeline</h3>
+              </div>
+              <Rocket size={18} />
+            </div>
+
+            {deployments.isLoading && <LoadingState label="Loading deployment topology…" />}
+
+            {deployments.data && (
+              <div className="pipeline-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", padding: "1.25rem" }}>
+                {(deployments.data as { environments: Array<{
+                  environment: string;
+                  activeReleaseVersion: string;
+                  activeApiDigest?: string;
+                  activeStudioDigest?: string;
+                  currentStatus: string;
+                  lastDeployedAt?: string;
+                  activeReleaseManifestId?: string;
+                }> }).environments?.map((env) => (
+                  <div key={env.environment} className="environment-card panel" style={{ padding: "1rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                      <strong>{env.environment}</strong>
+                      <span className={`status-pill ${env.currentStatus === "Healthy" ? "status-healthy" : "status-warning"}`}>
+                        {env.currentStatus}
+                      </span>
+                    </div>
+                    <dl className="operations-facts" style={{ gap: "0.4rem" }}>
+                      <div><dt>Release Version</dt><dd>{env.activeReleaseVersion}</dd></div>
+                      <div><dt>API Digest</dt><dd style={{ fontFamily: "monospace", fontSize: "11px" }}>{env.activeApiDigest ? env.activeApiDigest.slice(0, 16) + "…" : "Local build"}</dd></div>
+                      <div><dt>Studio Digest</dt><dd style={{ fontFamily: "monospace", fontSize: "11px" }}>{env.activeStudioDigest ? env.activeStudioDigest.slice(0, 16) + "…" : "Local build"}</dd></div>
+                      <div><dt>Last Promotion</dt><dd>{env.lastDeployedAt ? new Date(env.lastDeployedAt).toLocaleString() : "Initial"}</dd></div>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Deployment History Table */}
+          {deployments.data && (
+            <section className="panel">
+              <div className="panel-header">
+                <div>
+                  <span className="panel-eyebrow">Audited Promotion Lifecycle</span>
+                  <h3>Deployment History & Evidence Records</h3>
+                </div>
+                <Clock size={18} />
+              </div>
+              <div className="execution-table-wrap">
+                <table className="execution-table">
+                  <thead>
+                    <tr>
+                      <th>Environment</th>
+                      <th>Version / Manifest</th>
+                      <th>Commit SHA</th>
+                      <th>Status</th>
+                      <th>Pre-Migration Backup</th>
+                      <th>Approved By</th>
+                      <th>Timestamp</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(deployments.data as { history: Array<{
+                      id: string;
+                      environment: string;
+                      releaseVersion: string;
+                      releaseManifestId: string;
+                      sourceCommitSha: string;
+                      status: string;
+                      backupIdBeforeMigration?: string;
+                      approvedBy?: string;
+                      createdAt: string;
+                    }> }).history?.map((d) => (
+                      <tr key={d.id}>
+                        <td><strong>{d.environment}</strong></td>
+                        <td>
+                          <span>{d.releaseVersion}</span>
+                          <small style={{ color: "var(--text-muted)", display: "block" }}>{d.releaseManifestId}</small>
+                        </td>
+                        <td><code style={{ fontSize: "11px" }}>{d.sourceCommitSha.slice(0, 8)}</code></td>
+                        <td>
+                          <span className={`status-pill ${d.status === "Healthy" ? "status-healthy" : d.status === "Pending" ? "status-warning" : "status-danger"}`}>
+                            {d.status}
+                          </span>
+                        </td>
+                        <td><small>{d.backupIdBeforeMigration ? d.backupIdBeforeMigration.slice(0, 16) + "…" : "N/A"}</small></td>
+                        <td>{d.approvedBy ?? "Auto/CI"}</td>
+                        <td>{new Date(d.createdAt).toLocaleString()}</td>
+                        <td>
+                          {d.status === "Pending" && (
+                            <button
+                              className="primary-button"
+                              style={{ minHeight: "28px", padding: "0 10px", fontSize: "11px" }}
+                              onClick={() => approveDeployment(d.id, "Platform Administrator UI Approval")}
+                            >
+                              Approve Promotion
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {(!(deployments.data as { history: unknown[] }).history?.length) && (
+                      <tr>
+                        <td colSpan={8} style={{ textAlign: "center", color: "var(--text-muted)", padding: "1.5rem" }}>
+                          No deployment promotion records registered yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </div>
       )}
 

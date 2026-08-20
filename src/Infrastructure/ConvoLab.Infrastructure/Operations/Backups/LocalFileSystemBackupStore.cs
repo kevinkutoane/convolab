@@ -73,6 +73,34 @@ internal sealed class LocalFileSystemBackupStore : IBackupStore
         return await JsonSerializer.DeserializeAsync<BackupArtifact>(stream, JsonOptions, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<BackupArtifact>> ListBackupsAsync(CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(_backupDirectory)) return Array.Empty<BackupArtifact>();
+
+        var list = new List<BackupArtifact>();
+        var subdirs = Directory.GetDirectories(_backupDirectory);
+
+        foreach (var dir in subdirs)
+        {
+            var manifestPath = Path.Combine(dir, "manifest.json");
+            if (File.Exists(manifestPath))
+            {
+                try
+                {
+                    await using var stream = File.OpenRead(manifestPath);
+                    var manifest = await JsonSerializer.DeserializeAsync<BackupArtifact>(stream, JsonOptions, cancellationToken);
+                    if (manifest != null) list.Add(manifest);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to deserialize manifest at {Path}", manifestPath);
+                }
+            }
+        }
+
+        return list.OrderByDescending(m => m.CreatedAt).ToList();
+    }
+
     public Task<Stream?> OpenDatabaseStreamAsync(string backupId, CancellationToken cancellationToken = default)
     {
         var path = Path.Combine(GetBackupFolderPath(backupId), "database.dump");

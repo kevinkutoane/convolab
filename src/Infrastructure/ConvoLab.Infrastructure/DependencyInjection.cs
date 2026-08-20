@@ -137,6 +137,7 @@ public static class DependencyInjection
         services.AddScoped<IBackupExecutor, BackupExecutor>();
         services.AddSingleton<IRestoreExecutor, RestoreExecutor>();
         services.AddScoped<IRecoveryVerifier, RecoveryVerifier>();
+        services.AddScoped<ConvoLab.Application.Operations.Deployment.IDeploymentService, ConvoLab.Infrastructure.Operations.Deployment.DeploymentService>();
         services.AddSingleton<OperationalMetricsSnapshotService>();
         services.AddHostedService(provider =>
             provider.GetRequiredService<OperationalMetricsSnapshotService>());

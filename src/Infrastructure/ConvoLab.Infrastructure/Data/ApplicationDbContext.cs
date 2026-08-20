@@ -86,6 +86,7 @@ public sealed class ApplicationDbContext : DbContext
     public DbSet<AnalyticsExportRecord> AnalyticsExports => Set<AnalyticsExportRecord>();
     public DbSet<PlatformOperationalSettingRecord> PlatformOperationalSettings => Set<PlatformOperationalSettingRecord>();
     public DbSet<OperationalWorkerHeartbeatRecord> OperationalWorkerHeartbeats => Set<OperationalWorkerHeartbeatRecord>();
+    public DbSet<ConvoLab.Domain.Operations.Deployment.DeploymentRecord> DeploymentRecords => Set<ConvoLab.Domain.Operations.Deployment.DeploymentRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -934,6 +935,27 @@ public sealed class ApplicationDbContext : DbContext
             entity.Property(item => item.CurrentStatus).HasMaxLength(40);
             entity.Property(item => item.Revision).IsConcurrencyToken();
             entity.HasIndex(item => item.LeaseExpiresAt);
+        });
+
+        modelBuilder.Entity<ConvoLab.Domain.Operations.Deployment.DeploymentRecord>(entity =>
+        {
+            entity.ToTable("DeploymentRecords");
+            entity.HasKey(item => item.Id);
+            entity.Property(item => item.ReleaseManifestId).HasMaxLength(120).IsRequired();
+            entity.Property(item => item.ReleaseVersion).HasMaxLength(60).IsRequired();
+            entity.Property(item => item.SourceCommitSha).HasMaxLength(100).IsRequired();
+            entity.Property(item => item.ApiImageDigest).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.StudioImageDigest).HasMaxLength(200).IsRequired();
+            entity.Property(item => item.Environment).HasMaxLength(60).IsRequired();
+            entity.Property(item => item.Status).HasMaxLength(40).HasConversion<string>().IsRequired();
+            entity.Property(item => item.ApprovedBy).HasMaxLength(200);
+            entity.Property(item => item.ApprovalReason).HasMaxLength(1000);
+            entity.Property(item => item.BackupIdBeforeMigration).HasMaxLength(200);
+            entity.Property(item => item.HealthCheckSummary).HasMaxLength(1000);
+            entity.Property(item => item.SmokeTestSummary).HasMaxLength(1000);
+            entity.Property(item => item.FailureReason).HasMaxLength(2000);
+            entity.HasIndex(item => new { item.Environment, item.CreatedAt });
+            entity.HasIndex(item => item.ReleaseManifestId);
         });
     }
 }

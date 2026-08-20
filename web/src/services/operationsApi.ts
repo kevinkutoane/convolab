@@ -77,6 +77,16 @@ export async function restoreBackup(id: string, allowDestructive: boolean = fals
 export async function getRecoveryStatus(operationId: string) {
   return (await api.get(`/api/operations/recovery/${operationId}`)).data;
 }
+export async function getDeployments(environment?: string) {
+  const query = environment ? `?environment=${encodeURIComponent(environment)}` : "";
+  return (await api.get(`/api/operations/deployments${query}`)).data;
+}
+export async function registerDeploymentCandidate(manifest: unknown, targetEnvironment: string) {
+  return (await api.post("/api/operations/deployments/candidates", { manifest, targetEnvironment })).data;
+}
+export async function approveDeployment(id: string, reason: string) {
+  return (await api.post(`/api/operations/deployments/${id}/approve`, { operatorId: "admin", reason })).data;
+}
 export async function getBuildEvidence() { return (await api.get("/api/operations/build")).data; }
 export async function getTelemetryEvidence() { return (await api.get("/api/operations/telemetry")).data; }
 export async function updateSafeMode(input: { enabled: boolean; expectedRevision: number; reason: string; confirmation: string }) {

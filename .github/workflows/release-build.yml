@@ -1,0 +1,55 @@
+name: Release Build & Artifact Assembly
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version (e.g. 1.0.0-alpha.16)'
+        required: true
+        default: '1.0.0-alpha.16'
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build-and-assemble:
+    name: Build Immutable Artifacts & SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Build API Image
+        run: |
+          docker build -t convolab-api:${{ github.event.inputs.version || github.ref_name }} -f src/Api/ConvoLab.Api/Dockerfile .
+
+      - name: Build Studio Image
+        run: |
+          docker build -t convolab-studio:${{ github.event.inputs.version || github.ref_name }} -f web/Dockerfile ./web
+
+      - name: Assemble Release Manifest
+        run: |
+          mkdir -p artifacts/release
+          bash tools/release/build-release-artifacts.sh "${{ github.event.inputs.version || github.ref_name }}"
+
+      - name: Upload Release Manifest Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest
+          path: artifacts/release/manifest.json

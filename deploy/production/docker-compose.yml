@@ -1,0 +1,59 @@
+name: convolab-production
+
+services:
+  api:
+    image: ${CONVOLAB_API_IMAGE_DIGEST}
+    container_name: convolab-prod-api
+    restart: unless-stopped
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=prod-db;Database=convolab_prod;Username=postgres;Password=${PROD_DB_PASSWORD}
+      Database__Provider: PostgreSql
+      Knowledge__StoragePath: /app/data/knowledge-documents
+      DataProtection__KeyRingPath: /app/data/data-protection
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY}
+    volumes:
+      - ./data/backups:/app/data/backups
+      - prod_knowledge_documents:/app/data/knowledge-documents
+      - prod_data_protection_keys:/app/data/data-protection
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n\" >&3 && head -n 1 <&3 | grep -q \" 200 \"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: ${CONVOLAB_STUDIO_IMAGE_DIGEST}
+    container_name: convolab-prod-studio
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: convolab-prod-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: convolab_prod
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD}
+    volumes:
+      - prod_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  prod_db_data:
+  prod_knowledge_documents:
+  prod_data_protection_keys:

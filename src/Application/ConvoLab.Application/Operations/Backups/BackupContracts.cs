@@ -53,6 +53,7 @@ public interface IBackupStore
 {
     Task SaveAsync(string backupId, BackupArtifact manifest, Stream databaseStream, Stream? documentsStream, Stream? dataProtectionStream, CancellationToken cancellationToken = default);
     Task<BackupArtifact?> GetManifestAsync(string backupId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<BackupArtifact>> ListBackupsAsync(CancellationToken cancellationToken = default);
     Task<Stream?> OpenDatabaseStreamAsync(string backupId, CancellationToken cancellationToken = default);
     Task<Stream?> OpenDocumentsStreamAsync(string backupId, CancellationToken cancellationToken = default);
     Task<Stream?> OpenDataProtectionStreamAsync(string backupId, CancellationToken cancellationToken = default);
