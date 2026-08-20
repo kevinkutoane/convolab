@@ -58,10 +58,12 @@ export function OperationsPage() {
   const telemetry = useQuery({ queryKey: ["operations", "telemetry"], queryFn: getTelemetryEvidence, staleTime: 30_000 });
 
   const [verificationResult, setVerificationResult] = useState<Record<string, unknown> | null>(null);
+  const [snapshotResult, setSnapshotResult] = useState<Record<string, unknown> | null>(null);
 
   const backupMutation = useMutation({
     mutationFn: createBackup,
-    onSuccess: async () => {
+    onSuccess: async (data) => {
+      setSnapshotResult(data as Record<string, unknown>);
       await queryClient.invalidateQueries({ queryKey: ["operations", "backups"] });
       await queryClient.invalidateQueries({ queryKey: ["operations", "status"] });
     },
@@ -238,6 +240,39 @@ export function OperationsPage() {
               <AlertTriangle size={16} />
               <span>{getApiErrorMessage(verifyMutation.error)}</span>
             </div>
+          )}
+
+          {/* Snapshot Created Success Banner / Card */}
+          {snapshotResult && (
+            <section className="panel verification-result-panel">
+              <div className="panel-header">
+                <div>
+                  <span className="panel-eyebrow">Cryptographic Snapshot Created</span>
+                  <h3>Backup Artifact Manifest</h3>
+                </div>
+                <span className="status-pill status-healthy"><CheckCircle2 size={13} /> Encrypted & Persisted</span>
+              </div>
+              <div className="verification-details">
+                <dl className="operations-facts">
+                  <div>
+                    <dt>Backup ID</dt>
+                    <dd>{String(snapshotResult.backupId ?? "")}</dd>
+                  </div>
+                  <div>
+                    <dt>Created Timestamp</dt>
+                    <dd>{new Date(String(snapshotResult.createdAt ?? "")).toLocaleString()}</dd>
+                  </div>
+                  <div>
+                    <dt>Database Dump Size</dt>
+                    <dd>{FormatBytes(Number((snapshotResult.database as Record<string, unknown>)?.sizeBytes ?? 0))}</dd>
+                  </div>
+                  <div>
+                    <dt>Database SHA-256</dt>
+                    <dd style={{ fontFamily: "monospace", fontSize: "11px" }}>{String((snapshotResult.database as Record<string, unknown>)?.sha256 ?? "N/A").slice(0, 16)}…</dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
           )}
 
           {/* Verification Results Modal / Card */}
