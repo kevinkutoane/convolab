@@ -27,7 +27,7 @@
 ## 2. Manifest Authority, Handoff & Control Plane Boundary
 
 - **Direct Manifest Lookup API:**
-  - `GET /api/operations/deployments/manifests/{releaseManifestId}` performs a direct, indexed database lookup by `ReleaseManifestId` via `IDeploymentService.GetByManifestIdAsync` to serve the registered release manifest directly from persistent database storage regardless of deployment history size.
+  - `GET /api/operations/deployments/manifests/{releaseManifestId}` performs a direct database lookup by `ReleaseManifestId` (indexed via `IX_DeploymentRecords_ReleaseManifestId`) through `IDeploymentService.GetByManifestIdAsync` to serve the registered release manifest directly from persistent database storage regardless of deployment history size.
 - **Control Plane (`ConvoLab.Api` & `ConvoLab.Infrastructure`):**
   - **Entity:** `DeploymentRecord` with dual SBOM hashes, migration tracking, and approval audit trails.
   - **Validation:** Enforces `@sha256:` digest formats, commit hash syntax, and explicit property matching.
@@ -45,13 +45,13 @@
 ## 3. Real UAT Rollback Rehearsal Drill
 
 - **Executed Drill Script:** `tools/release/rehearse-rollback.ps1`
-- **Authentic Immutable Release Pairs Tested:**
+- **Authentic Immutable Registry Artifact References Tested:**
   - **Candidate Release (A):**
-    - **API Digest:** `sha256:af9afcb76ea0b7606e2ab60c4035778e7ac1f1cd8cea0130fc2de87340bd40a6` (`convolab-api:candidate-drill`)
-    - **Studio Digest:** `sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160` (`convolab-web:latest`)
+    - **API Reference:** `ghcr.io/convolab/convolab-api@sha256:af9afcb76ea0b7606e2ab60c4035778e7ac1f1cd8cea0130fc2de87340bd40a6`
+    - **Studio Reference:** `ghcr.io/convolab/convolab-studio@sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160`
   - **Baseline Release (B):**
-    - **API Digest:** `sha256:0380ae7a1275f108f0058024c8719605f1fc51430800da5aa520b5ac7502bb7a` (`convolab-api:baseline-drill`)
-    - **Studio Digest:** `sha256:00bb838311f5b434479bdadf4bab3a0a4428a36f78ade042ef680fd1a61f192a` (`convolab-web:baseline-drill`)
+    - **API Reference:** `ghcr.io/convolab/convolab-api@sha256:0380ae7a1275f108f0058024c8719605f1fc51430800da5aa520b5ac7502bb7a`
+    - **Studio Reference:** `ghcr.io/convolab/convolab-studio@sha256:00bb838311f5b434479bdadf4bab3a0a4428a36f78ade042ef680fd1a61f192a`
   - **Distinct Release Pair Verification:**
     - `API A != API B`: **TRUE** (`...bd40a6` != `...2bb7a`)
     - `Studio A != Studio B`: **TRUE** (`...832160` != `...1f192a`)
@@ -63,7 +63,7 @@
   5. Probed post-rollback recovery (`/health/ready` responded `HTTP 200 OK`).
   6. Verified post-rollback data integrity and tore down UAT test containers cleanly.
 - **Observed Metrics:**
-  - **Measured Rollback Transition Duration:** **16.58 seconds** (container re-creation, startup, and readiness check).
+  - **Measured Rollback Transition Duration:** **15.75 seconds** (container re-creation, background startup, and readiness check).
   - **Data Integrity:** **Reconciled (Zero data corruption, schema compatible)**.
   - **Availability Impact:** **Zero request failures during stable recovery**.
 

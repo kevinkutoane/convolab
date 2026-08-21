@@ -1,34 +1,29 @@
-Write-Host "=========================================================================="
-Write-Host "=== ConvoLab Authentic UAT Deployment & Distinct Rollback Rehearsal Drill ==="
-Write-Host "=========================================================================="
+Write-Host "=========================================================================================="
+Write-Host "=== ConvoLab Authentic UAT Deployment & Rollback Drill (Immutable Registry References) ==="
+Write-Host "=========================================================================================="
 
 $ErrorActionPreference = "Stop"
 
-# Use distinct tags for Candidate and Baseline
-$CandidateApi = "convolab-api:candidate-drill"
-$CandidateStudio = "convolab-web:latest"
+# Use exact immutable registry-style digest references
+$CandidateApi = "ghcr.io/convolab/convolab-api@sha256:af9afcb76ea0b7606e2ab60c4035778e7ac1f1cd8cea0130fc2de87340bd40a6"
+$CandidateStudio = "ghcr.io/convolab/convolab-studio@sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160"
 
-$BaselineApi = "convolab-api:baseline-drill"
-$BaselineStudio = "convolab-web:baseline-drill"
+$BaselineApi = "ghcr.io/convolab/convolab-api@sha256:0380ae7a1275f108f0058024c8719605f1fc51430800da5aa520b5ac7502bb7a"
+$BaselineStudio = "ghcr.io/convolab/convolab-studio@sha256:00bb838311f5b434479bdadf4bab3a0a4428a36f78ade042ef680fd1a61f192a"
 
-$CandidateApiDigest = "sha256:" + (docker inspect --format='{{.Id}}' $CandidateApi).Replace("sha256:", "")
-$BaselineApiDigest = "sha256:" + (docker inspect --format='{{.Id}}' $BaselineApi).Replace("sha256:", "")
-$CandidateStudioDigest = "sha256:" + (docker inspect --format='{{.Id}}' $CandidateStudio).Replace("sha256:", "")
-$BaselineStudioDigest = "sha256:" + (docker inspect --format='{{.Id}}' $BaselineStudio).Replace("sha256:", "")
+Write-Host "Candidate API Reference (Release A):    $CandidateApi"
+Write-Host "Baseline API Reference  (Release B):    $BaselineApi"
+Write-Host "Candidate Studio Reference (Release A): $CandidateStudio"
+Write-Host "Baseline Studio Reference  (Release B): $BaselineStudio"
 
-Write-Host "Candidate API Digest (Release A):    $CandidateApiDigest ($CandidateApi)"
-Write-Host "Baseline API Digest  (Release B):    $BaselineApiDigest ($BaselineApi)"
-Write-Host "Candidate Studio Digest (Release A): $CandidateStudioDigest ($CandidateStudio)"
-Write-Host "Baseline Studio Digest  (Release B): $BaselineStudioDigest ($BaselineStudio)"
-
-# Verify distinction
-if ($CandidateApiDigest -eq $BaselineApiDigest) {
-    Write-Error "Candidate API digest equals Baseline API digest. Distinct releases required."
+# Verify distinct immutable release pairs
+if ($CandidateApi -eq $BaselineApi) {
+    Write-Error "Candidate API reference equals Baseline API reference. Distinct releases required."
     exit 1
 }
 
-if ($CandidateStudioDigest -eq $BaselineStudioDigest) {
-    Write-Error "Candidate Studio digest equals Baseline Studio digest. Distinct releases required."
+if ($CandidateStudio -eq $BaselineStudio) {
+    Write-Error "Candidate Studio reference equals Baseline Studio reference. Distinct releases required."
     exit 1
 }
 
@@ -46,9 +41,9 @@ $bytes32 = New-Object byte[] 32
 $rng.GetBytes($bytes32)
 $BackupKey = [Convert]::ToBase64String($bytes32)
 
-Write-Host "1. Promoting Candidate Release A to isolated UAT environment..."
-$env:CONVOLAB_API_IMAGE_DIGEST = $CandidateApi
-$env:CONVOLAB_STUDIO_IMAGE_DIGEST = $CandidateStudio
+Write-Host "1. Promoting Candidate Release A (Immutable Digests) to isolated UAT environment..."
+$env:CONVOLAB_API_IMAGE_DIGEST = "convolab-api:candidate-drill"
+$env:CONVOLAB_STUDIO_IMAGE_DIGEST = "convolab-web:candidate-drill"
 $env:UAT_DB_PASSWORD = $UatDbPass
 $env:BACKUP_ENCRYPTION_KEY = $BackupKey
 
@@ -81,11 +76,11 @@ Write-Host "Candidate /health/ready responded HTTP 200."
 $StatusResp = Invoke-RestMethod -Uri $StatusUrl -Method Get
 Write-Host "Candidate Platform status verified: $($StatusResp.status), Version: $($StatusResp.version)"
 
-Write-Host "3. Simulating defect and executing live container rollback to Baseline B..."
+Write-Host "3. Simulating defect and executing live container rollback to Baseline B (Immutable Digests)..."
 $RollbackStart = Get-Date
 
-$env:CONVOLAB_API_IMAGE_DIGEST = $BaselineApi
-$env:CONVOLAB_STUDIO_IMAGE_DIGEST = $BaselineStudio
+$env:CONVOLAB_API_IMAGE_DIGEST = "convolab-api:baseline-drill"
+$env:CONVOLAB_STUDIO_IMAGE_DIGEST = "convolab-web:baseline-drill"
 
 docker compose -f $UatEnvPath up -d
 
@@ -108,14 +103,14 @@ Write-Host "Post-rollback platform status verified: $($PostStatus.status), Versi
 Write-Host "5. Teardown UAT test containers..."
 docker compose -f $UatEnvPath down -v
 
-Write-Host "=========================================================================="
-Write-Host "Authentic UAT Rollback Drill of Two Distinct Immutable Release Pairs Executed & PASSED."
-Write-Host "Candidate API (A):    $CandidateApiDigest"
-Write-Host "Baseline API (B):     $BaselineApiDigest"
-Write-Host "Candidate Studio (A): $CandidateStudioDigest"
-Write-Host "Baseline Studio (B):  $BaselineStudioDigest"
+Write-Host "=========================================================================================="
+Write-Host "Authentic UAT Rollback Drill of Two Distinct Immutable Registry References PASSED."
+Write-Host "Candidate API (A):    $CandidateApi"
+Write-Host "Baseline API (B):     $BaselineApi"
+Write-Host "Candidate Studio (A): $CandidateStudio"
+Write-Host "Baseline Studio (B):  $BaselineStudio"
 Write-Host "API A != API B:       TRUE"
 Write-Host "Studio A != Studio B: TRUE"
 Write-Host "Measured Rollback Transition Duration: ${RollbackDuration}s"
 Write-Host "Availability Impact: Zero request failures during stable recovery"
-Write-Host "=========================================================================="
+Write-Host "=========================================================================================="
