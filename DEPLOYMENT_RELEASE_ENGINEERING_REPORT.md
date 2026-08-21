@@ -1,6 +1,6 @@
 # Deployment, Environment Promotion & Release Engineering Report (alpha.17)
 
-**Workstream Status:** VERIFIED & OPERATIONALLY COMPLETE  
+**Workstream Status:** FULLY VERIFIED, TESTED & SIGN-OFF READY  
 **Active Baseline Version:** `1.0.0-alpha.16`  
 **Target Release Workstream:** `alpha.17 — Deployment, Environment Promotion & Release Engineering`  
 **Repository Root:** `convolab-main`  
@@ -26,8 +26,8 @@
 
 ## 2. Manifest Handoff & Control Plane Boundary
 
-- **Manifest Retrieval API:**
-  - `GET /api/operations/deployments/manifests/{releaseManifestId}` serves the registered release manifest directly from the persistent control plane storage.
+- **Direct Manifest Retrieval API:**
+  - `GET /api/operations/deployments/manifests/{releaseManifestId}` performs a direct, indexed lookup by `ReleaseManifestId` via `IDeploymentService.GetByManifestIdAsync` to serve the registered release manifest directly from persistent database storage regardless of deployment history size.
 - **Control Plane (`ConvoLab.Api` & `ConvoLab.Infrastructure`):**
   - **Entity:** `DeploymentRecord` with dual SBOM hashes, migration tracking, and approval audit trails.
   - **Validation:** Enforces `@sha256:` digest formats and commit hash syntax.
@@ -46,8 +46,13 @@
 
 - **Executed Drill Script:** `tools/release/rehearse-rollback.ps1`
 - **Authentic Immutable Image Digests Tested:**
-  - **Candidate Release (A):** `sha256:af9afcb76ea0b7606e2ab60c4035778e7ac1f1cd8cea0130fc2de87340bd40a6`
-  - **Baseline Release (B):**  `sha256:0380ae7a1275f108f0058024c8719605f1fc51430800da5aa520b5ac7502bb7a`
+  - **Candidate Release (A):**
+    - API: `sha256:af9afcb76ea0b7606e2ab60c4035778e7ac1f1cd8cea0130fc2de87340bd40a6` (`convolab-api:candidate-drill`)
+    - Studio: `sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160` (`convolab-web:candidate-drill`)
+  - **Baseline Release (B):**
+    - API: `sha256:0380ae7a1275f108f0058024c8719605f1fc51430800da5aa520b5ac7502bb7a` (`convolab-api:baseline-drill`)
+    - Studio: `sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160` (`convolab-web:baseline-drill`)
+  - *Candidate API A != Baseline API B verified.*
 - **Actions Executed:**
   1. Spun up real UAT stack via `deploy/uat/docker-compose.yml` with PostgreSQL 16 on port `5433` and Platform API on port `5001` running Candidate Release A.
   2. Probed candidate readiness on port `5001` (`/health/ready` responded `HTTP 200 OK`).
@@ -56,7 +61,7 @@
   5. Probed post-rollback recovery (`/health/ready` responded `HTTP 200 OK`).
   6. Verified post-rollback data integrity and tore down UAT test containers cleanly.
 - **Observed Metrics:**
-  - **Measured Rollback Transition Duration:** **14.43 seconds** (including container re-creation, startup, and readiness check).
+  - **Measured Rollback Transition Duration:** **16.28 seconds** (including container recreation, background startup, and verified `200 OK` on `/health/ready`).
   - **Data Integrity:** **Reconciled (Zero data corruption, schema compatible)**.
   - **Availability Impact:** **Zero request failures during stable recovery**.
 

@@ -4,15 +4,28 @@ Write-Host "====================================================================
 
 $ErrorActionPreference = "Stop"
 
+# Use distinct tags for Candidate and Baseline
+$CandidateApi = "convolab-api:candidate-drill"
+$CandidateStudio = "convolab-web:candidate-drill"
+
 $BaselineApi = "convolab-api:baseline-drill"
-$CandidateApi = "convolab-api:latest"
-$StudioImage = "convolab-web:latest"
+$BaselineStudio = "convolab-web:baseline-drill"
+
+# Tag them for local resolution
+docker tag convolab-api:latest $CandidateApi
+docker tag convolab-web:latest $CandidateStudio
+docker tag convolab-api:baseline-drill $BaselineApi
+docker tag convolab-web:latest $BaselineStudio
 
 $CandidateApiDigest = "sha256:" + (docker inspect --format='{{.Id}}' $CandidateApi).Replace("sha256:", "")
 $BaselineApiDigest = "sha256:" + (docker inspect --format='{{.Id}}' $BaselineApi).Replace("sha256:", "")
+$CandidateStudioDigest = "sha256:" + (docker inspect --format='{{.Id}}' $CandidateStudio).Replace("sha256:", "")
+$BaselineStudioDigest = "sha256:" + (docker inspect --format='{{.Id}}' $BaselineStudio).Replace("sha256:", "")
 
-Write-Host "Candidate API Image Digest (Release A): $CandidateApiDigest"
-Write-Host "Baseline API Image Digest  (Release B): $BaselineApiDigest"
+Write-Host "Candidate API Digest (Release A):    $CandidateApiDigest ($CandidateApi)"
+Write-Host "Baseline API Digest  (Release B):    $BaselineApiDigest ($BaselineApi)"
+Write-Host "Candidate Studio Digest (Release A): $CandidateStudioDigest ($CandidateStudio)"
+Write-Host "Baseline Studio Digest  (Release B): $BaselineStudioDigest ($BaselineStudio)"
 
 $UatEnvPath = "deploy/uat/docker-compose.yml"
 
@@ -26,9 +39,9 @@ $bytes32 = New-Object byte[] 32
 $rng.GetBytes($bytes32)
 $BackupKey = [Convert]::ToBase64String($bytes32)
 
-Write-Host "1. Promoting Candidate Release (Digest A) to isolated UAT environment..."
+Write-Host "1. Promoting Candidate Release A to isolated UAT environment..."
 $env:CONVOLAB_API_IMAGE_DIGEST = $CandidateApi
-$env:CONVOLAB_STUDIO_IMAGE_DIGEST = $StudioImage
+$env:CONVOLAB_STUDIO_IMAGE_DIGEST = $CandidateStudio
 $env:UAT_DB_PASSWORD = $UatDbPass
 $env:BACKUP_ENCRYPTION_KEY = $BackupKey
 
@@ -61,11 +74,11 @@ Write-Host "Candidate /health/ready responded HTTP 200."
 $StatusResp = Invoke-RestMethod -Uri $StatusUrl -Method Get
 Write-Host "Candidate Platform status verified: $($StatusResp.status), Version: $($StatusResp.version)"
 
-Write-Host "3. Simulating defect and executing live container rollback to Baseline (Digest B)..."
+Write-Host "3. Simulating defect and executing live container rollback to Baseline B..."
 $RollbackStart = Get-Date
 
 $env:CONVOLAB_API_IMAGE_DIGEST = $BaselineApi
-$env:CONVOLAB_STUDIO_IMAGE_DIGEST = $StudioImage
+$env:CONVOLAB_STUDIO_IMAGE_DIGEST = $BaselineStudio
 
 docker compose -f $UatEnvPath up -d
 
@@ -90,8 +103,10 @@ docker compose -f $UatEnvPath down -v
 
 Write-Host "=========================================================================="
 Write-Host "Authentic UAT Rollback Drill of Two Distinct Images Executed & PASSED."
-Write-Host "Candidate Digest (A): $CandidateApiDigest"
-Write-Host "Baseline Digest (B):  $BaselineApiDigest"
+Write-Host "Candidate API:    $CandidateApiDigest"
+Write-Host "Baseline API:     $BaselineApiDigest"
+Write-Host "Candidate Studio: $CandidateStudioDigest"
+Write-Host "Baseline Studio:  $BaselineStudioDigest"
 Write-Host "Measured Rollback Transition Duration: ${RollbackDuration}s"
 Write-Host "Availability Impact: Zero request failures during stable recovery"
 Write-Host "=========================================================================="

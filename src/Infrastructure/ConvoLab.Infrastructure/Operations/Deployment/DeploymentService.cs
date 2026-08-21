@@ -114,6 +114,14 @@ internal sealed class DeploymentService : IDeploymentService
         return await _dbContext.DeploymentRecords.FirstOrDefaultAsync(d => d.Id == deploymentId, cancellationToken);
     }
 
+    public async Task<DeploymentRecord?> GetByManifestIdAsync(string releaseManifestId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.DeploymentRecords
+            .Where(d => d.ReleaseManifestId == releaseManifestId)
+            .OrderByDescending(d => d.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<DeploymentRecord>> ListDeploymentsAsync(string? environment = null, int limit = 50, CancellationToken cancellationToken = default)
     {
         var query = _dbContext.DeploymentRecords.AsQueryable();

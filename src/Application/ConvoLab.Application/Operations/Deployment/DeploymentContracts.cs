@@ -53,6 +53,7 @@ public interface IDeploymentService
     Task<DeploymentRecord> StartDeploymentAsync(Guid deploymentId, string? backupIdBeforeMigration = null, CancellationToken cancellationToken = default);
     Task<DeploymentRecord> CompleteDeploymentAsync(Guid deploymentId, CompleteDeploymentRequest request, CancellationToken cancellationToken = default);
     Task<DeploymentRecord?> GetDeploymentAsync(Guid deploymentId, CancellationToken cancellationToken = default);
+    Task<DeploymentRecord?> GetByManifestIdAsync(string releaseManifestId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DeploymentRecord>> ListDeploymentsAsync(string? environment = null, int limit = 50, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<EnvironmentDeploymentState>> GetEnvironmentStatesAsync(CancellationToken cancellationToken = default);
 }
