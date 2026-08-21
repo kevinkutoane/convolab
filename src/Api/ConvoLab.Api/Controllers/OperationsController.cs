@@ -451,6 +451,33 @@ public sealed class OperationsController(
         return Ok(new { environments = states, history });
     }
 
+    [HttpGet("deployments/manifests/{releaseManifestId}")]
+    public async Task<ActionResult> GetReleaseManifest(
+        string releaseManifestId,
+        [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
+        CancellationToken ct = default)
+    {
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        var history = await deploymentService.ListDeploymentsAsync(null, 100, ct);
+        var record = history.FirstOrDefault(d => d.ReleaseManifestId.Equals(releaseManifestId, StringComparison.OrdinalIgnoreCase));
+        if (record == null) return NotFound(new ProblemDetails { Title = "Release manifest not found", Detail = $"Release manifest '{releaseManifestId}' has not been registered." });
+
+        return Ok(new
+        {
+            releaseManifestId = record.ReleaseManifestId,
+            releaseVersion = record.ReleaseVersion,
+            sourceCommitSha = record.SourceCommitSha,
+            apiImageDigest = record.ApiImageDigest,
+            studioImageDigest = record.StudioImageDigest,
+            migrationVersion = record.MigrationVersion,
+            apiSbomSha256 = record.ApiSbomSha256,
+            studioSbomSha256 = record.StudioSbomSha256,
+            provenanceReference = record.ProvenanceReference,
+            environment = record.Environment,
+            status = record.Status.ToString()
+        });
+    }
+
     [HttpPost("deployments/candidates")]
     public async Task<ActionResult> RegisterCandidate(
         [FromBody] ConvoLab.Application.Operations.Deployment.RegisterCandidateRequest request,

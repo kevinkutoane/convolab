@@ -152,6 +152,7 @@ jobs:
           echo "Smoke tests passed."
 
       - name: Record Deployment Evidence to Control Plane
+        if: always()
         env:
           CONTROL_PLANE_URL: ${{ secrets.CONVOLAB_CONTROL_PLANE_URL || 'https://api.convolab.io' }}
         run: |
@@ -167,20 +168,3 @@ jobs:
               echo "Fatal: Failed to report deployment evidence to control plane. Promotion failed closed."
               exit 1
             }
-              echo "Readiness confirmed."
-              break
-            fi
-            sleep 2
-          done
-
-          # Safe non-destructive platform status smoke probe
-          curl -fsSL "http://localhost:${TARGET_PORT}/api/platform/status"
-          echo "Smoke tests passed."
-
-      - name: Record Deployment Evidence to Control Plane
-        run: |
-          echo "Reporting deployment completion to ConvoLab Control Plane..."
-          curl -fsSL -X POST -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_RUNNER_SECRET }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"isHealthy\": true, \"healthSummary\": \"/health/ready passed, smoke tests verified.\", \"smokeTestSummary\": \"Platform status verified.\"}" \
-            "http://localhost:5000/api/operations/deployments/${{ github.event.inputs.release_manifest_id }}/complete" || true
