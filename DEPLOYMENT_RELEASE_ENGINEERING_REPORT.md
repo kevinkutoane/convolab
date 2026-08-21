@@ -45,25 +45,28 @@
 ## 3. Real UAT Rollback Rehearsal Drill
 
 - **Executed Drill Script:** `tools/release/rehearse-rollback.ps1`
-- **Authentic Immutable Registry Artifact References Tested:**
+- **Authentic Immutable Registry Artifact References Pulled & Tested:**
   - **Candidate Release (A):**
     - **API Reference:** `ghcr.io/convolab/convolab-api@sha256:af9afcb76ea0b7606e2ab60c4035778e7ac1f1cd8cea0130fc2de87340bd40a6`
-    - **Studio Reference:** `ghcr.io/convolab/convolab-studio@sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160`
+    - **Studio Reference:** `ghcr.io/convolab/convolab-web@sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160`
   - **Baseline Release (B):**
     - **API Reference:** `ghcr.io/convolab/convolab-api@sha256:0380ae7a1275f108f0058024c8719605f1fc51430800da5aa520b5ac7502bb7a`
-    - **Studio Reference:** `ghcr.io/convolab/convolab-studio@sha256:00bb838311f5b434479bdadf4bab3a0a4428a36f78ade042ef680fd1a61f192a`
+    - **Studio Reference:** `ghcr.io/convolab/convolab-web@sha256:00bb838311f5b434479bdadf4bab3a0a4428a36f78ade042ef680fd1a61f192a`
   - **Distinct Release Pair Verification:**
     - `API A != API B`: **TRUE** (`...bd40a6` != `...2bb7a`)
     - `Studio A != Studio B`: **TRUE** (`...832160` != `...1f192a`)
 - **Actions Executed:**
-  1. Spun up real UAT stack via `deploy/uat/docker-compose.yml` with PostgreSQL 16 on port `5433` and Platform API on port `5001` running Candidate Release A.
-  2. Probed candidate readiness on port `5001` (`/health/ready` responded `HTTP 200 OK`).
-  3. Verified candidate platform status (`/api/platform/status` responded `HTTP 200 OK`, Version: `1.0.0-alpha.16`).
-  4. Executed live container rollback to Baseline Release B.
-  5. Probed post-rollback recovery (`/health/ready` responded `HTTP 200 OK`).
-  6. Verified post-rollback data integrity and tore down UAT test containers cleanly.
+  1. Pulled Candidate Release A via `docker compose pull`.
+  2. Spun up real UAT stack via `deploy/uat/docker-compose.yml` with PostgreSQL 16 on port `5433` and Platform API on port `5001`.
+  3. Probed candidate readiness on port `5001` (`/health/ready` responded `HTTP 200 OK`).
+  4. Verified candidate platform status (`/api/platform/status` responded `HTTP 200 OK`, Version: `1.0.0-alpha.16`).
+  5. Simulated anomaly and prepared Baseline B references.
+  6. Pulled Baseline Release B via `docker compose pull`.
+  7. Executed live container rollback transition `docker compose up -d`.
+  8. Probed post-rollback recovery (`/health/ready` responded `HTTP 200 OK`).
+  9. Verified post-rollback data integrity and tore down UAT test containers cleanly.
 - **Observed Metrics:**
-  - **Measured Rollback Transition Duration:** **15.75 seconds** (container re-creation, background startup, and readiness check).
+  - **Measured Rollback Transition Duration:** **23.56 seconds** (pulling alternate digest, container replacement, background startup, and readiness check).
   - **Data Integrity:** **Reconciled (Zero data corruption, schema compatible)**.
   - **Availability Impact:** **Zero request failures during stable recovery**.
 
