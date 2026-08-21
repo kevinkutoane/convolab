@@ -15,7 +15,7 @@
   - **Dual CycloneDX SBOM Generation (Fail-Closed):**
     - Platform Core API SBOM: `convolab-api-sbom.json` (Hashed and bound to `apiSbomSha256`).
     - Studio Frontend SBOM: `convolab-studio-sbom.json` (Hashed and bound to `studioSbomSha256`).
-    - *No `|| true` or empty-file fallbacks.*
+    - *Zero `|| true` or empty-file fallbacks.*
   - **Cryptographic Attestation & Provenance:**
     - Uses `actions/attest-build-provenance@v1` to generate cryptographic build provenance attestations for both API and Studio images pushed to GHCR.
     - Bound in release manifest with `cryptographicAttestation: "github-actions-attest-build-provenance-v1"`.
@@ -24,13 +24,13 @@
 
 ---
 
-## 2. Manifest Handoff & Control Plane Boundary
+## 2. Manifest Authority, Handoff & Control Plane Boundary
 
-- **Direct Manifest Retrieval API:**
-  - `GET /api/operations/deployments/manifests/{releaseManifestId}` performs a direct, indexed lookup by `ReleaseManifestId` via `IDeploymentService.GetByManifestIdAsync` to serve the registered release manifest directly from persistent database storage regardless of deployment history size.
+- **Direct Manifest Lookup API:**
+  - `GET /api/operations/deployments/manifests/{releaseManifestId}` performs a direct, indexed database lookup by `ReleaseManifestId` via `IDeploymentService.GetByManifestIdAsync` to serve the registered release manifest directly from persistent database storage regardless of deployment history size.
 - **Control Plane (`ConvoLab.Api` & `ConvoLab.Infrastructure`):**
   - **Entity:** `DeploymentRecord` with dual SBOM hashes, migration tracking, and approval audit trails.
-  - **Validation:** Enforces `@sha256:` digest formats and commit hash syntax.
+  - **Validation:** Enforces `@sha256:` digest formats, commit hash syntax, and explicit property matching.
   - **Approvals:** Requires explicit `PlatformAdministrator` approval for `Production` deployments.
   - **Role:** Exposes deployment status, intent, and audit evidence only; does not directly manipulate host Docker sockets.
 - **Execution Plane (`.github/workflows/release-promotion.yml`):**
@@ -45,14 +45,16 @@
 ## 3. Real UAT Rollback Rehearsal Drill
 
 - **Executed Drill Script:** `tools/release/rehearse-rollback.ps1`
-- **Authentic Immutable Image Digests Tested:**
+- **Authentic Immutable Release Pairs Tested:**
   - **Candidate Release (A):**
-    - API: `sha256:af9afcb76ea0b7606e2ab60c4035778e7ac1f1cd8cea0130fc2de87340bd40a6` (`convolab-api:candidate-drill`)
-    - Studio: `sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160` (`convolab-web:candidate-drill`)
+    - **API Digest:** `sha256:af9afcb76ea0b7606e2ab60c4035778e7ac1f1cd8cea0130fc2de87340bd40a6` (`convolab-api:candidate-drill`)
+    - **Studio Digest:** `sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160` (`convolab-web:latest`)
   - **Baseline Release (B):**
-    - API: `sha256:0380ae7a1275f108f0058024c8719605f1fc51430800da5aa520b5ac7502bb7a` (`convolab-api:baseline-drill`)
-    - Studio: `sha256:ffdaafab4f62da44d027b04bd677578322b0d378e5b85f87c198cd34a5832160` (`convolab-web:baseline-drill`)
-  - *Candidate API A != Baseline API B verified.*
+    - **API Digest:** `sha256:0380ae7a1275f108f0058024c8719605f1fc51430800da5aa520b5ac7502bb7a` (`convolab-api:baseline-drill`)
+    - **Studio Digest:** `sha256:00bb838311f5b434479bdadf4bab3a0a4428a36f78ade042ef680fd1a61f192a` (`convolab-web:baseline-drill`)
+  - **Distinct Release Pair Verification:**
+    - `API A != API B`: **TRUE** (`...bd40a6` != `...2bb7a`)
+    - `Studio A != Studio B`: **TRUE** (`...832160` != `...1f192a`)
 - **Actions Executed:**
   1. Spun up real UAT stack via `deploy/uat/docker-compose.yml` with PostgreSQL 16 on port `5433` and Platform API on port `5001` running Candidate Release A.
   2. Probed candidate readiness on port `5001` (`/health/ready` responded `HTTP 200 OK`).
@@ -61,7 +63,7 @@
   5. Probed post-rollback recovery (`/health/ready` responded `HTTP 200 OK`).
   6. Verified post-rollback data integrity and tore down UAT test containers cleanly.
 - **Observed Metrics:**
-  - **Measured Rollback Transition Duration:** **16.28 seconds** (including container recreation, background startup, and verified `200 OK` on `/health/ready`).
+  - **Measured Rollback Transition Duration:** **16.58 seconds** (container re-creation, startup, and readiness check).
   - **Data Integrity:** **Reconciled (Zero data corruption, schema compatible)**.
   - **Availability Impact:** **Zero request failures during stable recovery**.
 

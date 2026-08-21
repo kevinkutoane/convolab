@@ -6,16 +6,10 @@ $ErrorActionPreference = "Stop"
 
 # Use distinct tags for Candidate and Baseline
 $CandidateApi = "convolab-api:candidate-drill"
-$CandidateStudio = "convolab-web:candidate-drill"
+$CandidateStudio = "convolab-web:latest"
 
 $BaselineApi = "convolab-api:baseline-drill"
 $BaselineStudio = "convolab-web:baseline-drill"
-
-# Tag them for local resolution
-docker tag convolab-api:latest $CandidateApi
-docker tag convolab-web:latest $CandidateStudio
-docker tag convolab-api:baseline-drill $BaselineApi
-docker tag convolab-web:latest $BaselineStudio
 
 $CandidateApiDigest = "sha256:" + (docker inspect --format='{{.Id}}' $CandidateApi).Replace("sha256:", "")
 $BaselineApiDigest = "sha256:" + (docker inspect --format='{{.Id}}' $BaselineApi).Replace("sha256:", "")
@@ -26,6 +20,19 @@ Write-Host "Candidate API Digest (Release A):    $CandidateApiDigest ($Candidate
 Write-Host "Baseline API Digest  (Release B):    $BaselineApiDigest ($BaselineApi)"
 Write-Host "Candidate Studio Digest (Release A): $CandidateStudioDigest ($CandidateStudio)"
 Write-Host "Baseline Studio Digest  (Release B): $BaselineStudioDigest ($BaselineStudio)"
+
+# Verify distinction
+if ($CandidateApiDigest -eq $BaselineApiDigest) {
+    Write-Error "Candidate API digest equals Baseline API digest. Distinct releases required."
+    exit 1
+}
+
+if ($CandidateStudioDigest -eq $BaselineStudioDigest) {
+    Write-Error "Candidate Studio digest equals Baseline Studio digest. Distinct releases required."
+    exit 1
+}
+
+Write-Host "Distinct release pairs verified: API A != API B and Studio A != Studio B."
 
 $UatEnvPath = "deploy/uat/docker-compose.yml"
 
@@ -102,11 +109,13 @@ Write-Host "5. Teardown UAT test containers..."
 docker compose -f $UatEnvPath down -v
 
 Write-Host "=========================================================================="
-Write-Host "Authentic UAT Rollback Drill of Two Distinct Images Executed & PASSED."
-Write-Host "Candidate API:    $CandidateApiDigest"
-Write-Host "Baseline API:     $BaselineApiDigest"
-Write-Host "Candidate Studio: $CandidateStudioDigest"
-Write-Host "Baseline Studio:  $BaselineStudioDigest"
+Write-Host "Authentic UAT Rollback Drill of Two Distinct Immutable Release Pairs Executed & PASSED."
+Write-Host "Candidate API (A):    $CandidateApiDigest"
+Write-Host "Baseline API (B):     $BaselineApiDigest"
+Write-Host "Candidate Studio (A): $CandidateStudioDigest"
+Write-Host "Baseline Studio (B):  $BaselineStudioDigest"
+Write-Host "API A != API B:       TRUE"
+Write-Host "Studio A != Studio B: TRUE"
 Write-Host "Measured Rollback Transition Duration: ${RollbackDuration}s"
 Write-Host "Availability Impact: Zero request failures during stable recovery"
 Write-Host "=========================================================================="
