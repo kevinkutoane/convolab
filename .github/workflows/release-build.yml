@@ -131,6 +131,20 @@ jobs:
           vuln-type: 'os,library'
           severity: 'CRITICAL'
 
+      - name: Attest API Build Provenance & SBOM
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.IMAGE_API }}
+          subject-digest: ${{ steps.digests.outputs.api_digest }}
+          push-to-registry: true
+
+      - name: Attest Studio Build Provenance & SBOM
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-name: ${{ env.IMAGE_STUDIO }}
+          subject-digest: ${{ steps.digests.outputs.studio_digest }}
+          push-to-registry: true
+
       - name: Assemble Immutable Release Manifest
         id: manifest
         run: |
@@ -146,6 +160,7 @@ jobs:
             "apiSbomSha256": "${{ steps.sbom.outputs.api_sbom_sha256 }}",
             "studioSbomSha256": "${{ steps.sbom.outputs.studio_sbom_sha256 }}",
             "provenanceReference": "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "cryptographicAttestation": "github-actions-attest-build-provenance-v1",
             "buildWorkflowId": "${{ github.run_id }}",
             "buildTimestamp": "${{ steps.meta.outputs.timestamp }}",
             "isBackwardCompatible": true,

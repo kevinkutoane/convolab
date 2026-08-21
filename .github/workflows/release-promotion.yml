@@ -152,7 +152,6 @@ jobs:
           echo "Smoke tests passed."
 
       - name: Record Deployment Evidence to Control Plane
-        if: always()
         env:
           CONTROL_PLANE_URL: ${{ secrets.CONVOLAB_CONTROL_PLANE_URL || 'https://api.convolab.io' }}
         run: |
@@ -160,10 +159,14 @@ jobs:
           SUCCESS=true
           if [ "${{ job.status }}" != "success" ]; then SUCCESS=false; fi
 
+          # Fail closed: if evidence submission fails, exit with error code 1
           curl -fsSL -X POST -H "Authorization: Bearer ${{ secrets.DEPLOYMENT_RUNNER_SECRET }}" \
             -H "Content-Type: application/json" \
             -d "{\"isHealthy\": ${SUCCESS}, \"healthSummary\": \"/health/ready status: ${{ job.status }}\", \"smokeTestSummary\": \"Platform status verified.\"}" \
-            "${CONTROL_PLANE_URL}/api/operations/deployments/${{ steps.register-candidate.outputs.deployment_id }}/complete" || true
+            "${CONTROL_PLANE_URL}/api/operations/deployments/${{ steps.register-candidate.outputs.deployment_id }}/complete" || {
+              echo "Fatal: Failed to report deployment evidence to control plane. Promotion failed closed."
+              exit 1
+            }
               echo "Readiness confirmed."
               break
             fi

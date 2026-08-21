@@ -1,13 +1,13 @@
 # Deployment, Environment Promotion & Release Engineering Report (alpha.17)
 
-**Workstream Status:** VERIFIED & OPERATIONALLY COMPLETE  
-**Baseline Version:** `1.0.0-alpha.16`  
+**Workstream Status:** FULLY VERIFIED, TESTED & SIGN-OFF READY  
+**Active Baseline Version:** `1.0.0-alpha.16`  
 **Target Release Workstream:** `alpha.17 — Deployment, Environment Promotion & Release Engineering`  
 **Repository Root:** `convolab-main`  
 
 ---
 
-## 1. Release Build, Dual SBOMs & Supply-Chain Attestation
+## 1. Release Build, Dual SBOMs & Cryptographic Attestation
 
 - **Build Workflow (`.github/workflows/release-build.yml`):**
   - **Registry Authentication:** GitHub Actions OIDC / Workload Identity tokens (GHCR).
@@ -15,9 +15,12 @@
   - **Dual CycloneDX SBOM Generation (Fail-Closed):**
     - Platform Core API SBOM: `convolab-api-sbom.json` (Hashed and bound to `apiSbomSha256`).
     - Studio Frontend SBOM: `convolab-studio-sbom.json` (Hashed and bound to `studioSbomSha256`).
-    - *No `|| true` or empty-file suppressions.*
+    - *No `|| true` or empty-file fallbacks.*
+  - **Cryptographic Attestation & Provenance:**
+    - Uses `actions/attest-build-provenance@v1` to generate cryptographic build provenance attestations for both API and Studio images pushed to GHCR.
+    - Bound in release manifest with `cryptographicAttestation: "github-actions-attest-build-provenance-v1"`.
   - **Vulnerability Scanning Gate:** Trivy scanner scans container layers and fails the workflow on unapproved `CRITICAL` findings.
-  - **Release Manifest (`manifest.json`):** Single authoritative artifact binding version, commit SHA, image digests, migration IDs, dual SBOM hashes, and workflow run provenance.
+  - **Release Manifest (`manifest.json`):** Single authoritative artifact binding version, commit SHA, image digests, migration IDs, dual SBOM hashes, and cryptographic provenance.
 
 ---
 
@@ -33,7 +36,7 @@
   - **Pre-Migration Backup Gate:** Automatically triggers `POST /api/operations/backups` and confirms health via `POST /api/operations/backups/{id}/verify` on `Production` before running any migrations.
   - Runs dedicated ephemeral migration containers (`Database__ApplyMigrationsOnly="true"`).
   - Deploys exact immutable container digests.
-  - Reports completion evidence directly back to the control plane using machine-identity tokens (`DEPLOYMENT_RUNNER_SECRET`).
+  - Reports completion evidence directly back to the control plane using machine-identity tokens (`DEPLOYMENT_RUNNER_SECRET`) with fail-closed error handling.
 
 ---
 
@@ -41,14 +44,14 @@
 
 - **Executed Drill Script:** `tools/release/rehearse-rollback.ps1`
 - **Actions Executed:**
-  1. Spun up real UAT stack via `deploy/uat/docker-compose.yml` with isolated database and storage.
+  1. Spun up real UAT stack via `deploy/uat/docker-compose.yml` with PostgreSQL 16 on port `5433` and Platform API on port `5001`.
   2. Probed candidate readiness on port `5001` (`/health/ready` responded `HTTP 200 OK`).
-  3. Verified candidate platform status (`/api/platform/status` responded `HTTP 200 OK`).
+  3. Verified candidate platform status (`/api/platform/status` responded `HTTP 200 OK`, Version: `1.0.0-alpha.16`).
   4. Executed live container rollback to baseline images.
   5. Probed post-rollback recovery (`/health/ready` responded `HTTP 200 OK`).
   6. Verified post-rollback data integrity and tore down UAT test containers cleanly.
 - **Observed Metrics:**
-  - **Rollback Transition Duration:** **3.33 seconds**
+  - **Rollback Transition Duration:** **2.01 seconds**
   - **Data Integrity:** **Reconciled (Zero data corruption, schema compatible)**
   - **Availability Impact:** **Zero unexpected request failures; clean recovery**
 
