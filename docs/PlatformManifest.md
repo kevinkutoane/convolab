@@ -52,7 +52,7 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 
 ## Current release
 
-Platform Core and Studio are at `v1.0.0-alpha.16`. Existing functional v1 capabilities remain stable. Backup, Restore & Disaster Recovery v1 is delivered with authenticated encryption, non-destructive restoration workflows, deep recovery verification, and an overhauled Operations Center console.
+Platform Core and Studio are at `v1.0.0-alpha.17`. Existing functional v1 capabilities remain stable. Backup, Restore & Disaster Recovery v1 is delivered with authenticated encryption, non-destructive restoration workflows, deep recovery verification, and an overhauled Operations Center console.
 
 ## Planned products
 
@@ -111,4 +111,4 @@ Platform Core is not:
 
 ## Current maturity
 
-Platform Core and Studio are at `v1.0.0-alpha.16`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, managed environments, trusted runtime attribution, workspace/environment Platform Analytics, Entra/Hybrid Authentication, and Backup/Restore/Disaster Recovery v1 are functional capabilities. Production live enterprise SSO validation, managed vault adapters, enterprise operational rehearsal, and UAT sign-off remain beta work.
+Platform Core and Studio are at `v1.0.0-alpha.17`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, managed environments, trusted runtime attribution, workspace/environment Platform Analytics, Entra/Hybrid Authentication, and Backup/Restore/Disaster Recovery v1 are functional capabilities. Production live enterprise SSO validation, managed vault adapters, enterprise operational rehearsal, and UAT sign-off remain beta work.

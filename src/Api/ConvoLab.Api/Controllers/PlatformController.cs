@@ -50,7 +50,7 @@ public sealed class PlatformController(IPlatformOperationalState operationalStat
 
     private static string Version() =>
         (typeof(PlatformController).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-         ?? "1.0.0-alpha.16").Split('+', 2)[0];
+         ?? "1.0.0-alpha.17").Split('+', 2)[0];
 }
 
 public sealed record PlatformStatusResponse(

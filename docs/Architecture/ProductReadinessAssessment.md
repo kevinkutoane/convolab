@@ -1,4 +1,4 @@
-# Product Readiness Assessment — v1.0.0-alpha.16
+# Product Readiness Assessment â€” v1.0.0-alpha.17
 
 ## Decision
 

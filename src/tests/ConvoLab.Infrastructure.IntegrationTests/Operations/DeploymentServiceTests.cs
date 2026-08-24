@@ -32,7 +32,7 @@ public sealed class DeploymentServiceTests
 
         var manifest = new ReleaseManifest(
             ReleaseManifestId: "manifest-v1-abc",
-            ReleaseVersion: "1.0.0-alpha.16",
+            ReleaseVersion: "1.0.0-alpha.17",
             SourceCommitSha: "a1b2c3d4e5f6",
             ApiImageDigest: "ghcr.io/convolab/api@sha256:1111111111111111111111111111111111111111111111111111111111111111",
             StudioImageDigest: "ghcr.io/convolab/studio@sha256:2222222222222222222222222222222222222222222222222222222222222222",
@@ -61,7 +61,7 @@ public sealed class DeploymentServiceTests
 
         var manifest = new ReleaseManifest(
             ReleaseManifestId: "manifest-v1-prod",
-            ReleaseVersion: "1.0.0-alpha.16",
+            ReleaseVersion: "1.0.0-alpha.17",
             SourceCommitSha: "a1b2c3d4e5f6",
             ApiImageDigest: "ghcr.io/convolab/api@sha256:1111",
             StudioImageDigest: "ghcr.io/convolab/studio@sha256:2222",
@@ -89,7 +89,7 @@ public sealed class DeploymentServiceTests
 
         var manifest = new ReleaseManifest(
             ReleaseManifestId: "manifest-v1-smoke",
-            ReleaseVersion: "1.0.0-alpha.16",
+            ReleaseVersion: "1.0.0-alpha.17",
             SourceCommitSha: "a1b2c3d4e5f6",
             ApiImageDigest: "ghcr.io/convolab/api@sha256:1111",
             StudioImageDigest: "ghcr.io/convolab/studio@sha256:2222",

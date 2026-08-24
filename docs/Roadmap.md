@@ -1,12 +1,12 @@
 # ConvoLab Roadmap
 
-Current release: `v1.0.0-alpha.16`.
+Current release: `v1.0.0-alpha.17`.
 
-Delivered workstream: `alpha.16 — Backup, Restore & Disaster Recovery`. The scope covers defining the DR runbook, safe PostgreSQL snapshot restoration, handling of data protection keys across environments, active Operations Center telemetry for RPO compliance, and the Operations Center UI overhaul.
+Delivered workstream: `alpha.16 â€” Backup, Restore & Disaster Recovery`. The scope covers defining the DR runbook, safe PostgreSQL snapshot restoration, handling of data protection keys across environments, active Operations Center telemetry for RPO compliance, and the Operations Center UI overhaul.
 
-Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`. The scope covers tenant-specific OIDC, explicit identity linking (provider + issuer + subject), opaque application sessions, hybrid/local policy, break glass, and truthful identity-provider Operations evidence. Live tenant validation is not executed (provider acceptance is StubValidated) and remains an environment gate before live enterprise tenant readiness can be claimed.
+Delivered workstream: `alpha.15 â€” Microsoft Entra ID, External Identities & Hybrid Authentication`. The scope covers tenant-specific OIDC, explicit identity linking (provider + issuer + subject), opaque application sessions, hybrid/local policy, break glass, and truthful identity-provider Operations evidence. Live tenant validation is not executed (provider acceptance is StubValidated) and remains an environment gate before live enterprise tenant readiness can be claimed.
 
-## Phase 1 — Platform Core
+## Phase 1 â€” Platform Core
 
 | Capability | Status |
 | --- | --- |
@@ -18,7 +18,7 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 | Intelligence Engine | Complete |
 | Platform Architecture Review v1 | Complete for alpha baseline |
 
-## Phase 2 — ConvoLab Studio
+## Phase 2 â€” ConvoLab Studio
 
 | Product surface | Status |
 | --- | --- |
@@ -49,7 +49,7 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 - Liveness/readiness endpoints: Complete
 - Layered test projects and CI gates: Complete and Docker-validated
 
-## Phase 3 — Platform maturity
+## Phase 3 â€” Platform maturity
 
 - Policy Engine behaviour and runtime decisions: Complete
 - Evaluation Engine behaviour and persisted scorecards: Complete
@@ -60,7 +60,7 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 - Secret management and configuration governance: Complete
 - Workspace/environment Platform Analytics: Complete; organisation-wide rollups reserved
 
-## Phase 4 — Signature engineering products
+## Phase 4 â€” Signature engineering products
 
 - Conversation Simulator
 - Conversation Replay Studio
@@ -70,7 +70,7 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 - Model and provider evaluation
 - Cost and latency explorer
 
-## Phase 5 — Enterprise adapters
+## Phase 5 â€” Enterprise adapters
 
 - OpenAI and Azure OpenAI
 - Gemini and Anthropic
@@ -90,7 +90,7 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 - Supply-chain artifacts and SBOM release workflow
 - Full load/endurance evidence and the final operational readiness report
 
-## Phase 6 — Developer ecosystem
+## Phase 6 â€” Developer ecosystem
 
 - .NET SDK
 - TypeScript SDK

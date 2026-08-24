@@ -1,7 +1,7 @@
 # Deployment, Environment Promotion & Release Engineering Report (alpha.17)
 
-**Workstream Status:** FULLY VERIFIED, TESTED & SIGN-OFF READY  
-**Active Baseline Version:** `1.0.0-alpha.16`  
+**Workstream Status:** SIGNED OFF  
+**Release Version:** `1.0.0-alpha.17`  
 **Target Release Workstream:** `alpha.17 — Deployment, Environment Promotion & Release Engineering`  
 **Repository Root:** `convolab-main`  
 
@@ -59,7 +59,7 @@
   1. Pulled Candidate Release A via `docker compose pull`.
   2. Spun up real UAT stack via `deploy/uat/docker-compose.yml` with PostgreSQL 16 on port `5433` and Platform API on port `5001`.
   3. Probed candidate readiness on port `5001` (`/health/ready` responded `HTTP 200 OK`).
-  4. Verified candidate platform status (`/api/platform/status` responded `HTTP 200 OK`, Version: `1.0.0-alpha.16`).
+  4. Verified candidate platform status (`/api/platform/status` responded `HTTP 200 OK`, Version: `1.0.0-alpha.17`).
   5. Simulated anomaly and prepared Baseline B references.
   6. Pulled Baseline Release B via `docker compose pull`.
   7. Executed live container rollback transition `docker compose up -d`.
@@ -77,5 +77,5 @@
 - **.NET Test Suite (`dotnet test`):** **431 passed, 0 failed**.
 - **Frontend Audits (`npm run lint`, `npm run test -- --run`):** **Passed** (0 errors).
 - **Frontend Production Build (`npm run build`):** **Passed** (All 20 lazy route chunks within gzip budgets).
-- **Active Metadata:** Strictly locked at `1.0.0-alpha.16`.
+- **Active Metadata:** Strictly locked at `1.0.0-alpha.17`.
 - **Docker Compose Containers:** `convolab-api`, `convolab-studio`, `convolab-db` are **Up & Healthy**.

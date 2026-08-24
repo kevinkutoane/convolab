@@ -32,7 +32,7 @@ public sealed class ProductionTransportTests : IClassFixture<ProductionTransport
         Assert.False(health.Headers.Contains("Server"));
         var healthBody = await health.Content.ReadAsStringAsync();
         Assert.DoesNotContain("checks", healthBody, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("1.0.0-alpha.16", healthBody, StringComparison.Ordinal);
+        Assert.Contains("1.0.0-alpha.17", healthBody, StringComparison.Ordinal);
 
         var antiforgery = await client.GetAsync("/api/auth/antiforgery");
         Assert.Equal(HttpStatusCode.OK, antiforgery.StatusCode);

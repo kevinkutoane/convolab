@@ -151,7 +151,7 @@ internal sealed class DeploymentService : IDeploymentService
             list.Add(new EnvironmentDeploymentState(
                 Environment: env,
                 ActiveReleaseManifestId: active?.ReleaseManifestId,
-                ActiveReleaseVersion: active?.ReleaseVersion ?? "1.0.0-alpha.16",
+                ActiveReleaseVersion: active?.ReleaseVersion ?? "1.0.0-alpha.17",
                 ActiveApiDigest: active?.ApiImageDigest,
                 ActiveStudioDigest: active?.StudioImageDigest,
                 ActiveMigrationVersion: active?.MigrationVersion,

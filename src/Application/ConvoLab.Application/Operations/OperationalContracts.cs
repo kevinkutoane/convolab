@@ -5,8 +5,8 @@ namespace ConvoLab.Application.Operations;
 
 public static class OperationalWorkstream
 {
-    public const string Label = "alpha.16 — Backup, Restore & Disaster Recovery";
-    public const string Marker = "alpha.16-backup-restore-disaster-recovery";
+    public const string Label = "alpha.17 — Deployment, Environment Promotion & Release Engineering";
+    public const string Marker = "alpha.17-deployment-environment-promotion-release-engineering";
 }
 
 public enum OperationalDependencyState

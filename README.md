@@ -6,9 +6,9 @@
 
 ## Current milestone
 
-- **Platform Core / Studio:** `v1.0.0-alpha.16`
-- **Delivered workstream:** `alpha.16 — Backup, Restore & Disaster Recovery`
-- **Delivered workstream:** `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`
+- **Platform Core / Studio:** `v1.0.0-alpha.17`
+- **Delivered workstream:** `alpha.16 â€” Backup, Restore & Disaster Recovery`
+- **Delivered workstream:** `alpha.15 â€” Microsoft Entra ID, External Identities & Hybrid Authentication`
 - **Workspace, Identity and Access:** `v1` acceptance
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
@@ -253,7 +253,7 @@ Start with:
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT â€” see [`LICENSE`](LICENSE).
 
 ## Functional Conversation Simulator
 

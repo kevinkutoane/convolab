@@ -90,7 +90,7 @@ internal sealed class BackupExecutor : IBackupExecutor
             var manifest = new BackupArtifact(
                 BackupId: backupId,
                 CreatedAt: DateTimeOffset.UtcNow,
-                PlatformVersion: "1.0.0-alpha.16",
+                PlatformVersion: "1.0.0-alpha.17",
                 SourceCommit: "git-head",
                 Environment: _hostEnvironment.EnvironmentName,
                 Database: dbArtifact,

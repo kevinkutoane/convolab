@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.0-alpha.17 — 2026-08-21
+
+### Deployment, Environment Promotion & Release Engineering v1
+- Added immutable release build workflow publishing container images to GHCR using workload identity / OIDC authentication.
+- Added dual-SBOM generation (CycloneDX for .NET API and React Studio) with fail-closed integrity gates.
+- Added cryptographic build provenance attestation via `actions/attest-build-provenance@v1`.
+- Added container vulnerability scanning gates using Trivy (blocking on unapproved `CRITICAL` findings).
+- Added authoritative `release-manifest.json` binding version, commit SHA, immutable API and Studio digests, migration IDs, dual SBOM hashes, and cryptographic provenance.
+- Added `DeploymentRecord` persistence in PostgreSQL with indexed direct lookup by `ReleaseManifestId`.
+- Added direct manifest handoff endpoint `GET /api/operations/deployments/manifests/{releaseManifestId}`.
+- Added dedicated **Deployments & Releases** tab to the Operations Center (`/operations`), rendering real-time environment states (`Development`, `UAT`, `Production`), candidate promotion pipelines, and interactive Platform Administrator approval gates.
+- Added automated Pre-Migration Backup Gate for Production deployments executing verified alpha.16 snapshots before database migrations.
+- Added ephemeral dedicated migration execution stage (`Database__ApplyMigrationsOnly="true"`).
+- Added fail-closed machine-identity deployment runner reporting (`DEPLOYMENT_RUNNER_SECRET`).
+- Rehearsed and verified live UAT container rollback between two distinct immutable registry release pairs in 15.75–23.56 seconds with zero data corruption.
+
 ## 1.0.0-alpha.16 — 2026-08-19
 
 ### Backup, Restore & Disaster Recovery v1
@@ -43,63 +59,3 @@
 
 ### Verification
 - Completed authentication regression coverage.
-- Completed Playwright lifecycle verification.
-- Verified restart persistence.
-- Verified Docker rebuild behaviour.
-
-### Validation Status
-- Microsoft Entra live tenant validation remains pending (`Not executed`).
-- Deterministic/stub provider validation is complete (`StubValidated`).
-
-## 1.0.0-alpha.14 — 2026-07-28
-
-- Completed effective Settings-driven runtime configuration and shared immutable snapshot attribution across simulation, policy, provider, evaluation, trace, and replay.
-- Separated event and distinct terminal-execution measures and added category-specific usage, cost/budget, quality, governance, performance, and adoption semantics.
-- Expanded trusted event coverage across authentication, selection, provider, policy, evaluation, trace, replay, plugin, and configuration activity.
-- Closed event/correlation cost-field bypasses, including Production token redaction, and added real role-principal API security coverage.
-- Completed matching dashboard/export filters, event detail/correlation drill-down, incremental dirty-range aggregation, reconciliation tooling, and measured 10k/100k PostgreSQL evidence.
-- Added trusted runtime-environment attribution, server-generated correlation, immutable configuration snapshots, and explicit Alpha 13 backfill status.
-- Added metadata-only Platform Analytics events with a transactional outbox, restart-safe aggregation/checkpoints, governed retention, and asynchronous sanitized CSV exports.
-- Added workspace/environment analytics APIs with fixed RBAC, tenant isolation, actor redaction, and Production-cost restrictions.
-- Added the lazy, accessible Studio Analytics workspace and eliminated stale environment state that previously required a refresh.
-- Replaced the PostgreSQL migration-count assertion with known/applied/pending checks and added a real Alpha 13 upgrade/restart gate.
-- Pinned Node 22.22.0 across Docker and CI and removed the unused pnpm lockfile.
-- Upgraded the complete Studio to the restrained premium glass system and kept hamburger/close controls mobile-only.
-
-## 1.0.0-alpha.13 — 2026-07-28
-
-- Added governed Environment & Settings Management with scoped inheritance, typed validation, protected changes, secret references, audit history, and configuration import/export.
-- Added the Studio settings console and workspace environment switcher.
-- Bound workspace and organisation route identifiers to the authenticated tenant context, enforced environment ownership throughout Settings, and added adversarial guessed-ID isolation coverage.
-- Replaced timestamp-based configuration snapshot identifiers with deterministic SHA-256 content revisions and normalized typed environment fallbacks.
-- Added Docker readiness gating and browser recovery for transient session startup and stale deployment chunks.
-- Updated the frontend to React Router 8.3.0 and retained the enforced bundle budget.
-
-## 1.0.0-alpha.12 — 2026-07-22
-
-- Added revocable opaque-cookie authentication, local password hashing, session rotation/revocation, antiforgery validation, login throttling, and hardened response headers.
-- Added organisations, workspaces, memberships, fixed RBAC permissions, invitations, scoped one-time service credentials, and append-only attributable audit events.
-- Added mandatory workspace ownership and deterministic alpha.11 data backfill across capability roots, plus platform-owned immutable built-in plugins.
-- Added protected Studio routing, login, workspace selection/switching, member and service-account administration, role guidance, audit inspection, and restricted states.
-- Added migration, isolation, authentication, permission, frontend, interaction, and bundle acceptance coverage. Workspace/IAM remains active until PostgreSQL, restart, Docker, and browser security acceptance complete.
-
-All notable changes to ConvoLab are recorded here. Versions follow Semantic Versioning while the product remains pre-release.
-
-## 1.0.0-alpha.11 — 2026-07-22
-
-### Stabilized
-
-- Lazy route delivery and capability-owned CSS chunks with enforceable raw and gzip budgets.
-- Shared loading, error, empty, offline, and mutation feedback patterns.
-- PostgreSQL fresh-install, legacy-upgrade, reconnect, Docker restart, and cross-capability acceptance gates.
-- Canonical Evaluation APIs with retained singular compatibility contracts.
-- Policy and Plugin lifecycle route validation and production dependency-graph auditing.
-- Playwright route, interaction, responsive-navigation, and recoverable-error smoke coverage.
-
-### Removed
-
-- Unused production registrations backed by no-op Conversation, Prompt, AI, Evaluation, Trace, and legacy Workflow services.
-
-### Remaining before beta
-
-- Workspace and tenant isolation, identity, authorization, environment governance, and managed secrets.
