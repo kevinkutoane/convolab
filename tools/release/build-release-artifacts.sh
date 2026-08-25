@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="${1:-1.0.0-alpha.16}"
+VERSION="${1:-1.0.0-alpha.17}"
 COMMIT_SHA=$(git rev-parse HEAD)
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 MANIFEST_ID="release-manifest-${VERSION}-${COMMIT_SHA:0:8}"

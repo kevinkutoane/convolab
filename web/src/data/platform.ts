@@ -29,8 +29,8 @@ import type {
 export const designTimePlatformStatus: PlatformStatus = {
   platformName: "ConvoLab Platform",
   productName: "ConvoLab Studio",
-  version: "1.0.0-alpha.16",
-  workstream: "alpha.16 — Backup, Restore & Disaster Recovery",
+  version: "1.0.0-alpha.17",
+  workstream: "alpha.17 — Deployment, Environment Promotion & Release Engineering",
   safeMode: false,
   environment: "Development",
   architectureHealth: "Healthy",

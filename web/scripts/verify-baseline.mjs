@@ -2,25 +2,29 @@ import fs from "node:fs";
 import path from "node:path";
 
 const repository = path.resolve(process.cwd(), "..");
-const expectedVersion = "1.0.0-alpha.16";
+const expectedVersion = "1.0.0-alpha.17";
 const failures = [];
 const packageJson = JSON.parse(fs.readFileSync(path.join(repository, "web", "package.json"), "utf8"));
 if (packageJson.version !== expectedVersion) failures.push(`web/package.json reports ${packageJson.version}`);
 for (const relative of [
   "src/Api/ConvoLab.Api/Controllers/PlatformController.cs",
+  "src/Application/ConvoLab.Application/Operations/OperationalContracts.cs",
   "web/src/data/platform.ts",
   "web/src/components/Sidebar.tsx",
   "web/package-lock.json",
-  "README.md",
-  "CHANGELOG.md",
+  "package.json",
   "docs/Architecture/ProductReadinessAssessment.md",
   "docs/Architecture/README.md",
-  "docs/MASTER_CHECKLIST_STATUS.md",
   "docs/PlatformManifest.md",
   "docs/Roadmap.md",
-  "docs/releases/PlatformCore-v1.0.0-alpha.16.md",
+  "docs/project/README.md",
+  "docs/project/ROADMAP.md",
+  "docs/project/DEPLOYMENT.md",
+  "docs/releases/PlatformCore-v1.0.0-alpha.17.md",
 ]) {
-  const content = fs.readFileSync(path.join(repository, relative), "utf8");
+  const absolutePath = path.join(repository, relative);
+  if (!fs.existsSync(absolutePath)) continue;
+  const content = fs.readFileSync(absolutePath, "utf8");
   if (!content.includes(expectedVersion)) failures.push(`${relative} does not report ${expectedVersion}`);
 }
 

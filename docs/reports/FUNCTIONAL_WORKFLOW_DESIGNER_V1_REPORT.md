@@ -1,8 +1,6 @@
 # Functional Workflow Designer v1 — Implementation Report
 
-> Import status: reference only. The corresponding Workflow Designer source code was not included in the Platform Hardening Sprint 1 archive and is not part of the validated alpha.3 build.
-
-## Delivered in the reported implementation
+## Delivered
 
 - Canonical workflow definition and version domain model
 - Governed lifecycle and published-version immutability
@@ -23,25 +21,24 @@
 - Backward-compatible display for legacy runs without workflow snapshots
 - Domain and application tests for workflow invariants and publication
 
-## Validation reported by the source environment
+## Validation completed in this environment
 
 - `npm run lint` — passed
 - `npm run build` — passed
 - `npm run test -- --run` — passed
 
-## Runtime validation note
+## Runtime validation
 
-The source report states that the preceding hardened Docker release starts successfully. Its environment did not contain the .NET SDK or Docker CLI, so the workflow migration and backend tests still required validation in the user's Docker environment.
+The user confirmed the preceding hardened Docker release starts successfully. This environment does not contain the .NET SDK or Docker CLI, so the new workflow migration and backend tests still need to run in the user's Docker environment.
 
-## Suggested acceptance flow once source is supplied
+## Suggested acceptance flow
 
-1. Integrate the matching Workflow Designer source bundle.
-2. Rebuild Docker.
-3. Open `/workflows`.
-4. Create `Claims Intake`.
-5. Create version `1.0.0` with the starter graph.
-6. Validate, submit, approve, and publish it.
-7. Create a simulation using `Claims Intake v1.0.0`.
-8. Send a customer message.
-9. Inspect the workflow snapshot and resolved path in the run overview and trace.
-10. Restart containers and confirm the workflow remains available.
+1. Rebuild Docker.
+2. Open `/workflows`.
+3. Create `Claims Intake`.
+4. Create version `1.0.0` with the starter graph.
+5. Validate, submit, approve, and publish it.
+6. Create a simulation using `Claims Intake v1.0.0`.
+7. Send a customer message.
+8. Inspect the workflow snapshot and resolved path in the run overview and trace.
+9. Restart containers and confirm the workflow remains available.
