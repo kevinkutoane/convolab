@@ -132,10 +132,62 @@ Choose one or more items to continue work:
 - I can add the CI check and a minimal test to the repository (create a script and a test that fails CI on unsafe patterns).
 - I can open a PR to change the default secret cache TTL and add comments documenting the tradeoffs.
 - I can implement the suggested unit tests for OIDC token-exchange logging and secret canonicalization.
+- I will now continue with the in-depth audits requested (authentication flows, production readiness, and external adapters) and publish evidence-backed recommendations below.
+
+Authentication audit (detailed)
+--------------------------------
+Summary:
+- Authentication is implemented with careful considerations: secure cookies, hashed session tokens, PKCE support in OIDC flows, explicit break-glass handling, and invitation linking for external identities.
+
+Findings and evidence:
+1. Safe return URL validation: EntraAuthentication.IsSafeReturnUrl uses layered decoding and strict checks to avoid open-redirects (EntraAuthentication.cs). Good.
+2. Token exchange secrecy: The OIDC AuthorizationCodeReceived event resolves the client secret at exchange time using CompositeSecretStore and assigns it to context.TokenEndpointRequest.ClientSecret; SaveTokens is false (SecurityRegistration.cs). This limits persistence of the secret. Ensure error handling does not serialize TokenEndpointRequest.
+3. Break-glass flow: Break glass is audited and requires a pre-provisioned local credential; Program.cs rejects startup if break glass enabled but no admin credential exists. Recommend documenting the operator rotation and logging expectations.
+4. Invitation linking: Authorization flow checks invitation hash and state before linking; code handles consumed/revoked/active states and returns explicit failure codes (EntraAuthentication.cs).
+
+Recommendations (auth):
+- Add a focused unit/integration test that induces a token-exchange failure and asserts logs do not contain the resolved client secret.
+- Review global exception handling to ensure OIDC event exceptions are not logged with request objects; add a test to assert that.
+- Document break-glass operational procedures: who can enable, rotate, and audit the credential.
+
+Production readiness and OPA-like checks
+---------------------------------------
+Summary:
+- ProductionReadinessValidator contains a strong set of checks for configuration placeholders, secret references, telemetry configuration, and evidence expiry. The validator is invoked at startup to prevent unsafe configurations.
+
+Findings:
+- The validator uses deny-lists of placeholder strings and verifies ClientSecretReference via secret resolution tests. It also verifies Entra settings and startup flags.
+- Evidence expiry: dependency evidence snapshots include TTLs; ensure TTL values are operationally appropriate to not cause false positives.
+
+Recommendations (readiness):
+- Add a documented pre-deploy validation runbook that uses the same checks as ProductionReadinessValidator so release engineers can run validations before promoting to production.
+- Parameterize and document the TTLs used for evidence expiry to align with operational polling cadence.
+- Add a small script that runs ProductionReadinessValidator under a representative configuration and outputs a machine-readable JSON report for CI gating.
+
+Infrastructure adapters (key vault, backups, telemetry)
+--------------------------------------------------------
+Summary:
+- Key Vault: providers use DefaultAzureCredential and ChainedTokenCredential; secret references are validated. Good design.
+- Backups: Postgres backup tooling exists and can create authenticated snapshots; backups were found in the repo and have been removed from VCS. Ensure backups are preserved in a secure external store instead of the repo.
+- Telemetry: instrumentation suppression for secret-carrying requests is implemented; counters and ActivitySource use structured tags.
+
+Findings:
+- The PostgresBackupTooling uses parameters that may include passwords; ensure these are obtained from secrets (not inline) and that backup artifacts are stored off-repository in secure blob storage with encryption-in-transit and at-rest.
+- The repo contains .env.example and CI placeholder creds; ensure those never contain real credentials and consider rotating any acceptance passwords referenced in CI if they were ever used in a shared environment.
+
+Recommendations (infra):
+- Ensure backup artifacts are pushed to a secure storage location (S3/Azure Blob) with strict ACLs and do not remain in the repository. Confirm and document the backup retention and access controls.
+- Add CI checks that detect accidentally committed large artifacts (e.g., patterns in data/backups) and fail the push.
+- Harden Postgres backup tooling so passwords are only read from secure secret references and not passed on command lines where possible.
+
+Action plan (what will be done now)
+-----------------------------------
+1. Open a focused PR guidance for you to merge: I have pushed release/alpha.17-finalize; please open the PR in GitHub to trigger CI release artifact assembly. If you want, I can prepare the PR body text and instructions (I cannot open a PR without an authenticated GitHub token in this environment).
+2. While CI runs, I completed the audits above and updated findings.md with the detailed audit sections.
+3. I will watch for artifacts in artifacts/release/ when CI completes (if you want me to poll, provide a GitHub token or push the artifacts to an accessible location). Alternatively, an authenticated CI run will upload artifacts to the Actions UI for download.
 
 Location
 --------
-The findings are saved to: [findings.md](C:/Users/W1022804/convolab-main/findings.md)
-
+The findings are saved to: [docs/reports/findings.md](C:/Users/W1022804/convolab-main/docs/reports/findings.md)
 
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
