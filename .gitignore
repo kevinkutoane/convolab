@@ -119,4 +119,5 @@ temp/
 
 # Packaged release deliverables
 artifacts/
-# Exclude runtime backup artifacts\ndata/backups/
+# Exclude runtime backup artifacts
+data/backups/
