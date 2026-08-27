@@ -139,6 +139,13 @@ jobs:
         working-directory: web
       - run: npx playwright install --with-deps chromium
         working-directory: web
+      - name: Generate ephemeral backup encryption key
+        shell: bash
+        run: |
+          export BACKUP_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+          echo "BACKUP_ENCRYPTION_KEY=$BACKUP_ENCRYPTION_KEY" >> "$GITHUB_ENV"
+          test "$(printf '%s' "$BACKUP_ENCRYPTION_KEY" | base64 -d | wc -c)" -eq 32
+          echo "BACKUP_ENCRYPTION_KEY is configured"
       - run: docker compose up --build -d
       - name: Wait for readiness
         run: timeout 120 sh -c 'until curl --fail --silent http://127.0.0.1:5000/health/ready; do sleep 2; done'
