@@ -138,3 +138,15 @@ Final statement — readiness for alpha.18 planning
 If you require additional immediate execution (e.g., I should perform the history purge or create a PR to sanitize placeholders), confirm and I will proceed with the exact destructive or code-change steps requested.
 
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+
+Alpha.17 CI security-guard correction (2026-08-28)
+---------------------------------------------------
+- Changed files: scripts/ci/check-no-reveal.sh, scripts/ci/check-no-reveal.mjs, scripts/ci/test-check-no-reveal.mjs, .github/workflows/ci-secret-guards.yml.
+- The guard now uses explicit approved boundary files and flags RevealValue() in logger/console/debug output, HTTP response/body/header assignments, telemetry/activity/tag assignments, interpolated or concatenated strings, and exception messages.
+- Guard fixture tests: PASS. Approved BackupKeyProvider resolution passed; unsafe logging, HTTP, telemetry, interpolation, and exception fixtures each failed deterministically.
+- Repository guard scan: PASS.
+- Backend secret/backup tests: 30 passed, 0 failed.
+- Frontend baseline hygiene check: PASS for 1.0.0-alpha.17.
+- Docker acceptance: BLOCKED locally at compose startup/readiness. The stack builds and the database starts, but the existing readiness endpoint returns HTTP 503 due to degraded health state before acceptance tests can run. No application or Docker-key code was changed to address this unrelated condition.
+- Docker acceptance key fix preserved: the ephemeral BACKUP_ENCRYPTION_KEY generation and 32-byte validation block in .github/workflows/ci.yml remains unchanged.
+- Secret handling verification: no generated key was committed or printed; only key presence/length validation is reported.

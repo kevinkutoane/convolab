@@ -87,7 +87,7 @@ public sealed class SettingsBootstrapper
         if (exists) return;
 
         var now = DateTimeOffset.UtcNow;
-        _db.RuntimeEnvironments.Add(new RuntimeEnvironmentRecord
+        var environment = new RuntimeEnvironmentRecord
         {
             Id = Guid.NewGuid(),
             OrganisationId = organisationId,
@@ -102,7 +102,57 @@ public sealed class SettingsBootstrapper
             CreatedBy = SystemActor,
             UpdatedAt = now,
             Revision = 1
-        });
+        };
+        _db.RuntimeEnvironments.Add(environment);
+
+        var hasGeminiKey = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GEMINI_API_KEY"))
+            || !string.IsNullOrWhiteSpace(_config["GEMINI_API_KEY"])
+            || !string.IsNullOrWhiteSpace(_config["Gemini:ApiKey"]);
+        var defaults = hasGeminiKey
+            ? new[]
+            {
+                (SettingKeys.AiProvider, "Gemini"),
+                (SettingKeys.AiModel, _config["GEMINI_MODEL"] ?? "gemini-2.5-flash"),
+                (SettingKeys.AiProviderEnabled, "true"),
+                (SettingKeys.FeatureProviderExecution, "true"),
+                (SettingKeys.AiSecretReference, "env:GEMINI_API_KEY")
+            }
+            : new[]
+            {
+                (SettingKeys.AiProvider, "Deterministic"),
+                (SettingKeys.AiModel, "convolab-deterministic-primary"),
+                (SettingKeys.AiProviderEnabled, "true"),
+                (SettingKeys.FeatureProviderExecution, "true"),
+                (SettingKeys.AiSecretReference, string.Empty)
+            };
+
+        foreach (var (key, value) in defaults)
+        {
+            var existing = await _db.SettingValues.AnyAsync(
+                item => item.Scope == "Environment"
+                    && item.WorkspaceId == workspaceId
+                    && item.EnvironmentId == environment.Id
+                    && item.DefinitionKey == key,
+                ct);
+            if (existing) continue;
+
+            var formattedValue = FormatValueJson(key, value) ?? "\"\"";
+            _db.SettingValues.Add(new SettingValueRecord
+            {
+                Id = Guid.NewGuid(),
+                DefinitionKey = key,
+                Scope = "Environment",
+                OrganisationId = organisationId,
+                WorkspaceId = workspaceId,
+                EnvironmentId = environment.Id,
+                ValueJson = formattedValue,
+                CreatedAt = now,
+                CreatedBy = SystemActor,
+                UpdatedAt = now,
+                UpdatedBy = SystemActor,
+                Revision = 1
+            });
+        }
 
         _logger.LogInformation("SettingsBootstrapper: created Development environment for workspace {WorkspaceId}.", workspaceId);
     }
