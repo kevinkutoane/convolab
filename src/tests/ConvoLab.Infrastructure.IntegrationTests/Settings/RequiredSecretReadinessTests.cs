@@ -1,5 +1,6 @@
 using ConvoLab.Application.Operations;
 using ConvoLab.Application.Settings;
+using ConvoLab.Domain.Settings;
 using ConvoLab.Infrastructure.Data;
 using ConvoLab.Infrastructure.Settings;
 using ConvoLab.Infrastructure.WorkspaceIdentity;
@@ -14,6 +15,62 @@ namespace ConvoLab.Infrastructure.IntegrationTests.Settings;
 
 public sealed class RequiredSecretReadinessTests
 {
+    [Fact]
+    public async Task Bootstrapper_defaults_development_environment_to_deterministic_when_no_secret_is_present()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseSqlite("Data Source=:memory:")
+            .Options;
+        await using var db = new ApplicationDbContext(options);
+        await db.Database.OpenConnectionAsync();
+        await db.Database.MigrateAsync();
+
+        var organisationId = Guid.NewGuid();
+        var workspaceId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+        db.Organisations.Add(new OrganisationRecord
+        {
+            Id = organisationId,
+            Name = "Bootstrap workspace",
+            Slug = $"bootstrap-{organisationId:N}",
+            Status = "Active",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        db.Workspaces.Add(new WorkspaceRecord
+        {
+            Id = workspaceId,
+            OrganisationId = organisationId,
+            Name = "Bootstrap workspace",
+            Slug = $"bootstrap-{workspaceId:N}",
+            Description = "Default environment bootstrap",
+            Status = "Active",
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+        await db.SaveChangesAsync();
+
+        var bootstrapper = new SettingsBootstrapper(
+            db,
+            new ConfigurationBuilder().Build(),
+            NullLogger<SettingsBootstrapper>.Instance);
+        await bootstrapper.ApplyAsync();
+
+        var environment = await db.RuntimeEnvironments
+            .SingleAsync(item => item.WorkspaceId == workspaceId && item.IsDefault && item.EnvironmentType == "Development");
+        var provider = await db.SettingValues
+            .Where(item => item.WorkspaceId == workspaceId && item.EnvironmentId == environment.Id && item.DefinitionKey == SettingKeys.AiProvider)
+            .Select(item => item.ValueJson)
+            .SingleAsync();
+        var secretReference = await db.SettingValues
+            .Where(item => item.WorkspaceId == workspaceId && item.EnvironmentId == environment.Id && item.DefinitionKey == SettingKeys.AiSecretReference)
+            .Select(item => item.ValueJson)
+            .SingleAsync();
+
+        Assert.Equal("\"Deterministic\"", provider);
+        Assert.Equal("\"\"", secretReference);
+    }
+
     [Fact]
     public async Task Readiness_validates_only_effective_required_active_environment_secrets()
     {

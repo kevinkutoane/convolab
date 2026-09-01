@@ -150,7 +150,7 @@ public partial class EnvironmentSettingsManagementV1 : Migration
             ("general.timezone","General","Default Timezone","Default timezone for the workspace.","String","\"Africa/Johannesburg\"",false,false,true,true,true,null,false,null),
             ("general.currency","General","Default Currency","Default currency for the workspace.","String","\"ZAR\"",false,false,true,true,true,null,false,null),
             // AI Provider
-            ("ai.provider","AI Provider","Provider","Active AI provider.","String","\"Gemini\"",false,false,true,true,true,null,false,null),
+            ("ai.provider","AI Provider","Provider","Active AI provider.","String","\"Deterministic\"",false,false,true,true,true,null,false,null),
             ("ai.model","AI Provider","Model","Active AI model.","String","\"gemini-2.5-flash\"",false,false,true,true,true,null,false,null),
             ("ai.secret_reference","AI Provider","API Key Reference","Reference to the provider API key secret.","SecretReference",null,true,false,true,true,true,null,false,null),
             ("ai.request_timeout_seconds","AI Provider","Request Timeout (s)","Provider request timeout in seconds.","Integer","\"30\"",false,false,true,true,true,"{\"min\":5,\"max\":300}",false,null),
