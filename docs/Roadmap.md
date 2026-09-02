@@ -82,13 +82,18 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 - SQL and REST data sources
 - Enterprise identity providers
 
-## Deferred alpha.15 workstreams
+## Alpha.17 baseline closure
 
-- Live Entra organisational validation (implementation and deterministic evidence are in progress)
-- Backup and restore implementation and verified recovery objectives
-- Deployment promotion and hardened UAT/Production manifests
-- Supply-chain artifacts and SBOM release workflow
-- Full load/endurance evidence and the final operational readiness report
+- Live Entra organisational validation: **environment-dependent**; implementation exists, but live tenant acceptance remains an environment gate.
+- Backup and restore implementation and verified recovery objectives: **implemented**; final artifact and recovery evidence remains subject to the release/operations evidence set.
+- Deployment promotion and hardened UAT/Production manifests: **implemented**; authoritative release evidence remains subject to CI artifact assembly.
+- Supply-chain artifacts and SBOM release workflow: **implemented in CI**; successful evidence for the authoritative baseline remains to be attached and verified.
+- Full load/endurance evidence and the final operational readiness report: **pending**.
+
+## Next planning gate
+
+- `alpha.18 — Security & Compliance Hardening`: **planning only until the alpha.17 baseline is green, reproducibly built, and frozen**.
+- The alpha.18 plan is maintained separately and must not be treated as delivered functionality.
 
 ## Phase 6 — Developer ecosystem
 
