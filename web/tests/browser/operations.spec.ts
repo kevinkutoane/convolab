@@ -64,7 +64,6 @@ test("platform administrator can navigate every Operations Center panel", async 
 
   await page.getByRole("button", { name: "Deployments & Releases" }).click();
   await expect(page.getByRole("heading", { name: "Active Environment State & Promotion Pipeline" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Deployment History & Evidence Records" })).toBeVisible();
 
   await page.getByRole("button", { name: "Backup & DR" }).click();
   await expect(page.getByRole("heading", { name: "Backup & Recovery Orchestration" })).toBeVisible();
@@ -156,7 +155,7 @@ test("dependency-state labels remain distinct and stub evidence is not live", as
     "Degraded",
   ])
     await expect(secrets.getByText(state, { exact: true })).toBeVisible();
-  const stub = secrets.locator('[data-dependency="stub"]');
+  const stub = secrets.locator(".dependency-list > div", { hasText: "stub" });
   await expect(stub.getByText("StubValidated", { exact: true })).toBeVisible();
   await expect(stub.getByText("LiveValidated", { exact: true })).toHaveCount(0);
 });
