@@ -43,8 +43,6 @@ import {
   updateSafeMode,
   type DependencyState,
 } from "../services/operationsApi";
-import "../functional-workspaces.css";
-import "../operations.css";
 
 type TabKey = "overview" | "deployments" | "backups" | "auth" | "telemetry" | "build";
 

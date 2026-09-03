@@ -5,7 +5,6 @@ import { EmptyState, ErrorState, LoadingState } from "../components/AsyncStates"
 import { useAuth } from "../contexts/useAuth";
 import { createServiceAccount, getAudit, getMembers, getServiceAccounts, getWorkspace, inviteMember, type ServiceAccount, type WorkspaceMember } from "../services/authApi";
 import { getApiErrorMessage } from "../services/apiClient";
-import "../workspace-identity.css";
 
 const tabs = ["Overview", "Members", "Roles", "Service Accounts", "Audit", "Settings"] as const;
 type Tab = (typeof tabs)[number];

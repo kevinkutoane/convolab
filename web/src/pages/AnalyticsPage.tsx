@@ -13,7 +13,6 @@ import { useEnvironment } from "../contexts/EnvironmentContext";
 import { createAnalyticsExport, getAnalyticsCorrelation, getAnalyticsDashboard, getAnalyticsEvent, getAnalyticsEvents, getAnalyticsExports, getAnalyticsFilterOptions, type AnalyticsFilters } from "../services/analyticsApi";
 import { getApiErrorMessage } from "../services/apiClient";
 import type { AnalyticsMetric, AnalyticsPoint } from "../types/analytics";
-import "../analytics.css";
 
 type AnalyticsTab = "overview" | "usage" | "cost" | "quality" | "governance" | "performance" | "adoption" | "events" | "exports";
 

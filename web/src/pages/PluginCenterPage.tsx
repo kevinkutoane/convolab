@@ -45,8 +45,6 @@ import type {
   PluginStatus,
   RegisterPluginInput,
 } from "../types/plugin";
-import "../functional-workspaces.css";
-import "../plugin-center.css";
 
 const categories: PluginCategory[] = [
   "Provider",

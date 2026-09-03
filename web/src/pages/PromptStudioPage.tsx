@@ -6,8 +6,6 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { CreateResourceDialog, type CreateResourceField } from "../components/CreateResourceDialog";
 import { ErrorState, LoadingState } from "../components/AsyncStates";
 import type { PromptDetail,PromptSectionInput,PromptSectionKind,PromptSummary,RenderedPrompt } from "../types/prompt";
-import "../App.css";
-import "../functional-workspaces.css";
 
 const defaultSections:PromptSectionInput[]=[
  {kind:"System",name:"System instructions",sequence:1,required:true,content:"You are a careful enterprise claims assistant. Answer only from governed knowledge and clearly explain uncertainty."},

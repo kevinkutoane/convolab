@@ -52,8 +52,6 @@ import type {
   PolicyScope,
   PolicyStatus,
 } from "../types/policy";
-import "../App.css";
-import "../functional-workspaces.css";
 
 const domains: PolicyDomain[] = [
   "ProviderAccess",

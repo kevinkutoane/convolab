@@ -24,8 +24,6 @@ import type {
   WorkflowSummary,
   WorkflowTransition,
 } from "../types/workflow";
-import "../App.css";
-import "../functional-workspaces.css";
 
 const kinds: WorkflowNodeKind[] = ["Start", "Knowledge", "Prompt", "Decision", "Intelligence", "Response", "End"];
 const nodeWidth = 180;
