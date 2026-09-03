@@ -103,6 +103,7 @@ jobs:
           dotnet-CycloneDX ConvoLab.sln -o artifacts/sbom -fn convolab-api-sbom.json
 
           cd web
+          npm ci --no-audit --no-fund
           npx @cyclonedx/cyclonedx-npm --output-file ../artifacts/sbom/convolab-studio-sbom.json
           cd ..
 
