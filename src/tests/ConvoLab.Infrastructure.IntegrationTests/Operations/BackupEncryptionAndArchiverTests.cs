@@ -32,6 +32,8 @@ public sealed class BackupEncryptionAndArchiverTests
             Task.FromResult(new SecretValidationResult("env", SecretResolutionStatus.Resolved));
 
         public void Invalidate(string reference) { }
+
+        public void Clear() { }
     }
 
     private sealed class StaticKeyProvider : IBackupKeyProvider

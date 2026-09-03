@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace ConvoLab.Api.Health;
 
 public sealed class EntraAuthenticationHealthCheck(
-    IOptions<AuthenticationOptions> authentication,
+    IOptionsSnapshot<AuthenticationOptions> authentication,
     EntraDependencyEvidence evidence) : IHealthCheck
 {
     public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)

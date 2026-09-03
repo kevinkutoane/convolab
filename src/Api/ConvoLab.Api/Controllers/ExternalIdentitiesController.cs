@@ -17,7 +17,7 @@ namespace ConvoLab.Api.Controllers;
 [Route("api/platform/users/{userId:guid}/external-identities")]
 public sealed class ExternalIdentitiesController(
     ApplicationDbContext db,
-    IOptions<AuthenticationOptions> authentication) : ControllerBase
+    IOptionsSnapshot<AuthenticationOptions> authentication) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult> List(Guid userId, CancellationToken ct)

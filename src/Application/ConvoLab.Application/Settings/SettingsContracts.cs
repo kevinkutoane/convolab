@@ -287,4 +287,7 @@ public interface ISecretStore
         CancellationToken ct = default);
 
     void Invalidate(string reference);
+    
+    void Clear();
 }
+

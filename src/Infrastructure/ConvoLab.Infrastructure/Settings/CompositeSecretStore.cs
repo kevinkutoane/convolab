@@ -94,7 +94,7 @@ public sealed class CompositeSecretStore : ISecretStore
             return SecretResolutionResult.Failed(
                 "unknown", SecretResolutionStatus.Invalid, "secret.reference.invalid");
         }
-        canonical = $"{scheme.ToLowerInvariant()}:{key}";
+        canonical = $"{scheme.ToLowerInvariant()}:{key.ToLowerInvariant()}";
 
         if (!_providers.TryGetValue(scheme, out var provider))
             return SecretResolutionResult.Failed(
@@ -182,11 +182,20 @@ public sealed class CompositeSecretStore : ISecretStore
         try
         {
             var (scheme, key) = Domain.Settings.SecretReference.ParseReference(reference.Trim());
-            var canonical = $"{scheme.ToLowerInvariant()}:{key}";
+            var canonical = $"{scheme.ToLowerInvariant()}:{key.ToLowerInvariant()}";
             _cacheGenerations.AddOrUpdate(canonical, 1, (_, generation) => generation + 1);
             _cache.Remove(canonical);
         }
         catch (ArgumentException) { }
+    }
+
+    public void Clear()
+    {
+        _cacheGenerations.Clear();
+        if (_cache is MemoryCache mc)
+        {
+            mc.Clear();
+        }
     }
 }
 

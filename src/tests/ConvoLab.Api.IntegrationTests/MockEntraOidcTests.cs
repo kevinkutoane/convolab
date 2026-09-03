@@ -602,6 +602,7 @@ internal sealed class StubSecretStore : ISecretStore
     public Task<SecretValidationResult> ValidateAsync(string reference, CancellationToken ct = default) =>
         Task.FromResult(new SecretValidationResult("stub", SecretResolutionStatus.Resolved));
     public void Invalidate(string reference) { }
+    public void Clear() { }
 }
 
 internal sealed class CollectingLoggerProvider : ILoggerProvider

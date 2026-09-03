@@ -30,6 +30,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
     private readonly ApplicationDbContext _db;
     private readonly WorkspaceRequestContext _workspace;
     private readonly IWebHostEnvironment _environment;
+    private readonly TimeProvider _timeProvider;
 
     public ConvoLabAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -37,10 +38,11 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         UrlEncoder encoder,
         ApplicationDbContext db,
         WorkspaceRequestContext workspace,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        TimeProvider timeProvider)
         : base(options, logger, encoder)
     {
-        _db = db; _workspace = workspace; _environment = environment;
+        _db = db; _workspace = workspace; _environment = environment; _timeProvider = timeProvider;
     }
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -55,7 +57,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         if (!Request.Cookies.TryGetValue(ConvoLabAuthentication.SessionCookie, out var token) || string.IsNullOrWhiteSpace(token))
             return AuthenticateResult.NoResult();
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var hash = ConvoLabAuthentication.HashSecret(token);
         var session = await _db.AuthenticationSessions.AsTracking().SingleOrDefaultAsync(item => item.TokenHash == hash);
         if (session is null || session.RevokedAt.HasValue || session.ExpiresAt <= now
@@ -89,7 +91,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         if (parts.Length != 3 || parts[0] != "clsa" || parts[2].Length == 0
             || !Guid.TryParseExact(parts[1], "N", out var id))
             return AuthenticateResult.Fail("The service credential is invalid.");
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var account = await _db.ServiceAccounts.AsTracking().SingleOrDefaultAsync(item => item.Id == id);
         if (account is null || account.Status != "Active" || account.ExpiresAt <= now || !CryptographicOperations.FixedTimeEquals(
                 Convert.FromHexString(account.SecretHash), Convert.FromHexString(ConvoLabAuthentication.HashSecret(parts[2]))))
