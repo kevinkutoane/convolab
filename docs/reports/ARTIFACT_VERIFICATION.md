@@ -28,7 +28,7 @@ This document records verification against CI-produced release artifacts for the
 ## Intended evidence chain
 
 ```text
-source commit b3f6bfe4c6be7fd47ec407d95a0ce7ba1bb22242
+source commit ed0aed28bb6a6fb06584c6ef5ef769ff59e7f864
     -> build
     -> API and Studio container images
     -> immutable image digests
