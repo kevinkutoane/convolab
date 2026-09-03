@@ -473,6 +473,7 @@ public sealed class OperationalSecretStoreTests
                 null,
                 OperationalDependencyState.StubValidated));
         public void Invalidate(string reference) => Invalidated.Add(reference);
+        public void Clear() { }
     }
 
     private static DockerSecretProvider DockerProvider(string root) => new(

@@ -22,7 +22,7 @@ public sealed class AuthController(
     ApplicationDbContext db,
     IPasswordHasher<IdentityUserRecord> passwordHasher,
     SessionCookieService sessionCookies,
-    IOptions<ConvoLab.Application.Operations.AuthenticationOptions> authentication,
+    IOptionsSnapshot<ConvoLab.Application.Operations.AuthenticationOptions> authentication,
     TimeProvider timeProvider) : ControllerBase
 {
     [AllowAnonymous]
@@ -88,7 +88,7 @@ public sealed class AuthController(
         var email = request.Email?.Trim().ToUpperInvariant() ?? string.Empty;
         var user = await db.IdentityUsers.SingleOrDefaultAsync(item => item.NormalizedEmail == email, ct);
         var credential = user is null ? null : await db.LocalCredentials.SingleOrDefaultAsync(item => item.UserId == user.Id, ct);
-        var now = DateTimeOffset.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var valid = user is not null && credential is not null && user.Status == "Active" && (!credential.LockedUntil.HasValue || credential.LockedUntil <= now)
             && passwordHasher.VerifyHashedPassword(user, credential.PasswordHash, request.Password ?? string.Empty) != PasswordVerificationResult.Failed;
         if (!valid)
@@ -262,7 +262,7 @@ public sealed class AuthController(
         var sessionId = ClaimGuid("session_id") ?? throw new ResourceNotFoundException("auth.session_not_found", "The session was not found.");
         var current = await db.AuthenticationSessions.SingleOrDefaultAsync(item => item.Id == sessionId && item.RevokedAt == null, ct)
             ?? throw new ResourceNotFoundException("auth.session_not_found", "The session was not found.");
-        var now = DateTimeOffset.UtcNow; var token = ConvoLabAuthentication.NewSecret(); var hash = ConvoLabAuthentication.HashSecret(token);
+        var now = timeProvider.GetUtcNow(); var token = ConvoLabAuthentication.NewSecret(); var hash = ConvoLabAuthentication.HashSecret(token);
         current.RevokedAt = now; current.ReplacedByTokenHash = hash;
         var replacement = new AuthenticationSessionRecord { Id = Guid.NewGuid(), UserId = current.UserId, ActiveWorkspaceId = current.ActiveWorkspaceId, TokenHash = hash, CreatedAt = now, LastSeenAt = now, ExpiresAt = new[] { now.AddHours(8), current.AbsoluteExpiresAt }.Min(), AbsoluteExpiresAt = current.AbsoluteExpiresAt, AuthenticationProvider = current.AuthenticationProvider, ExternalIdentityId = current.ExternalIdentityId, SessionFamilyId = current.SessionFamilyId == Guid.Empty ? current.Id : current.SessionFamilyId, IpAddress = current.IpAddress, UserAgent = current.UserAgent };
         db.AuthenticationSessions.Add(replacement); await db.SaveChangesAsync(ct); WriteSessionCookie(token, replacement.ExpiresAt);
@@ -281,7 +281,7 @@ public sealed class AuthController(
             provider = session?.AuthenticationProvider ?? "Local";
             if (session is not null && !session.RevokedAt.HasValue)
             {
-                session.RevokedAt = DateTimeOffset.UtcNow;
+                session.RevokedAt = timeProvider.GetUtcNow();
                 session.RevocationReason = "UserLogout";
                 session.RevokedBy = ClaimGuid(ClaimTypes.NameIdentifier);
             }
@@ -326,7 +326,7 @@ public sealed class AuthController(
     {
         var userId = ClaimGuid(ClaimTypes.NameIdentifier) ?? throw new ResourceNotFoundException("auth.user_not_found", "The user was not found.");
         var currentSessionId = ClaimGuid("session_id");
-        var now = DateTimeOffset.UtcNow;
+        var now = timeProvider.GetUtcNow();
         var sessions = await db.AuthenticationSessions.AsNoTracking()
             .Where(item => item.UserId == userId && item.RevokedAt == null).ToListAsync(ct);
         return Ok(sessions.Where(item => item.ExpiresAt > now).Select(item => new { item.Id, item.CreatedAt, item.LastSeenAt, item.ExpiresAt, item.AuthenticationProvider, item.IpAddress, item.UserAgent, current = item.Id == currentSessionId }));
@@ -340,7 +340,7 @@ public sealed class AuthController(
             ?? throw new ResourceNotFoundException("auth.session_not_found", "The session was not found.");
         if (!session.RevokedAt.HasValue)
         {
-            session.RevokedAt = DateTimeOffset.UtcNow; session.RevocationReason = "UserRevoked"; session.RevokedBy = userId;
+            session.RevokedAt = timeProvider.GetUtcNow(); session.RevocationReason = "UserRevoked"; session.RevokedBy = userId;
         }
         await db.SaveChangesAsync(ct);
         if (ClaimGuid("session_id") == sessionId) sessionCookies.Delete(Response);
@@ -385,7 +385,7 @@ public sealed class AuthController(
     {
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 12)
             throw new RequestValidationException("credential.password.weak", "Passwords must contain at least 12 characters.");
-        var hash = ConvoLabAuthentication.HashSecret(request.Token ?? string.Empty); var now = DateTimeOffset.UtcNow;
+        var hash = ConvoLabAuthentication.HashSecret(request.Token ?? string.Empty); var now = timeProvider.GetUtcNow();
         var membership = await db.WorkspaceMemberships.SingleOrDefaultAsync(
             item => item.InvitationTokenHash == hash && item.Status == "Invited", ct);
         if (membership?.InvitationExpiresAt is not { } expiresAt || expiresAt <= now)

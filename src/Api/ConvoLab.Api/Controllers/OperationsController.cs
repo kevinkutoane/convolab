@@ -31,7 +31,7 @@ public sealed class OperationsController(
     IBackupEvidenceSource backupEvidence,
     OperationalReadinessSummary readinessSummary,
     HealthCheckService healthChecks,
-    IOptions<AuthenticationOptions> authenticationOptions,
+    IOptionsSnapshot<AuthenticationOptions> authenticationOptions,
     EntraDependencyEvidence entraEvidence,
     IOptions<OperationsThresholdOptions> thresholdOptions,
     IOptions<BuildOptions> buildOptions,
