@@ -30,6 +30,8 @@ public sealed class BackupExecutorIntegrationTests
             Task.FromResult(new SecretValidationResult("env", SecretResolutionStatus.Resolved));
 
         public void Invalidate(string reference) { }
+
+        public void Clear() { }
     }
 
     private sealed class MockHostEnv : IHostEnvironment

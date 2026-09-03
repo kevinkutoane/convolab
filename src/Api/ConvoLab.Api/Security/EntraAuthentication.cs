@@ -97,6 +97,7 @@ public sealed class ConvoLabOpenIdConnectEvents(
 
     public override Task RedirectToIdentityProvider(RedirectContext context)
     {
+        logger.LogInformation("Redirecting to Entra identity provider for authentication challenge.");
         using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("authentication.entra.challenge");
         AddMetric(ConvoLabTelemetry.EntraChallenges, "started");
         return Task.CompletedTask;
@@ -117,6 +118,7 @@ public sealed class ConvoLabOpenIdConnectEvents(
         }
 
         // The secret is supplied only to the token request and is never persisted in configuration or session state.
+        logger.LogInformation("Authorization code received, attaching client secret for token exchange.");
         context.TokenEndpointRequest!.ClientSecret = result.RevealValue();
     }
 
@@ -128,6 +130,7 @@ public sealed class ConvoLabOpenIdConnectEvents(
         var issuer = principal.FindFirstValue("iss")?.Trim();
         var subject = principal.FindFirstValue("sub")?.Trim();
         var tenant = principal.FindFirstValue("tid")?.Trim();
+        logger.LogInformation("Token validated for issuer {Issuer} in tenant {Tenant}", issuer, tenant);
         if (context.Options.ProtocolValidator.RequireNonce && string.IsNullOrWhiteSpace(context.Nonce))
         {
             await RejectAsync(context, "authentication.entra.remote_failure");
@@ -190,6 +193,7 @@ public sealed class ConvoLabOpenIdConnectEvents(
             user = await db.IdentityUsers.SingleAsync(item => item.Id == identity.UserId,
                 context.HttpContext.RequestAborted);
             linked = true;
+            logger.LogInformation("Successfully linked new Entra identity to existing user {UserId}", user.Id);
         }
 
         identity.EmailAtLastLogin = SafeEmail(principal);
@@ -296,6 +300,7 @@ public sealed class ConvoLabOpenIdConnectEvents(
         sessionCookies.Write(context.Response, token!, expires);
         var returnUrl = context.Properties.Items.TryGetValue("return_url", out var requested) ? requested : null;
         context.Response.Redirect(EntraAuthentication.SafeReturnUrl(returnUrl));
+        logger.LogInformation("Ticket received, session established. Redirecting user to application.");
         context.HandleResponse();
         return Task.CompletedTask;
     }
@@ -402,6 +407,7 @@ public sealed class ConvoLabOpenIdConnectEvents(
 
     private async Task RejectAsync(TokenValidatedContext context, string code)
     {
+        logger.LogWarning("Rejecting Entra callback with safe code: {FailureCode}", code);
         AddMetric(ConvoLabTelemetry.EntraLoginFailures, code);
         if (code == "authentication.external_identity_not_linked")
             AddMetric(ConvoLabTelemetry.ExternalIdentityUnlinked, "rejected");

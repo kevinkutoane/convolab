@@ -212,6 +212,7 @@ public sealed class RequiredSecretReadinessTests
                 OperationalDependencyState.StubValidated));
         }
         public void Invalidate(string reference) { }
+        public void Clear() { }
     }
 
     private sealed class TestEnvironment(string name) : IHostEnvironment

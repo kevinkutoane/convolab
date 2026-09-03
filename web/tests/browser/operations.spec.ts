@@ -57,6 +57,7 @@ test("platform administrator can navigate every Operations Center panel", async 
   await expect(page.getByRole("heading", { name: "Readiness Evidence" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Analytics Maintenance Pipeline" })).toBeVisible();
 
+<<<<<<< HEAD
   const analytics = page.locator("article.panel", { hasText: "Analytics Maintenance Pipeline" });
   await expect(analytics.getByText("Pending Outbox Records", { exact: true })).toBeVisible();
   await expect(analytics.getByText("Failed Outbox Records", { exact: true })).toBeVisible();
@@ -98,6 +99,35 @@ test("platform administrator can navigate every Operations Center panel", async 
   await expect(telemetry.getByText("Endpoint Configured", { exact: true })).toBeVisible();
   await expect(telemetry).not.toContainText(/Authorization|header|credential/i);
 
+=======
+  // Overview Tab (default)
+  await expect(page.getByRole("heading", { name: "Readiness Evidence" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Analytics Maintenance Pipeline" })).toBeVisible();
+
+  // Deployments Tab
+  await page.getByRole("button", { name: "Deployments & Releases" }).click();
+  await expect(page.getByRole("heading", { name: "Active Environment State" })).toBeVisible();
+
+  // Backups Tab
+  await page.getByRole("button", { name: "Backup & DR" }).click();
+  await expect(page.getByRole("heading", { name: "Backup & Recovery Orchestration" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Live Backup Evidence" })).toBeVisible();
+  const backups = page.locator("section", { hasText: "Live Backup Evidence" });
+  await expect(backups).toBeVisible();
+
+  // Auth Tab
+  await page.getByRole("button", { name: "Authentication & IAM" }).click();
+  await expect(page.getByRole("heading", { name: "Authentication & Break-Glass Evidence" })).toBeVisible();
+  const authentication = page.locator("section", { hasText: "Authentication & Break-Glass Evidence" });
+  await expect(authentication).toBeVisible();
+
+  // Telemetry Tab
+  await page.getByRole("button", { name: "Telemetry & Secrets" }).click();
+  await expect(page.getByRole("heading", { name: "Configuration Secrets" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Telemetry Collectors" })).toBeVisible();
+
+  // Build Tab
+>>>>>>> 8c205c2 (feat: implement secure secret management, Entra authentication, and operational backup testing infrastructure)
   await page.getByRole("button", { name: "Build & Manifest" }).click();
   await expect(page.getByRole("heading", { name: "Build & System Information" })).toBeVisible();
 });
@@ -144,8 +174,12 @@ test("dependency-state labels remain distinct and stub evidence is not live", as
   }));
   await page.goto("/operations");
   await page.getByRole("button", { name: "Telemetry & Secrets" }).click();
+<<<<<<< HEAD
   const secrets = page.locator("section.panel", { hasText: "Configuration Secrets" });
   await expect(secrets.getByRole("heading", { name: "Configuration Secrets" })).toBeVisible();
+=======
+  const secrets = page.locator("section", { hasText: "Configuration Secrets" });
+>>>>>>> 8c205c2 (feat: implement secure secret management, Entra authentication, and operational backup testing infrastructure)
   for (const state of [
     "Configured",
     "StubValidated",
@@ -155,7 +189,11 @@ test("dependency-state labels remain distinct and stub evidence is not live", as
     "Degraded",
   ])
     await expect(secrets.getByText(state, { exact: true })).toBeVisible();
+<<<<<<< HEAD
   const stub = secrets.locator(".dependency-list > div", { hasText: "stub" });
+=======
+  const stub = secrets.locator(".dependency-list > div").filter({ has: page.locator("strong", { hasText: /^stub$/ }) });
+>>>>>>> 8c205c2 (feat: implement secure secret management, Entra authentication, and operational backup testing infrastructure)
   await expect(stub.getByText("StubValidated", { exact: true })).toBeVisible();
   await expect(stub.getByText("LiveValidated", { exact: true })).toHaveCount(0);
 });
