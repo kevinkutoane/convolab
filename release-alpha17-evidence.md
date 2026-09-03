@@ -18,3 +18,11 @@ The `.NET` integration tests for Entra OIDC safe return URLs and session handlin
 
 ## 4. Release Validation
 All requirements for the Alpha.17 hardening phase are now met. The baseline is verified and fully passes both browser integration and API tests.
+
+## 5. Artifact Verification
+The final release artifacts have been successfully verified against authoritative commit `ed0aed28bb6a6fb06584c6ef5ef769ff59e7f864`.
+- **Workflow Run**: `33743589890` (Release Build & Artifact Assembly)
+- **Manifest**: `release-manifest-1.0.0-alpha.17-5f32fb6a`
+- **SBOM Validation**: CycloneDX SBOMs for API and Studio generated correctly.
+- **Vulnerability Scans**: Passed (CVE-2026-31789 fixed in Alpine base).
+- **Provenance Attestation**: Created successfully.

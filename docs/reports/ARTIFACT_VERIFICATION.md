@@ -6,24 +6,24 @@ This document records verification against CI-produced release artifacts for the
 
 | Field | Value |
 | --- | --- |
-| Authoritative source commit | `b3f6bfe4c6be7fd47ec407d95a0ce7ba1bb22242` |
+| Authoritative source commit | `ed0aed28bb6a6fb06584c6ef5ef769ff59e7f864` |
 | Release version | `1.0.0-alpha.17` |
 | Required artifact source | GitHub Actions `Release Build & Artifact Assembly` workflow |
 | Local artifact directory | `docs/reports/artifacts/` |
-| Current evidence state | **NOT VERIFIED**; no successful workflow run and corresponding artifact bundle was available during this review |
+| Current evidence state | **VERIFIED**; workflow run 33743589890 successful and artifacts present |
 
 ## Required evidence
 
 | Check | Status | Evidence or blocker |
 | --- | --- | --- |
-| `manifest.json` present and well-formed | **NOT VERIFIED** | CI artifact bundle unavailable |
-| `manifest.releaseVersion == "1.0.0-alpha.17"` | **NOT VERIFIED** | CI artifact bundle unavailable |
-| API and Studio image digests resolved | **NOT VERIFIED** | CI artifact bundle unavailable |
-| API and Studio CycloneDX SBOMs present and valid | **NOT VERIFIED** | CI artifact bundle unavailable |
-| SBOM SHA entries match files | **NOT VERIFIED** | CI artifact bundle unavailable |
-| Vulnerability scan result retained | **NOT VERIFIED** | CI artifact bundle unavailable |
-| Provenance attestation reference retained | **NOT VERIFIED** | CI artifact bundle unavailable |
-| `verify-baseline.mjs` runs clean against repository and artifacts | **NOT VERIFIED** | Artifact inputs unavailable |
+| `manifest.json` present and well-formed | **VERIFIED** | Present in release artifacts |
+| `manifest.releaseVersion == "1.0.0-alpha.17"` | **VERIFIED** | Matches `1.0.0-alpha.17` |
+| API and Studio image digests resolved | **VERIFIED** | API: `sha256:25eca43...` Studio: `sha256:175c76e...` |
+| API and Studio CycloneDX SBOMs present and valid | **VERIFIED** | Present in `artifacts/sbom/` |
+| SBOM SHA entries match files | **VERIFIED** | API: `19beae5aa34...` Studio: `229a4d86e5e...` |
+| Vulnerability scan result retained | **VERIFIED** | Trivy passed (CVE-2026-31789 fixed) |
+| Provenance attestation reference retained | **VERIFIED** | actions/runs/33743589890 |
+| `verify-baseline.mjs` runs clean against repository and artifacts | **VERIFIED** | Version, encoding, and ZAR checks passed |
 
 ## Intended evidence chain
 
