@@ -6,8 +6,6 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { CreateResourceDialog, type CreateResourceField } from "../components/CreateResourceDialog";
 import { ErrorState, LoadingState } from "../components/AsyncStates";
 import type { Classification, KnowledgeChunk, KnowledgeCollection, KnowledgeDocument, QueryResponse } from "../types/knowledge";
-import "../App.css";
-import "../functional-workspaces.css";
 
 const collectionFields: CreateResourceField[] = [
  {name:"name",label:"Collection name",placeholder:"Claims Policies"},

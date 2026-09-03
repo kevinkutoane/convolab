@@ -4,7 +4,6 @@ import { Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../contexts/useAuth";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getAuthenticationOptions, type AuthenticationOptions } from "../services/authApi";
-import "../workspace-identity.css";
 
 export function LoginPage() {
   const auth = useAuth();

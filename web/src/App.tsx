@@ -8,6 +8,13 @@ import type { PlatformStatus } from "./types/platform";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PlatformAdministratorRoute } from "./components/PlatformAdministratorRoute";
 import { useAuth } from "./contexts/useAuth";
+import "./App.css";
+import "./functional-workspaces.css";
+import "./workspace-identity.css";
+import "./operations.css";
+import "./plugin-center.css";
+import "./settings-studio.css";
+import "./analytics.css";
 
 const CapabilityPage = lazy(() => import("./pages/CapabilityPage").then(module => ({ default: module.CapabilityPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then(module => ({ default: module.DashboardPage })));

@@ -57,7 +57,6 @@ import type {
   RuntimeEnvironment,
   SecretReference,
 } from "../types/settings";
-import "../settings-studio.css";
 
 // ─── Tab model ────────────────────────────────────────────────────────────────
 
