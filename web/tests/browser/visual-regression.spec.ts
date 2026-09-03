@@ -19,6 +19,39 @@ test.beforeEach(async ({ page }) => {
     }
     await route.continue();
   });
+  await page.route("**/api/platform/status", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        platformName: "ConvoLab Platform",
+        productName: "ConvoLab Studio",
+        version: "1.0.0-alpha.17",
+        workstream: "development",
+        safeMode: false,
+        environment: "Development",
+        architectureHealth: "Hardened Alpha",
+        apiHealth: "Responding",
+        capabilities: [
+          { id: "conversation", name: "Conversation Engine", description: "Lifecycle, sessions, participants, memory, and timeline.", status: "stable", version: "1.0", domainEvents: 16 },
+          { id: "workflow", name: "Workflow Engine", description: "Versioned workflow definitions and governed executions.", status: "stable", version: "1.0", domainEvents: 12 },
+          { id: "prompt", name: "Prompt Engine", description: "Governed prompt assets, versions, rendering, and experiments.", status: "stable", version: "1.0", domainEvents: 10 },
+          { id: "knowledge", name: "Knowledge Engine", description: "Governed retrieval, packages, citations, and connectors.", status: "stable", version: "1.0", domainEvents: 13 },
+          { id: "intelligence", name: "Intelligence Engine", description: "Provider-neutral planning, budgets, tools, and fallback.", status: "stable", version: "1.0", domainEvents: 14 },
+          { id: "policy", name: "Policy", description: "Versioned governance, scoped runtime decisions, and enforced execution constraints.", status: "stable", version: "1.0", domainEvents: 8 },
+          { id: "evaluation", name: "Evaluation", description: "Persisted scorecards, quality gates, safety, relevance, and groundedness telemetry.", status: "stable", version: "1.0", domainEvents: 5 },
+          { id: "tracing", name: "Tracing", description: "Persisted traces, spans, events, correlations, and redacted artifacts.", status: "stable", version: "1.0", domainEvents: 7 },
+          { id: "replay", name: "Replay Studio", description: "Controlled re-execution, immutable baselines, candidate comparisons, and findings.", status: "stable", version: "1.0", domainEvents: 3 },
+          { id: "plugins", name: "Plugin Engine", description: "Persistent extension registry, immutable versions, compatibility, lifecycle, health, and capability contracts.", status: "stable", version: "1.0", domainEvents: 4 },
+          { id: "workspace-identity", name: "Workspace, Identity and Access", description: "Secure local authentication, workspace isolation, RBAC, service identities, and attributable audit.", status: "active", version: "1.0", domainEvents: 8 },
+          { id: "analytics", name: "Platform Analytics", description: "Trusted workspace and environment usage, cost, quality, governance, performance, adoption, and safe event evidence.", status: "active", version: "1.0", domainEvents: 12 },
+          { id: "studio", name: "ConvoLab Studio", description: "Functional engineering workspace with simulation, governance, analytics, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", status: "active", version: "0.14", domainEvents: 0 }
+        ],
+        generatedAt: "2026-09-02T12:00:00Z",
+        source: "api"
+      })
+    })
+  );
   await page.route("**/api/workspaces/*/analytics/filter-options?**", route =>
     route.fulfill({
       status: 200,
