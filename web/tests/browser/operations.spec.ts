@@ -120,6 +120,7 @@ test("dependency-state labels remain distinct and stub evidence is not live", as
     }),
   }));
   await page.goto("/operations");
+  await expect(page.locator('[data-testid="api-connectivity"]')).toHaveClass(/api-online/);
   await page.getByRole("button", { name: /Telemetry & Secrets/ }).click();
   const secrets = page.locator("section", { hasText: "Configuration Secrets" });
   for (const state of [
@@ -138,6 +139,7 @@ test("dependency-state labels remain distinct and stub evidence is not live", as
 
 test("safe-mode mutation refreshes the global banner and rejects stale revisions", async ({ page }) => {
   await page.goto("/operations");
+  await expect(page.locator('[data-testid="api-connectivity"]')).toHaveClass(/api-online/);
   const initial = await operationalStatus(page.request);
   await page.getByLabel("Reason").fill("Operations browser safe-mode acceptance");
   await page.getByLabel(/Type ACTIVATE SAFE MODE/).fill("ACTIVATE SAFE MODE");
@@ -200,6 +202,7 @@ for (const viewport of [
   test(`Operations Center remains usable at ${viewport.name} width`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/operations");
+    await expect(page.locator('[data-testid="api-connectivity"]')).toHaveClass(/api-online/);
     await expect(page.getByRole("heading", { name: "Operations Center" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Safe Mode Override" })).toBeVisible();
   });
