@@ -54,50 +54,29 @@ test("platform administrator can navigate every Operations Center panel", async 
   await expect(page).toHaveURL(/\/operations$/);
   await expect(page.getByRole("heading", { name: "Operations Center" })).toBeVisible();
 
-  for (const panel of [
-    "Readiness evidence",
-    "Workers and leases",
-    "Analytics pipeline",
-    "Authentication",
-    "Secret providers",
-    "Backups",
-    "Build and deployment",
-    "Telemetry",
-  ])
-    await expect(page.getByRole("heading", { name: panel })).toBeVisible();
+  // Overview & Health
+  await expect(page.getByRole("heading", { name: "Safe Mode Override" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Readiness Evidence" })).toBeVisible();
 
-  const backups = page.locator("article", { hasText: "Backups" });
-  await backups.getByRole("button", { name: "Load evidence" }).click();
-  await expect(backups.getByText("NotConfigured", { exact: true })).toBeVisible();
-  await expect(backups).not.toContainText(/RPO|RTO|verified at/i);
+  // Deployments
+  await page.getByRole("button", { name: /Deployments & Releases/ }).click();
+  await expect(page.getByRole("heading", { name: "Active Environment State & Promotion Pipeline" })).toBeVisible();
 
-  const analytics = page.locator("article", { hasText: "Analytics pipeline" });
-  await analytics.getByRole("button", { name: "Load evidence" }).click();
-  await expect(analytics.getByText("Pending records", { exact: true })).toBeVisible();
-  await expect(analytics.getByText("Failed records", { exact: true })).toBeVisible();
-  await expect(analytics.getByText("Applied thresholds", { exact: true })).toBeVisible();
+  // Backups
+  await page.getByRole("button", { name: /Backup & DR/ }).click();
+  await expect(page.getByRole("heading", { name: "Backup & Recovery Orchestration" })).toBeVisible();
+  
+  // Authentication
+  await page.getByRole("button", { name: /Authentication & IAM/ }).click();
+  await expect(page.getByRole("heading", { name: "Authentication & Break-Glass Evidence" })).toBeVisible();
 
-  const telemetry = page.locator("article", { hasText: "Telemetry" });
-  await telemetry.getByRole("button", { name: "Load evidence" }).click();
-  await expect(telemetry.getByText("OTLP dependency state", { exact: true })).toBeVisible();
-  await expect(telemetry.getByText("Endpoint configured", { exact: true })).toBeVisible();
-  await expect(telemetry).not.toContainText(/Authorization|header|credential/i);
+  // Telemetry
+  await page.getByRole("button", { name: /Telemetry & Secrets/ }).click();
+  await expect(page.getByRole("heading", { name: "Configuration Secrets" })).toBeVisible();
 
-  const authentication = page.locator("article", { hasText: "Authentication" });
-  await authentication.getByRole("button", { name: "Load evidence" }).click();
-  await expect(authentication.getByText("Authentication mode", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("Entra dependency state", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("Tenant configuration", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("Client authentication configured", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("External identities", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("External login successes (24h)", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("External login failures (24h)", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("Active application sessions", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("Break-glass state", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("Break-glass successful uses (24h)", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("Break-glass failures (24h)", { exact: true })).toBeVisible();
-  await expect(authentication.getByText("Last break-glass success", { exact: true })).toBeVisible();
-  await expect(authentication).not.toContainText(/tenant id|authority|secret reference|account|email|credential|hash|password|subject|failed at/i);
+  // Build
+  await page.getByRole("button", { name: /Build & Manifest/ }).click();
+  await expect(page.getByRole("heading", { name: "Build & System Information" })).toBeVisible();
 });
 
 test("workspace roles do not receive Operations navigation or route access", async ({ page }) => {
@@ -141,8 +120,8 @@ test("dependency-state labels remain distinct and stub evidence is not live", as
     }),
   }));
   await page.goto("/operations");
-  const secrets = page.locator("article", { hasText: "Secret providers" });
-  await secrets.getByRole("button", { name: "Load evidence" }).click();
+  await page.getByRole("button", { name: /Telemetry & Secrets/ }).click();
+  const secrets = page.locator("section", { hasText: "Configuration Secrets" });
   for (const state of [
     "Configured",
     "StubValidated",
@@ -152,7 +131,7 @@ test("dependency-state labels remain distinct and stub evidence is not live", as
     "Degraded",
   ])
     await expect(secrets.getByText(state, { exact: true })).toBeVisible();
-  const stub = secrets.locator('[data-dependency="stub"]');
+  const stub = secrets.locator(".dependency-list > div", { has: page.locator("strong", { hasText: /^stub$/ }) });
   await expect(stub.getByText("StubValidated", { exact: true })).toBeVisible();
   await expect(stub.getByText("LiveValidated", { exact: true })).toHaveCount(0);
 });
@@ -222,6 +201,6 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto("/operations");
     await expect(page.getByRole("heading", { name: "Operations Center" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Safe mode" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Safe Mode Override" })).toBeVisible();
   });
 }

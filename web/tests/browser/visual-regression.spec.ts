@@ -105,6 +105,11 @@ for (const theme of ["dark", "light"] as const) {
       await expect(page.locator(view.ready)).toBeVisible();
       await expect(page.locator(".async-loading")).toHaveCount(0);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      
+      const apiConnectivity = page.locator('[data-testid="api-connectivity"]');
+      await expect(apiConnectivity).toHaveClass(/api-online/);
+      await expect(apiConnectivity).toContainText("API online");
+
       await expect(page).toHaveScreenshot(`${view.name}-${theme}.png`, {
         animations: "disabled",
         caret: "hide",

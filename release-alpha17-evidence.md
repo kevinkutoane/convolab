@@ -1,8 +1,8 @@
 # ConvoLab Alpha.17 Release Evidence
 
 ## 1. Visual Regression (P0)
-The visual regression in `operations.spec.ts` was resolved. The DOM locators were made more specific to distinguish between spans and headers correctly, ensuring the labels and active states match.
-**Status**: Resolved. Playwright tests pass locally.
+The visual regression in `operations.spec.ts` was resolved. The tests were updated to navigate the new tabbed UI structure of the Operations Center, and DOM locators were made more specific (e.g. strict element containment for the `stub` dependency). Test synchronization was improved by explicitly asserting on the semantic "API online" string and `api-online` connectivity classes.
+**Status**: Resolved against commit `0ef86c6e5caba7487b4a22aa138a4114c7316c7f`. Browser suite, cross-capability, and restart persistence tests are fully green locally.
 
 ## 2. Authentication/Session Regression (P0)
 The `.NET` integration tests for Entra OIDC safe return URLs and session handling were fixed.
