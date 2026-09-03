@@ -155,32 +155,25 @@ public sealed class AuthController(
         var validPassword = eligible && !locked
             && passwordHasher.VerifyHashedPassword(user!, credential!.PasswordHash, request.Password ?? string.Empty)
                != PasswordVerificationResult.Failed;
-        if (!validPassword)
-        {
-            var thresholdReached = false;
-            if (eligible && !locked)
-            {
-                credential!.BreakGlassFailedAttempts++;
-                credential.BreakGlassLastFailedAt = now;
-                thresholdReached = credential.BreakGlassFailedAttempts >= limits.MaximumAttempts;
-                if (thresholdReached) credential.BreakGlassLockedUntil = now.AddMinutes(limits.LockoutMinutes);
-                credential.BreakGlassRevision++;
-                credential.UpdatedAt = now;
-            }
-            AddBreakGlassFailureEvidence(locked, thresholdReached);
             try
             {
-                await db.SaveChangesAsync(ct);
-                RecordBreakGlassMetric("denied", "invalid_credentials", locked || thresholdReached ? "locked" : "unlocked");
-                return UnauthorizedProblem("authentication.break_glass_denied", "Emergency administrator access was denied.");
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                db.ChangeTracker.Clear();
-                if (concurrencyAttempt < maximumConcurrencyAttempts - 1) continue;
-                break;
-            }
-        }
+                if (!validPassword)
+                {
+                    var thresholdReached = false;
+                    if (eligible && !locked)
+                    {
+                        credential!.BreakGlassFailedAttempts++;
+                        credential.BreakGlassLastFailedAt = now;
+                        thresholdReached = credential.BreakGlassFailedAttempts >= limits.MaximumAttempts;
+                        if (thresholdReached) credential.BreakGlassLockedUntil = now.AddMinutes(limits.LockoutMinutes);
+                        credential.BreakGlassRevision++;
+                        credential.UpdatedAt = now;
+                    }
+                    AddBreakGlassFailureEvidence(locked, thresholdReached);
+                    await db.SaveChangesAsync(ct);
+                    RecordBreakGlassMetric("denied", "invalid_credentials", locked || thresholdReached ? "locked" : "unlocked");
+                    return UnauthorizedProblem("authentication.break_glass_denied", "Emergency administrator access was denied.");
+                }
         credential!.BreakGlassFailedAttempts = 0;
         credential.BreakGlassLockedUntil = null;
         credential.BreakGlassRevision++;
@@ -210,6 +203,13 @@ public sealed class AuthController(
         RecordBreakGlassMetric("succeeded", "none", "unlocked");
         WriteSessionCookie(token, session.ExpiresAt);
         return Ok(await DescribeAsync(administrator, session, ct));
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                db.ChangeTracker.Clear();
+                if (concurrencyAttempt < maximumConcurrencyAttempts - 1) continue;
+                break;
+            }
         }
         RecordBreakGlassMetric("denied", "concurrency_conflict", "unknown");
         return UnauthorizedProblem("authentication.break_glass_denied", "Emergency administrator access was denied.");

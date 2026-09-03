@@ -155,6 +155,20 @@ jobs:
           CONVOLAB_EVIDENCE_PATH: /tmp/convolab-evidence.json
       - run: npm run test:browser
         working-directory: web
+      - name: Upload playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7
+      - name: Upload playwright test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: web/test-results/
+          retention-days: 7
       - name: Restart persistence verification
         run: |
           docker compose restart db api
