@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useEffect, useState, type FormEvent } from "react";
 import { Hexagon, LockKeyhole, ShieldAlert } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router";
@@ -6,6 +7,20 @@ import { getApiErrorMessage } from "../services/apiClient";
 import { getAuthenticationOptions, type AuthenticationOptions } from "../services/authApi";
 
 export function LoginPage() {
+  useHelp({
+    title: "Authentication",
+    description: "Secure access point for ConvoLab Studio.",
+    usageSteps: [
+        "Enter your corporate credentials or use Single Sign-On (SSO).",
+        "Complete Multi-Factor Authentication if prompted."
+    ],
+    examples: [
+        "Logging in via Okta or Microsoft Entra ID."
+    ],
+    expectedOutput: "Access to your assigned workspaces and environments based on your RBAC role.",
+    aiLayerRole: "Authentication is handled by standard security protocols; AI is not heavily involved here."
+  });
+
   const auth = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

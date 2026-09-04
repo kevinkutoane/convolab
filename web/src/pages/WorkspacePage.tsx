@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { Building2, Check, KeyRound, ScrollText, Settings, Shield, UserPlus } from "lucide-react";
@@ -10,6 +11,20 @@ const tabs = ["Overview", "Members", "Roles", "Service Accounts", "Audit", "Sett
 type Tab = (typeof tabs)[number];
 
 export function WorkspacePage({ selectionOnly = false }: { selectionOnly?: boolean }) {
+  useHelp({
+    title: "Workspace Selection",
+    description: "Navigate between different organizational workspaces.",
+    usageSteps: [
+        "View the list of workspaces you have access to.",
+        "Click on a workspace to load its specific prompts, knowledge, and settings."
+    ],
+    examples: [
+        "Switching from the 'Customer Support' workspace to the 'Internal HR Bot' workspace."
+    ],
+    expectedOutput: "The studio environment completely reloads with the context and data of the selected workspace.",
+    aiLayerRole: "Workspaces ensure that AI knowledge, prompts, and policies are strictly isolated between different teams or projects."
+  });
+
   const auth = useAuth();
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<Tab>("Overview");

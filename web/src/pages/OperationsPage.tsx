@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -47,6 +48,22 @@ import {
 type TabKey = "overview" | "deployments" | "backups" | "auth" | "telemetry" | "build";
 
 export function OperationsPage() {
+  useHelp({
+    title: "Platform Operations",
+    description: "Administrative controls for infrastructure, backups, and platform-wide maintenance.",
+    usageSteps: [
+        "View active background jobs and worker queues.",
+        "Trigger manual backups of the PostgreSQL database.",
+        "Review system logs and memory usage."
+    ],
+    examples: [
+        "Flushing the Redis cache after a major configuration change.",
+        "Exporting an encrypted backup of all workspace data."
+    ],
+    expectedOutput: "Successful execution of infrastructure maintenance tasks and system stability.",
+    aiLayerRole: "The AI monitors system logs to proactively warn administrators of potential bottlenecks or failing background jobs."
+  });
+
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const statusQuery = useQuery({ queryKey: ["operations", "status"], queryFn: getOperationsStatus, refetchInterval: 30_000 });

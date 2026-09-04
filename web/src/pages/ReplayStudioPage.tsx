@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +73,22 @@ const fallbackForm: ReplayForm = {
 };
 
 export function ReplayStudioPage() {
+  useHelp({
+    title: "Replay Studio",
+    description: "Debug historical conversations by stepping through them turn-by-turn exactly as they happened.",
+    usageSteps: [
+        "Select a past conversation ID from the Trace Explorer.",
+        "Use the timeline controls (Play, Step Forward, Step Back) to move through the chat.",
+        "Inspect the exact state of the context window, retrieved documents, and API responses at each specific turn."
+    ],
+    examples: [
+        "Investigating why the AI hallucinated an answer on turn 4 of a user's conversation.",
+        "Stepping through a complex multi-turn booking flow to see where the API call failed."
+    ],
+    expectedOutput: "A clear understanding of the AI's internal state at any given moment in the past, enabling root-cause analysis.",
+    aiLayerRole: "The platform reconstructs the exact AI execution trace, showing you the probabilistic tokens and reasoning paths used historically."
+  });
+
   const queryClient = useQueryClient();
   const [selectedExperimentId, setSelectedExperimentId] = useState("");
   const [selectedCandidateId, setSelectedCandidateId] = useState("");

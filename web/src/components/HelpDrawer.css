@@ -1,0 +1,221 @@
+.help-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: var(--color-overlay, rgba(0, 0, 0, 0.4));
+  z-index: 100;
+  backdrop-filter: blur(2px);
+  animation: fade-in 0.2s ease-out;
+}
+
+.help-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 450px;
+  background-color: var(--color-surface, #ffffff);
+  color: var(--color-text, #1a1a1a);
+  z-index: 101;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  animation: slide-in-right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border-left: 1px solid var(--color-border, #e5e5e5);
+}
+
+:root[data-theme="dark"] .help-drawer {
+  background-color: var(--color-surface, #1e1e1e);
+  color: var(--color-text, #e0e0e0);
+  border-left-color: var(--color-border, #333);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+}
+
+.help-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border, #e5e5e5);
+}
+
+:root[data-theme="dark"] .help-drawer-header {
+  border-bottom-color: var(--color-border, #333);
+}
+
+.help-drawer-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.help-drawer-title-group h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.help-drawer-icon {
+  color: #e0004d;
+}
+
+.help-drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.help-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-secondary, #4b5563);
+}
+
+:root[data-theme="dark"] .help-section h3 {
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+.help-text {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--color-text, #374151);
+}
+
+:root[data-theme="dark"] .help-text {
+  color: var(--color-text, #d1d5db);
+}
+
+.help-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.help-examples {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.help-examples li {
+  background-color: var(--color-surface-hover, #f3f4f6);
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  border: 1px solid var(--color-border, #e5e5e5);
+}
+
+:root[data-theme="dark"] .help-examples li {
+  background-color: var(--color-surface-hover, #2a2a2a);
+  border-color: var(--color-border, #404040);
+}
+
+.help-output {
+  background-color: var(--color-surface-hover, #f9fafb);
+  padding: 1rem;
+  border-radius: 6px;
+  border-left: 3px solid var(--color-success, #10b981);
+}
+
+:root[data-theme="dark"] .help-output {
+  background-color: var(--color-surface-hover, #232323);
+  border-left-color: var(--color-success, #059669);
+}
+
+.help-ai-section {
+  background: linear-gradient(135deg, rgba(224, 0, 77, 0.05) 0%, rgba(224, 0, 77, 0.08) 100%);
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(224, 0, 77, 0.1);
+}
+
+:root[data-theme="dark"] .help-ai-section {
+  background: linear-gradient(135deg, rgba(224, 0, 77, 0.1) 0%, rgba(224, 0, 77, 0.15) 100%);
+  border-color: rgba(224, 0, 77, 0.2);
+}
+
+.help-ai-section h3 {
+  color: #e0004d;
+}
+
+:root[data-theme="dark"] .help-ai-section h3 {
+  color: #e0004d;
+}
+
+.help-empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-secondary, #6b7280);
+  text-align: center;
+  font-style: italic;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.help-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #e0004d;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(224, 0, 77, 0.3);
+  z-index: 99;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  border: none;
+  outline: none;
+}
+
+.help-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(224, 0, 77, 0.4);
+  background-color: #f00052;
+}
+
+.help-fab:active {
+  transform: scale(0.95);
+}
+
+.help-fab-active {
+  display: none;
+}

@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { acceptanceAuthState } from "./tests/browser/global-setup";
+import { acceptanceAuthState } from "./tests/browser/global-setup.js";
 
 export default defineConfig({
   testDir: "./tests/browser",

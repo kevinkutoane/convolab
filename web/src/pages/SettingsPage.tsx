@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
@@ -84,6 +85,22 @@ const settingsSections: readonly SettingsSectionDefinition[] = [
 ];
 
 export function SettingsPage() {
+  useHelp({
+    title: "Workspace Settings",
+    description: "Manage your team's workspace, billing, users, and environment variables.",
+    usageSteps: [
+        "Invite new team members and assign them Roles (Admin, Editor, Viewer).",
+        "Manage billing details and view usage limits.",
+        "Define secure secrets (API Keys) that the AI capabilities can access securely."
+    ],
+    examples: [
+        "Adding a new developer to the workspace with 'Editor' permissions.",
+        "Storing an OpenAI API key securely so it can be used by the Intelligence Center."
+    ],
+    expectedOutput: "Configured access control, secure secrets management, and healthy workspace administration.",
+    aiLayerRole: "N/A"
+  });
+
   const auth = useAuth();
   const environment = useEnvironment();
   const navigate = useNavigate();

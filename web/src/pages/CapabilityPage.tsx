@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import {
   BookOpen,
   CheckCircle2,
@@ -17,6 +18,23 @@ interface CapabilityPageProps {
 }
 
 export function CapabilityPage({ definition, topic }: CapabilityPageProps) {
+  useHelp({
+    title: "Capability Configuration",
+    description: "Capabilities are reusable AI components (like a specific search tool or an API integration) that can be attached to workflows.",
+    usageSteps: [
+        "Review the list of available capabilities.",
+        "Click 'Add Capability' to integrate a new tool (e.g., Salesforce lookup).",
+        "Configure the authentication and endpoint settings for the selected capability.",
+        "Enable or disable capabilities across different environments (Dev/Prod)."
+    ],
+    examples: [
+        "Connecting a database so the AI can retrieve order statuses.",
+        "Adding a web search capability to allow the AI to answer current events."
+    ],
+    expectedOutput: "A configured integration that is now available to be used by any AI workflow or simulator in the studio.",
+    aiLayerRole: "The AI layer determines when to invoke these capabilities during a conversation, autonomously mapping user intent to the correct API call."
+  });
+
   const Icon = definition.icon;
 
   return (

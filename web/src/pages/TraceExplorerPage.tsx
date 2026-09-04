@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,22 @@ import type { TraceArtifact, TraceDetail, TraceSummary } from "../types/trace";
 type InspectorTab = "spans" | "events" | "artifacts" | "context";
 
 export function TraceExplorerPage() {
+  useHelp({
+    title: "Trace Explorer",
+    description: "A powerful search and filtering interface for every conversation and API call that happens on the platform.",
+    usageSteps: [
+        "Use the search bar to find conversations by User ID, Session ID, or specific keywords.",
+        "Filter traces by latency, token count, or policy violations.",
+        "Click on any trace to view the full log of events, tool calls, and LLM responses."
+    ],
+    examples: [
+        "Searching for all conversations where a 'Toxicity' policy was triggered today.",
+        "Finding the slowest 1% of API calls to optimize prompt sizes."
+    ],
+    expectedOutput: "A filtered list of raw conversation logs and system traces for debugging and auditing.",
+    aiLayerRole: "The AI automatically tags and indexes conversations for semantic search, allowing you to find traces based on user intent rather than exact keywords."
+  });
+
   const [searchParams] = useSearchParams();
   const requestedRunId = searchParams.get("run") ?? "";
   const [selectedId, setSelectedId] = useState("");

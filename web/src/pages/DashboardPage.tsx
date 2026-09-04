@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import {
   ArrowRight,
   Boxes,
@@ -19,6 +20,22 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ status }: DashboardPageProps) {
+  useHelp({
+    title: "Platform Dashboard",
+    description: "Your central hub in ConvoLab Studio. It provides a quick glance at system health, recent evaluations, and active operations.",
+    usageSteps: [
+        "Review the 'System Status' to ensure the API and Database are healthy.",
+        "Check the 'Recent Activity' feed to see what your team has changed recently.",
+        "Use the quick links to jump directly to your most used studios."
+    ],
+    examples: [
+        "Starting your day by verifying no policies are failing.",
+        "Jumping straight back into a draft prompt you were editing yesterday."
+    ],
+    expectedOutput: "A high-level summary of your workspace's operational status and shortcuts to your active work.",
+    aiLayerRole: "The AI summarizes recent platform activities and alerts you to any sudden drops in conversation quality or system errors."
+  });
+
   const navigate = useNavigate();
   const stableCount = status.capabilities.filter(item => item.status === "stable").length;
   const foundationCount = status.capabilities.filter(item => item.status === "foundation").length;

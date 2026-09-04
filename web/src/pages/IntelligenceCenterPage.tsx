@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useMemo, useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import type { CSSProperties } from "react";
@@ -67,6 +68,22 @@ function formatLatency(value: number) {
 }
 
 export function IntelligenceCenterPage() {
+  useHelp({
+    title: "Intelligence Center",
+    description: "Manage the core AI models and inference configurations that power your studio.",
+    usageSteps: [
+        "Select your primary LLM provider (e.g., OpenAI, Anthropic, Custom endpoint).",
+        "Configure default parameters like Temperature, Max Tokens, and Top P.",
+        "Set up fallback models in case your primary provider experiences an outage."
+    ],
+    examples: [
+        "Switching from GPT-4o to Claude 3.5 Sonnet for a specific workflow.",
+        "Lowering the temperature to 0.1 for tasks that require strict factual extraction."
+    ],
+    expectedOutput: "Global intelligence settings that dictate how text generation behaves across the platform.",
+    aiLayerRole: "This screen directly controls the 'brain' of the platform, managing the weights, biases, and models used for all generative tasks."
+  });
+
   const queryClient = useQueryClient();
   const overviewQuery = useQuery({
     queryKey: ["intelligence-overview"],

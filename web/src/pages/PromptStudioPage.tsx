@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useEffect,useMemo,useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { Braces,CheckCircle2,Code2,GitCompare,Plus,Send,ShieldCheck,Sparkles } from "lucide-react";
@@ -26,6 +27,23 @@ const promptFields: CreateResourceField[] = [
 const initialPromptDraft = {name:"Claims Assistant",description:"Governed claims assistant prompt",owner:"Kevin",category:"Claims",tags:"claims, grounded"};
 
 export function PromptStudioPage(){
+  useHelp({
+    title: "Prompt Studio",
+    description: "A dedicated IDE for writing, versioning, and testing the system prompts that guide your AI's behavior.",
+    usageSteps: [
+        "Create a new Prompt Template.",
+        "Write the system instructions using variables like `{{user_name}}` or `{{knowledge_context}}`.",
+        "Use the 'Test Bench' panel to inject sample variables and see the generated output.",
+        "Publish the prompt to a specific version (e.g., v1.2) for use in workflows."
+    ],
+    examples: [
+        "Writing a prompt that instructs the AI to act as a sarcastic pirate.",
+        "Refining an extraction prompt to perfectly output JSON data."
+    ],
+    expectedOutput: "A version-controlled, highly optimized prompt that dictates the tone, format, and behavior of the AI.",
+    aiLayerRole: "The AI executes your prompt against the test variables in real-time, helping you rapidly iterate on prompt engineering."
+  });
+
  const [items,setItems]=useState<PromptSummary[]>([]),[selectedId,setSelectedId]=useState<string>(),[detail,setDetail]=useState<PromptDetail>(),[selectedVersion,setSelectedVersion]=useState<string>(),[sections,setSections]=useState(defaultSections),[version,setVersion]=useState("1.0.0"),[preview,setPreview]=useState<RenderedPrompt>(),[message,setMessage]=useState(""),[compareId,setCompareId]=useState<string>();
  const [createOpen,setCreateOpen]=useState(false),[creating,setCreating]=useState(false),[createError,setCreateError]=useState(""),[promptDraft,setPromptDraft]=useState<Record<string,string>>(initialPromptDraft);
  const [initialLoading,setInitialLoading]=useState(true),[initialError,setInitialError]=useState("");

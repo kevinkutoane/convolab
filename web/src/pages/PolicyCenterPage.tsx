@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useMemo, useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -110,6 +111,22 @@ const emptyForm: PolicyForm = {
 };
 
 export function PolicyCenterPage() {
+  useHelp({
+    title: "Policy Center",
+    description: "Define strict guardrails, compliance rules, and safety filters that the AI must follow.",
+    usageSteps: [
+        "Toggle standard safety filters (e.g., Block Profanity, Redact PII).",
+        "Create a custom policy using natural language (e.g., 'Never mention our competitors').",
+        "Define the action to take if a policy is violated (Block, Flag, or Rewrite)."
+    ],
+    examples: [
+        "Creating a policy that automatically masks credit card numbers before they are logged.",
+        "Setting a strict guardrail that prevents the AI from offering medical advice."
+    ],
+    expectedOutput: "Active guardrails that intercept and evaluate every message in real-time to ensure compliance.",
+    aiLayerRole: "A lightweight, high-speed AI model evaluates every incoming user message and outgoing AI response against these policies in milliseconds."
+  });
+
   const queryClient = useQueryClient();
   const [selectedPolicyId, setSelectedPolicyId] = useState("");
   const [domainFilter, setDomainFilter] = useState<PolicyDomain | "All">("All");

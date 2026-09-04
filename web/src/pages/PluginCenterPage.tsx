@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useMemo, useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -94,6 +95,22 @@ const emptyForm: PluginForm = {
 };
 
 export function PluginCenterPage() {
+  useHelp({
+    title: "Plugin Center",
+    description: "Install and manage third-party extensions that add new features or UI components to the Studio.",
+    usageSteps: [
+        "Browse the catalog of available plugins.",
+        "Click 'Install' on a plugin (e.g., 'Advanced Markdown Editor').",
+        "Configure any necessary API keys or permissions required by the plugin."
+    ],
+    examples: [
+        "Installing a plugin that exports analytics data directly to Snowflake.",
+        "Adding a custom theme pack to the Studio."
+    ],
+    expectedOutput: "New capabilities, UI elements, or integrations are seamlessly added to your workspace.",
+    aiLayerRole: "Certain plugins may introduce new AI models, prompt templates, or evaluation scorecards into your environment."
+  });
+
   const queryClient = useQueryClient();
   const [selectedPluginId, setSelectedPluginId] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<PluginCategory | "All">("All");

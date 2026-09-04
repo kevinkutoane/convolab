@@ -65,7 +65,7 @@ test("platform administrator can navigate every Operations Center panel", async 
   // Backups
   await page.getByRole("button", { name: /Backup & DR/ }).click();
   await expect(page.getByRole("heading", { name: "Backup & Recovery Orchestration" })).toBeVisible();
-  
+
   // Authentication
   await page.getByRole("button", { name: /Authentication & IAM/ }).click();
   await expect(page.getByRole("heading", { name: "Authentication & Break-Glass Evidence" })).toBeVisible();

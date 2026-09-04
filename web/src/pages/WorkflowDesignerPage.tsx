@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import {
@@ -59,6 +60,23 @@ function starterGraph() {
 }
 
 export function WorkflowDesignerPage() {
+  useHelp({
+    title: "Workflow Designer",
+    description: "A visual canvas to build complex, multi-step conversational flows, routing logic, and business processes.",
+    usageSteps: [
+        "Drag and drop nodes (LLM Call, Condition, API Request) onto the canvas.",
+        "Connect nodes with edges to define the logic flow.",
+        "Configure the settings for each node (e.g., selecting a prompt for an LLM node).",
+        "Click 'Deploy' to make the workflow active."
+    ],
+    examples: [
+        "Building a workflow that asks for an order number, checks an API, and then summarizes the status.",
+        "Creating a routing layer that classifies user intent and sends them to a specific sub-agent."
+    ],
+    expectedOutput: "A robust, deployed state machine that orchestrates AI agents, logic, and external tools.",
+    aiLayerRole: "The workflow orchestrates the AI, determining when it should speak, when it should use a tool, and when it should hand off to a human."
+  });
+
   const [items, setItems] = useState<WorkflowSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
   const [detail, setDetail] = useState<WorkflowDetail>();

@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useMemo, useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -43,6 +44,23 @@ const defaultScorecard: CreateEvaluationScorecardRequest = {
 };
 
 export function EvaluationStudioPage() {
+  useHelp({
+    title: "Evaluation Studio",
+    description: "Run automated batch tests to ensure AI quality and verify that regressions don't occur when you update prompts or knowledge.",
+    usageSteps: [
+        "Define a 'Scorecard' (e.g., Helpfulness, Toxicity, Faithfulness).",
+        "Upload a CSV dataset of test questions and expected answers.",
+        "Click 'Run Evaluation' to execute the batch test.",
+        "Review the resulting scores and drill down into conversations that failed."
+    ],
+    examples: [
+        "Running a regression suite of 500 questions after updating a core prompt to ensure accuracy didn't drop.",
+        "Testing a new LLM model against your existing benchmark dataset."
+    ],
+    expectedOutput: "A detailed report card showing how the AI performed across your dataset, with aggregate scores and individual pass/fail metrics.",
+    aiLayerRole: "The AI acts as an evaluator (LLM-as-a-judge), analyzing conversation transcripts and scoring them based on the criteria defined in your scorecard."
+  });
+
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [selectedRunId, setSelectedRunId] = useState<string | null>(() => searchParams.get("run"));

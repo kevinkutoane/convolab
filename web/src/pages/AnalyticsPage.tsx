@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
@@ -32,6 +33,23 @@ const endpointFor = (tab: AnalyticsTab) => tab === "cost" ? "budget" : tab;
 const iconFor = (key: string) => key.includes("cost") ? Coins : key.includes("actor") ? UsersRound : key.includes("success") ? CheckCircle2 : key.includes("token") ? Sparkles : Gauge;
 
 export function AnalyticsPage() {
+  useHelp({
+    title: "Platform Analytics",
+    description: "The Analytics page provides a comprehensive dashboard of platform usage, token consumption, latency, and conversation volume across all deployed workflows.",
+    usageSteps: [
+        "Select a date range from the top right calendar picker.",
+        "Filter the metrics by specific workflows or capabilities using the sidebar.",
+        "Hover over any chart (e.g., Token Usage over Time) to see granular data points.",
+        "Click 'Export CSV' to download the raw data for external reporting."
+    ],
+    examples: [
+        "Monitoring cost: Check the 'Token Consumption' widget to ensure you aren't exceeding your budget.",
+        "Debugging latency: Look for spikes in the 'Average Response Time' graph to identify degraded performance."
+    ],
+    expectedOutput: "Real-time graphs and KPIs that help you understand the health, cost, and usage patterns of your conversational applications.",
+    aiLayerRole: "The AI layer automatically categorizes conversation topics and surfaces anomalies (e.g., sudden spikes in negative sentiment) directly into the dashboard."
+  });
+
   const auth = useAuth();
   const environment = useEnvironment();
   const queryClient = useQueryClient();

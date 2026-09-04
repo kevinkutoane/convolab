@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useMemo, useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,6 +56,23 @@ const starterMessages = [
 type InspectorTab = "overview" | "trace" | "knowledge" | "prompt";
 
 export function ConversationSimulatorPage() {
+  useHelp({
+    title: "Conversation Simulator",
+    description: "The Simulator allows you to chat with your AI in real-time before deploying it, while inspecting exactly how it formulates its answers.",
+    usageSteps: [
+        "Select a Persona and Workflow from the top dropdown menus.",
+        "Type a message in the chat interface on the left and hit send.",
+        "Click on the AI's response to open the 'Inspector' tab on the right.",
+        "Review the Trace, retrieved Knowledge, and Prompt context used to generate that specific answer."
+    ],
+    examples: [
+        "Testing a new policy by trying to get the AI to break a rule.",
+        "Verifying that a newly uploaded document is actually retrieved when you ask a related question."
+    ],
+    expectedOutput: "A complete chat transcript with deep observability into the AI's internal reasoning, context, and tool usage for every single turn.",
+    aiLayerRole: "The AI executes the selected persona, processes your intents, retrieves relevant knowledge, and streams the response dynamically based on live policies."
+  });
+
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const linkedSimulationId = searchParams.get("simulation");

@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { useEffect, useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { BookOpen, FileUp, FolderPlus, Play, Search, ShieldCheck } from "lucide-react";
@@ -17,6 +18,23 @@ const collectionFields: CreateResourceField[] = [
 const initialCollectionDraft = {name:"Claims Policies",description:"Governed enterprise knowledge",owner:"Kevin",classification:"Internal"};
 
 export function KnowledgeStudioPage(){
+  useHelp({
+    title: "Knowledge Studio",
+    description: "Manage the documents and data sources the AI uses for Retrieval-Augmented Generation (RAG).",
+    usageSteps: [
+        "Click 'New Collection' to create a distinct knowledge base (e.g., 'HR Policies').",
+        "Upload PDFs, Markdown files, or connect a web scraper.",
+        "Configure the chunking strategy (e.g., 512 tokens with 50 token overlap).",
+        "Verify the 'Sync Status' to ensure documents are embedded."
+    ],
+    examples: [
+        "Uploading an employee handbook so the AI can answer PTO questions.",
+        "Syncing a Zendesk help center to keep the AI's knowledge up to date."
+    ],
+    expectedOutput: "A fully vectorized database of documents that the AI can instantly search and cite during conversations.",
+    aiLayerRole: "The AI automatically chunks your documents, converts them into vector embeddings, and performs semantic similarity searches against them to ground its answers."
+  });
+
  const [collections,setCollections]=useState<KnowledgeCollection[]>([]); const [selected,setSelected]=useState<string>(); const [documents,setDocuments]=useState<KnowledgeDocument[]>([]); const [chunks,setChunks]=useState<KnowledgeChunk[]>([]); const [query,setQuery]=useState(""); const [results,setResults]=useState<QueryResponse>(); const [message,setMessage]=useState("");
  const [createOpen,setCreateOpen]=useState(false); const [creating,setCreating]=useState(false); const [createError,setCreateError]=useState(""); const [collectionDraft,setCollectionDraft]=useState<Record<string,string>>(initialCollectionDraft);
  const [initialLoading,setInitialLoading]=useState(true); const [initialError,setInitialError]=useState("");

@@ -1,3 +1,4 @@
+import { useHelp } from "../contexts/HelpContext";
 import { BookOpen, CheckCircle2, Code2, ExternalLink, Layers3 } from "lucide-react";
 import { Link, useParams } from "react-router";
 
@@ -96,6 +97,22 @@ const workspacePaths: Record<keyof typeof topics, string> = {
 };
 
 export function DocumentationPage() {
+  useHelp({
+    title: "Platform Documentation",
+    description: "The central repository for API references, SDK guides, and architectural documentation for ConvoLab.",
+    usageSteps: [
+        "Use the left sidebar to navigate between topics (e.g., API Reference, Webhooks).",
+        "Use the search bar (`Cmd+K`) to jump to specific functions or endpoints.",
+        "Copy code snippets directly from the examples."
+    ],
+    examples: [
+        "Looking up the exact payload structure for a webhook event.",
+        "Finding the authentication headers required for the REST API."
+    ],
+    expectedOutput: "Detailed technical documentation and code snippets to help developers integrate ConvoLab into external systems.",
+    aiLayerRole: "The documentation uses an AI-powered semantic search, allowing you to ask natural language questions about how to use the API."
+  });
+
   const { topic = "evaluation" } = useParams();
   const activeTopic = topic in topics ? topic as keyof typeof topics : "evaluation";
   const definition = topics[activeTopic];

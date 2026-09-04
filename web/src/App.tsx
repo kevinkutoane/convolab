@@ -15,6 +15,8 @@ import "./operations.css";
 import "./plugin-center.css";
 import "./settings-studio.css";
 import "./analytics.css";
+import { HelpProvider } from "./contexts/HelpContext";
+import { HelpDrawer } from "./components/HelpDrawer";
 
 const CapabilityPage = lazy(() => import("./pages/CapabilityPage").then(module => ({ default: module.CapabilityPage })));
 const DashboardPage = lazy(() => import("./pages/DashboardPage").then(module => ({ default: module.DashboardPage })));
@@ -135,9 +137,12 @@ function StudioRoutes() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <StudioRoutes />
-    </BrowserRouter>
+    <HelpProvider>
+      <BrowserRouter>
+        <StudioRoutes />
+        <HelpDrawer />
+      </BrowserRouter>
+    </HelpProvider>
   );
 }
 
