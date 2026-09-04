@@ -261,7 +261,7 @@ function WorkspaceSecretsForm({ workspaceId, secrets, onSaved }: { workspaceId: 
   const mutation = useMutation({ mutationFn: () => createSecretReference(workspaceId, name, value), onSuccess: () => { setName(""); setValue(""); onSaved(); } });
 
   return (
-    <div className="ws-settings-form">
+    <form className="ws-settings-form" onSubmit={e => { e.preventDefault(); mutation.mutate(); }}>
       <div className="ws-field-group">
         <label className="ws-field">
           <span>Secret Name</span>
@@ -281,7 +281,7 @@ function WorkspaceSecretsForm({ workspaceId, secrets, onSaved }: { workspaceId: 
       </div>
       {mutation.isError && <p className="ws-error">{getApiErrorMessage(mutation.error)}</p>}
       <div className="ws-form-actions">
-        <button className="primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Adding..." : "Add Secret"}</button>
+        <button type="submit" className="primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Adding..." : "Add Secret"}</button>
       </div>
       {secrets.length > 0 && (
         <div className="member-list" style={{ marginTop: "1.5rem" }}>
@@ -296,6 +296,6 @@ function WorkspaceSecretsForm({ workspaceId, secrets, onSaved }: { workspaceId: 
           ))}
         </div>
       )}
-    </div>
+    </form>
   );
 }
