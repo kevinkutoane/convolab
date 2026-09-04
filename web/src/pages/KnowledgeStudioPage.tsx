@@ -20,19 +20,21 @@ const initialCollectionDraft = {name:"Claims Policies",description:"Governed ent
 export function KnowledgeStudioPage(){
   useHelp({
     title: "Knowledge Studio",
-    description: "Manage the documents and data sources the AI uses for Retrieval-Augmented Generation (RAG).",
+    description: "The governance workspace for the documents your AI uses to answer questions. Organise documents into Collections, then move each document through a controlled lifecycle before it can be retrieved during conversations.",
     usageSteps: [
-        "Click 'New Collection' to create a distinct knowledge base (e.g., 'HR Policies').",
-        "Upload PDFs, Markdown files, or connect a web scraper.",
-        "Configure the chunking strategy (e.g., 512 tokens with 50 token overlap).",
-        "Verify the 'Sync Status' to ensure documents are embedded."
+          "Click '+ New collection' to create a named knowledge base (e.g., 'Claims Policies'). Set an owner, description, and classification (Public / Internal / Confidential / Restricted).",
+          "Select a collection from the left list, then click 'Upload document' to add a PDF, DOCX, TXT, or Markdown file.",
+          "Once uploaded, click 'Process' on the document to chunk and embed it. This makes the content searchable.",
+          "After processing, click 'Submit' then 'Approve' then 'Publish' to move the document through the approval workflow.",
+          "Use the 'Retrieval test' panel at the bottom to type a query and verify your published documents are being retrieved correctly.",
+          "Click 'Chunks' on any processed document to inspect how it was split and how many tokens each chunk uses."
     ],
     examples: [
-        "Uploading an employee handbook so the AI can answer PTO questions.",
-        "Syncing a Zendesk help center to keep the AI's knowledge up to date."
+          "Uploading a motor insurance policy PDF, processing it, and testing that 'Can I claim for hail damage?' retrieves the correct policy clause.",
+          "Checking chunk quality: If retrieval results are poor, inspect the chunks to see if the document was split at sensible boundaries."
     ],
-    expectedOutput: "A fully vectorized database of documents that the AI can instantly search and cite during conversations.",
-    aiLayerRole: "The AI automatically chunks your documents, converts them into vector embeddings, and performs semantic similarity searches against them to ground its answers."
+    expectedOutput: "A collection of published, vectorised documents that the AI can retrieve from during conversations. The 'Retrieval test' shows ranked results with confidence scores and matching terms.",
+    aiLayerRole: "The AI Engine chunks your documents into manageable segments, converts each chunk into a vector embedding using the configured embedding model, and performs semantic similarity search at runtime to retrieve the most relevant context."
   });
 
  const [collections,setCollections]=useState<KnowledgeCollection[]>([]); const [selected,setSelected]=useState<string>(); const [documents,setDocuments]=useState<KnowledgeDocument[]>([]); const [chunks,setChunks]=useState<KnowledgeChunk[]>([]); const [query,setQuery]=useState(""); const [results,setResults]=useState<QueryResponse>(); const [message,setMessage]=useState("");

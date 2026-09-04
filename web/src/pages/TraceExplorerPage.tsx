@@ -35,18 +35,21 @@ type InspectorTab = "spans" | "events" | "artifacts" | "context";
 export function TraceExplorerPage() {
   useHelp({
     title: "Trace Explorer",
-    description: "A powerful search and filtering interface for every conversation and API call that happens on the platform.",
+    description: "A searchable, filterable log of every AI execution that has occurred on the platform. Each trace captures the complete lifecycle of a single conversation turn — from the incoming message to the final response — including all spans, events, and artifacts.",
     usageSteps: [
-        "Use the search bar to find conversations by User ID, Session ID, or specific keywords.",
-        "Filter traces by latency, token count, or policy violations.",
-        "Click on any trace to view the full log of events, tool calls, and LLM responses."
+          "Use the search bar to find traces by correlation ID, session ID, run ID, or any keyword from the conversation.",
+          "Filter by Status (Completed, Failed), Provider, or Capability using the filter dropdowns.",
+          "Click any trace in the list to open its detail view. Use the tabs: Spans (execution steps), Events (domain events emitted), Artifacts (prompt renders, knowledge packages), Context (raw request/response).",
+          "Toggle 'Include sensitive data' to reveal PII and prompt content (requires Engineer role or above).",
+          "Click 'Open in Replay Studio' from any trace to start a controlled re-run experiment.",
+          "Review the metric chips on each trace row: latency (ms), token count, cost, and policy enforcement indicator."
     ],
     examples: [
-        "Searching for all conversations where a 'Toxicity' policy was triggered today.",
-        "Finding the slowest 1% of API calls to optimize prompt sizes."
+          "Debugging a slow response: Filter by Status=Completed, sort by latency descending, and inspect the Spans tab to see which step (knowledge retrieval? token generation?) took the longest.",
+          "Investigating a policy block: Search for traces with a 'ShieldAlert' icon — open the Events tab to see which policy rule fired and why."
     ],
-    expectedOutput: "A filtered list of raw conversation logs and system traces for debugging and auditing.",
-    aiLayerRole: "The AI automatically tags and indexes conversations for semantic search, allowing you to find traces based on user intent rather than exact keywords."
+    expectedOutput: "A detailed breakdown of any AI execution, showing the exact sequence of steps, knowledge retrieved, prompt used, tokens consumed, latency at each stage, and any policy violations.",
+    aiLayerRole: "Every AI execution is automatically instrumented with OpenTelemetry-compatible spans and events, providing full observability into model selection, knowledge retrieval, prompt rendering, and policy evaluation."
   });
 
   const [searchParams] = useSearchParams();

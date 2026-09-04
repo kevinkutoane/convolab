@@ -19,20 +19,19 @@ interface CapabilityPageProps {
 
 export function CapabilityPage({ definition, topic }: CapabilityPageProps) {
   useHelp({
-    title: "Capability Configuration",
-    description: "Capabilities are reusable AI components (like a specific search tool or an API integration) that can be attached to workflows.",
+    title: "Capability Explorer",
+    description: "Shows the detailed specification of a single platform capability (e.g., Conversation Engine, Knowledge Engine). This page is reached by clicking a capability from the Dashboard or Intelligence Center.",
     usageSteps: [
-        "Review the list of available capabilities.",
-        "Click 'Add Capability' to integrate a new tool (e.g., Salesforce lookup).",
-        "Configure the authentication and endpoint settings for the selected capability.",
-        "Enable or disable capabilities across different environments (Dev/Prod)."
+          "Review the capability's domain events, version, and current health status.",
+          "Click through the tabs to see the API contract, configuration schema, and dependency map.",
+          "Use the 'Open in Intelligence Center' link to see live execution metrics for this capability."
     ],
     examples: [
-        "Connecting a database so the AI can retrieve order statuses.",
-        "Adding a web search capability to allow the AI to answer current events."
+          "Checking the Conversation Engine to see all 16 domain events it emits.",
+          "Verifying that the Knowledge Engine is on version 1.0 and status 'stable' before deploying."
     ],
-    expectedOutput: "A configured integration that is now available to be used by any AI workflow or simulator in the studio.",
-    aiLayerRole: "The AI layer determines when to invoke these capabilities during a conversation, autonomously mapping user intent to the correct API call."
+    expectedOutput: "A complete technical specification for a single capability boundary, used for architectural review and health monitoring.",
+    aiLayerRole: "Each capability boundary isolates a specific AI function (e.g., Knowledge retrieval, Prompt rendering) to ensure provider independence and governed execution."
   });
 
   const Icon = definition.icon;

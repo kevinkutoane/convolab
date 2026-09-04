@@ -8,12 +8,12 @@ export function HelpDrawer() {
   return (
     <>
       <button 
-        className={`help-fab ${isHelpOpen ? 'help-fab-active' : ''}`}
+        className={`help-fab ${isHelpOpen ? 'help-fab-open' : ''}`}
         onClick={toggleHelp}
-        aria-label="Toggle Help"
-        title="Help & Documentation"
+        aria-label={isHelpOpen ? "Close help" : "Open Help & Documentation"}
+        title={isHelpOpen ? "Close" : "Help & Documentation"}
       >
-        <HelpCircle size={28} />
+        {isHelpOpen ? <X size={26} /> : <HelpCircle size={28} />}
       </button>
 
       {isHelpOpen && (

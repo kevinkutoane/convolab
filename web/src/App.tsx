@@ -38,6 +38,7 @@ const WorkspacePage = lazy(() => import("./pages/WorkspacePage").then(module => 
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(module => ({ default: module.SettingsPage })));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage").then(module => ({ default: module.AnalyticsPage })));
 const OperationsPage = lazy(() => import("./pages/OperationsPage").then(module => ({ default: module.OperationsPage })));
+const HelpCenterPage = lazy(() => import("./pages/HelpCenterPage").then(module => ({ default: module.HelpCenterPage })));
 
 function StudioRoutes() {
   const { theme, toggleTheme } = useTheme();
@@ -122,6 +123,7 @@ function StudioRoutes() {
           <Route path="workspace" element={<WorkspacePage />} />
           <Route path="workspace/select" element={<WorkspacePage selectionOnly />} />
           <Route path="documentation/:topic?" element={<DocumentationPage />} />
+          <Route path="help" element={<HelpCenterPage />} />
           {Object.entries(studioPages).filter(([key]) => !["conversations", "knowledge", "prompts", "workflows", "intelligence", "evaluations", "traces", "replay", "policies", "plugins", "settings", "analytics"].includes(key)).map(([key, definition]) => (
             <Route key={key} path={key} element={<CapabilityPage definition={definition} topic={key} />} />
           ))}

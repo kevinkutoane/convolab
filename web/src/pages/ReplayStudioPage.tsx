@@ -75,18 +75,21 @@ const fallbackForm: ReplayForm = {
 export function ReplayStudioPage() {
   useHelp({
     title: "Replay Studio",
-    description: "Debug historical conversations by stepping through them turn-by-turn exactly as they happened.",
+    description: "An experiment workspace for running controlled A/B tests on your AI configuration. You take a real historical conversation (the 'source run') and replay it against multiple candidate configurations (different prompts, providers, or models) to compare outcomes side-by-side.",
     usageSteps: [
-        "Select a past conversation ID from the Trace Explorer.",
-        "Use the timeline controls (Play, Step Forward, Step Back) to move through the chat.",
-        "Inspect the exact state of the context window, retrieved documents, and API responses at each specific turn."
+          "Click '+ New experiment' and provide the source run ID (from Trace Explorer or Conversation Simulator) and an experiment name.",
+          "Once the experiment is created, click '+ Add candidate' to define a test configuration: choose a Workflow, Prompt Version, Knowledge Collection, Provider, Model, Temperature, and Mode.",
+          "Add multiple candidates (e.g., Candidate A uses GPT-4o, Candidate B uses Claude 3.5 Sonnet).",
+          "Click 'Complete' on a candidate to execute the replay — it re-runs the original conversation messages against your candidate configuration.",
+          "Select a completed run to inspect its output, metrics (latency, tokens, cost), and compare it against other candidates.",
+          "Use 'Archive' to close an experiment when testing is complete."
     ],
     examples: [
-        "Investigating why the AI hallucinated an answer on turn 4 of a user's conversation.",
-        "Stepping through a complex multi-turn booking flow to see where the API call failed."
+          "Model comparison: Take a flagged conversation from Trace Explorer, replay it with your current model vs. a new one, and compare the response quality.",
+          "Prompt regression test: Replay 10 production conversations against a new prompt version before promoting it."
     ],
-    expectedOutput: "A clear understanding of the AI's internal state at any given moment in the past, enabling root-cause analysis.",
-    aiLayerRole: "The platform reconstructs the exact AI execution trace, showing you the probabilistic tokens and reasoning paths used historically."
+    expectedOutput: "Side-by-side run snapshots for each candidate configuration, showing the AI's responses, execution metrics, and quality indicators so you can make an informed promotion decision.",
+    aiLayerRole: "The Replay Engine re-executes the original user messages through the full AI pipeline — knowledge retrieval, prompt rendering, and response generation — but using your candidate configuration instead of the original one."
   });
 
   const queryClient = useQueryClient();

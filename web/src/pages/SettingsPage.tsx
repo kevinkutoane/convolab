@@ -87,18 +87,22 @@ const settingsSections: readonly SettingsSectionDefinition[] = [
 export function SettingsPage() {
   useHelp({
     title: "Workspace Settings",
-    description: "Manage your team's workspace, billing, users, and environment variables.",
+    description: "Configuration management for your workspace's runtime environments, AI provider connections, budget limits, evaluation thresholds, trace retention policies, feature flags, and secret references. Changes here affect how the entire platform behaves at runtime.",
     usageSteps: [
-        "Invite new team members and assign them Roles (Admin, Editor, Viewer).",
-        "Manage billing details and view usage limits.",
-        "Define secure secrets (API Keys) that the AI capabilities can access securely."
+          "Navigate sections using the left sidebar: Runtime (Environments, General, AI Provider), Guardrails (Budgets, Evaluation, Trace & Retention, Feature Flags), Operations (Secrets, Audit, Import/Export, Deployment).",
+          "'Environments' tab: Create isolated runtime contexts (e.g., Dev, Staging, Production) and set one as the default. Click 'Activate' to switch the platform to a different environment.",
+          "'AI Provider' tab: Configure your LLM provider key and model. Click 'Validate provider' to run a live connectivity test before saving.",
+          "'Budgets' tab: Set a ZAR monthly spend limit. The platform will block executions that would exceed this threshold.",
+          "'Secrets' tab: Store API keys and credentials securely as named references (e.g., OPENAI_API_KEY). These are never shown again after creation.",
+          "'Import / Export' tab: Export your entire workspace configuration as an encrypted JSON file. Use Import to restore it or move it to another workspace.",
+          "'Deployment' tab: Promote a validated environment configuration to a target environment."
     ],
     examples: [
-        "Adding a new developer to the workspace with 'Editor' permissions.",
-        "Storing an OpenAI API key securely so it can be used by the Intelligence Center."
+          "Adding a production environment: Create a new environment named 'Production', set it as default, then configure the AI provider key for that environment.",
+          "Setting a budget guard: Enter R5,000 in the Budgets section — the platform will stop executing AI calls once monthly spend approaches this limit."
     ],
-    expectedOutput: "Configured access control, secure secrets management, and healthy workspace administration.",
-    aiLayerRole: "N/A"
+    expectedOutput: "Correctly configured runtime environments, provider connections, and guardrail settings that control how the AI operates across the platform.",
+    aiLayerRole: "The AI Provider settings directly configure which model the Intelligence Engine uses. Budget settings impose hard limits on AI token consumption. Feature flags enable or disable experimental AI capabilities per environment."
   });
 
   const auth = useAuth();

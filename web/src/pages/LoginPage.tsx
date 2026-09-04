@@ -8,17 +8,19 @@ import { getAuthenticationOptions, type AuthenticationOptions } from "../service
 
 export function LoginPage() {
   useHelp({
-    title: "Authentication",
-    description: "Secure access point for ConvoLab Studio.",
+    title: "Sign In",
+    description: "The authentication entry point for ConvoLab Studio. Access is controlled by your organisation's identity provider.",
     usageSteps: [
-        "Enter your corporate credentials or use Single Sign-On (SSO).",
-        "Complete Multi-Factor Authentication if prompted."
+          "Enter your email and password, or use the SSO button to sign in via your corporate identity provider (e.g., Microsoft Entra, Okta).",
+          "If Multi-Factor Authentication is required, complete the MFA challenge after your initial credentials.",
+          "After sign-in, you will be directed to your active workspace. If you have access to multiple workspaces, you can switch them from the top bar."
     ],
     examples: [
-        "Logging in via Okta or Microsoft Entra ID."
+          "First-time login: Use your work email and the temporary password sent by your Administrator.",
+          "SSO login: Click 'Sign in with SSO' and enter your corporate email to be redirected to your organisation's login portal."
     ],
-    expectedOutput: "Access to your assigned workspaces and environments based on your RBAC role.",
-    aiLayerRole: "Authentication is handled by standard security protocols; AI is not heavily involved here."
+    expectedOutput: "A valid authenticated session scoped to your assigned workspaces and role-based permissions.",
+    aiLayerRole: "Authentication is handled by standard secure protocols. The AI layer is not involved in sign-in, but once authenticated, your role determines which AI capabilities and data you can access."
   });
 
   const auth = useAuth();

@@ -70,18 +70,20 @@ function formatLatency(value: number) {
 export function IntelligenceCenterPage() {
   useHelp({
     title: "Intelligence Center",
-    description: "Manage the core AI models and inference configurations that power your studio.",
+    description: "The observability and planning hub for AI model execution. It shows live provider health, model capabilities, execution metrics (latency, cost, token usage), and lets you preview and test execution plans before running real conversations.",
     usageSteps: [
-        "Select your primary LLM provider (e.g., OpenAI, Anthropic, Custom endpoint).",
-        "Configure default parameters like Temperature, Max Tokens, and Top P.",
-        "Set up fallback models in case your primary provider experiences an outage."
+          "Review the metric cards at the top: total executions, average latency, budget utilisation, and success rate.",
+          "In the 'Providers' section, click 'Test' next to any provider to run a live health check — it will confirm the provider is responding and report latency.",
+          "In 'Execution plan preview', configure a hypothetical plan (provider, model, token estimates, fallback settings) and click 'Preview plan' to see the estimated cost and routing decision.",
+          "Review 'Recent executions' to see actual AI calls with their provider, latency, tokens used, and cost.",
+          "Check the 'Daily usage' bar chart to see execution volume trends over the last 30 days."
     ],
     examples: [
-        "Switching from GPT-4o to Claude 3.5 Sonnet for a specific workflow.",
-        "Lowering the temperature to 0.1 for tasks that require strict factual extraction."
+          "Before a high-volume event: Run 'Preview plan' with your expected token counts to estimate cost and confirm fallback is configured.",
+          "After a provider outage: Click 'Test' on your primary provider to confirm it has recovered before re-enabling it."
     ],
-    expectedOutput: "Global intelligence settings that dictate how text generation behaves across the platform.",
-    aiLayerRole: "This screen directly controls the 'brain' of the platform, managing the weights, biases, and models used for all generative tasks."
+    expectedOutput: "Live execution telemetry, provider health status, and a cost/routing preview for any hypothetical execution plan configuration.",
+    aiLayerRole: "This screen shows the internals of the Intelligence Engine — the component responsible for selecting the right model, enforcing budget constraints, managing retries, and handling provider fallback."
   });
 
   const queryClient = useQueryClient();

@@ -7,6 +7,7 @@ import { useAuth } from "../contexts/useAuth";
 interface SidebarProps {
   collapsed: boolean;
   mobileOpen: boolean;
+  version?: string;
   onToggle: () => void;
   onCloseMobile: () => void;
 }
@@ -14,6 +15,7 @@ interface SidebarProps {
 export function Sidebar({
   collapsed,
   mobileOpen,
+  version,
   onToggle,
   onCloseMobile,
 }: SidebarProps) {
@@ -88,7 +90,7 @@ export function Sidebar({
           {!collapsed && (
             <div className="workspace-card">
               <span className="workspace-kicker">Conversation engineering</span>
-              <strong>v1.0.0-alpha.17</strong>
+              <strong>{version ?? "v1.0.0-alpha.17"}</strong>
               <span>Design, test, govern, and understand every intelligent conversation.</span>
             </div>
           )}

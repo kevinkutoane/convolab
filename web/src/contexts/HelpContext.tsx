@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 
 export interface HelpContent {
   title: string;
@@ -48,12 +48,21 @@ export function useHelpContext() {
   return context;
 }
 
+/**
+ * useHelp — registers screen-specific help content into the global drawer.
+ * Uses a ref to carry the latest content object into the effect without
+ * re-registering on every render, avoiding stale-closure issues when
+ * description or steps change while the title stays the same.
+ */
 export function useHelp(content: HelpContent) {
   const { setHelpContent } = useHelpContext();
+  const contentRef = useRef(content);
+  contentRef.current = content;
 
   useEffect(() => {
-    setHelpContent(content);
+    setHelpContent(contentRef.current);
     return () => setHelpContent(null);
+  // Intentionally runs only on mount/unmount and when the page (title) changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setHelpContent, content.title]); 
+  }, [setHelpContent, content.title]);
 }

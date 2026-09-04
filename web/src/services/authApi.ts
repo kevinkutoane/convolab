@@ -213,3 +213,31 @@ export async function createServiceAccount(
     body: JSON.stringify(input),
   });
 }
+
+export async function resetPassword(userId: string, input: { password: string }) {
+  return request(`/api/auth/${userId}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateWorkspace(id: string, input: { name: string; description?: string; expectedRevision: number }) {
+  return request<WorkspaceDetail>(`/api/workspaces/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function suspendWorkspace(id: string, expectedRevision: number) {
+  return request<WorkspaceDetail>(`/api/workspaces/${id}/suspend`, {
+    method: "POST",
+    body: JSON.stringify({ expectedRevision }),
+  });
+}
+
+export async function deleteWorkspace(id: string, expectedRevision: number) {
+  return request<WorkspaceDetail>(`/api/workspaces/${id}/archive`, {
+    method: "POST",
+    body: JSON.stringify({ expectedRevision }),
+  });
+}

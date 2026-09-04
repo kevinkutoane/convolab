@@ -14,6 +14,7 @@ import { quickActions } from "../data/platform";
 import type { PlatformStatus } from "../types/platform";
 import { MetricCard } from "../components/MetricCard";
 import { StatusPill } from "../components/StatusPill";
+import { useAuth } from "../contexts/useAuth";
 
 interface DashboardPageProps {
   status: PlatformStatus;
@@ -22,21 +23,41 @@ interface DashboardPageProps {
 export function DashboardPage({ status }: DashboardPageProps) {
   useHelp({
     title: "Platform Dashboard",
-    description: "Your central hub in ConvoLab Studio. It provides a quick glance at system health, recent evaluations, and active operations.",
+    description: "Your starting point in ConvoLab Studio. The Dashboard shows live platform health, a map of all capability boundaries, and quick-launch shortcuts to the most important studios.",
     usageSteps: [
-        "Review the 'System Status' to ensure the API and Database are healthy.",
-        "Check the 'Recent Activity' feed to see what your team has changed recently.",
-        "Use the quick links to jump directly to your most used studios."
+          "Check the 'Platform reliability' and 'Stable capabilities' metric cards at the top to assess system health.",
+          "Review the 'Workspace capabilities' list to see which engines (Conversation, Workflow, Prompt, Knowledge, etc.) are stable vs. in development.",
+          "Use the 'Start building' quick action buttons to jump directly to any studio.",
+          "Click 'View architecture' to inspect the full capability map in the Intelligence Center."
     ],
     examples: [
-        "Starting your day by verifying no policies are failing.",
-        "Jumping straight back into a draft prompt you were editing yesterday."
+          "Starting your day by checking that all core capabilities show 'stable' status before running simulations.",
+          "After a deployment, confirming that 'Platform reliability' still shows 'Healthy' and the API is online."
     ],
-    expectedOutput: "A high-level summary of your workspace's operational status and shortcuts to your active work.",
-    aiLayerRole: "The AI summarizes recent platform activities and alerts you to any sudden drops in conversation quality or system errors."
+    expectedOutput: "A real-time health overview of the entire platform, showing which capabilities are ready, what version they're on, and shortcuts to start working immediately.",
+    aiLayerRole: "The AI layer status is reflected in the 'Intelligence Engine' capability row — a 'stable' status means the AI is ready to process conversations and evaluation requests."
   });
 
   const navigate = useNavigate();
+  const auth = useAuth();
+  const workspaceId = auth.session?.activeWorkspaceId;
+  const role = auth.session?.workspaces.find(w => w.id === workspaceId)?.role ?? "Viewer";
+
+  // Sort quick actions by role relevance so each persona sees the most useful actions first.
+  const roleOrder: Record<string, string[]> = {
+    Administrator: ["/operations", "/intelligence", "/policies", "/conversations", "/analytics", "/workflows"],
+    Engineer: ["/conversations", "/prompts", "/knowledge", "/workflows", "/intelligence", "/policies"],
+    Reviewer: ["/evaluation", "/policies", "/analytics", "/traces", "/conversations", "/prompts"],
+    Operator: ["/traces", "/replay", "/analytics", "/intelligence", "/conversations", "/operations"],
+    Viewer: ["/conversations", "/analytics", "/knowledge", "/prompts", "/evaluation", "/traces"],
+  };
+  const priorityPaths = roleOrder[role] ?? roleOrder.Viewer;
+  const sortedActions = [...quickActions].sort((a, b) => {
+    const ai = priorityPaths.indexOf(a.path);
+    const bi = priorityPaths.indexOf(b.path);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
   const stableCount = status.capabilities.filter(item => item.status === "stable").length;
   const foundationCount = status.capabilities.filter(item => item.status === "foundation").length;
   const availableCapabilities = status.capabilities
@@ -150,9 +171,10 @@ export function DashboardPage({ status }: DashboardPageProps) {
                 <span className="panel-eyebrow">Quick actions</span>
                 <h3>Start building</h3>
               </div>
+              <small className="panel-role-badge">{role}</small>
             </div>
             <div className="quick-action-grid">
-              {quickActions.slice(0, 6).map(action => {
+              {sortedActions.slice(0, 6).map(action => {
                 const Icon = action.icon;
                 return (
                   <button key={action.label} onClick={() => navigate(action.path)}>

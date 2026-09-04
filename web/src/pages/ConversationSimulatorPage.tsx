@@ -58,19 +58,21 @@ type InspectorTab = "overview" | "trace" | "knowledge" | "prompt";
 export function ConversationSimulatorPage() {
   useHelp({
     title: "Conversation Simulator",
-    description: "The Simulator allows you to chat with your AI in real-time before deploying it, while inspecting exactly how it formulates its answers.",
+    description: "An interactive chat environment where you test your AI configuration end-to-end before deploying it. It shows you not just the AI's response, but exactly how it arrived at that answer — including which knowledge was retrieved, which prompt was used, and the full execution trace.",
     usageSteps: [
-        "Select a Persona and Workflow from the top dropdown menus.",
-        "Type a message in the chat interface on the left and hit send.",
-        "Click on the AI's response to open the 'Inspector' tab on the right.",
-        "Review the Trace, retrieved Knowledge, and Prompt context used to generate that specific answer."
+          "Click '+ New simulation' to create a test session and give it a name.",
+          "Select your Workflow, Prompt Version, and Knowledge Collection from the dropdowns in the configuration panel.",
+          "Type a message in the chat input and press Send. Use the starter messages as quick-start suggestions.",
+          "After the AI responds, click the 'Inspector' tab on the right to see the Trace, retrieved Knowledge chunks, and rendered Prompt.",
+          "Use 'Replay' on any existing simulation to re-run it with different settings for comparison.",
+          "Toggle 'Adversarial' mode to test how the AI handles edge cases and policy violations."
     ],
     examples: [
-        "Testing a new policy by trying to get the AI to break a rule.",
-        "Verifying that a newly uploaded document is actually retrieved when you ask a related question."
+          "Testing a claims workflow: Ask 'Can I claim for hail damage?' and verify the AI cites the correct policy document.",
+          "Policy testing: Try asking something the AI should refuse (e.g., competitor comparisons) and confirm the policy block appears in the trace."
     ],
-    expectedOutput: "A complete chat transcript with deep observability into the AI's internal reasoning, context, and tool usage for every single turn.",
-    aiLayerRole: "The AI executes the selected persona, processes your intents, retrieves relevant knowledge, and streams the response dynamically based on live policies."
+    expectedOutput: "A complete chat transcript with a side-by-side inspector showing the AI's internal reasoning, retrieved context, and execution metrics (latency, token count, cost) for every turn.",
+    aiLayerRole: "The AI executes the full conversation pipeline — intent classification, knowledge retrieval, prompt rendering, response generation, and policy evaluation — in real-time for every message you send."
   });
 
   const queryClient = useQueryClient();

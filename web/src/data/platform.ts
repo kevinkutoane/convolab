@@ -1,3 +1,14 @@
+/*
+ * ==============================================================================
+ * # STATUS MAINTENANCE
+ * ==============================================================================
+ * The capabilities and navigationItems below contain 'status' properties 
+ * (stable, active, foundation, planned). 
+ * 
+ * IMPORTANT: These must be reviewed and updated during every release/push.
+ * Check RELEASES.md for the definitions of each status.
+ * ==============================================================================
+ */
 import {
   Activity,
   BarChart3,
@@ -19,6 +30,7 @@ import {
   ShieldCheck,
   Sparkles,
   Workflow,
+  BookOpen,
 } from "lucide-react";
 import type {
   NavigationItem,
@@ -241,6 +253,13 @@ export const navigationItems: NavigationItem[] = [
     path: "/settings",
     icon: Settings,
     description: "Workspace and environment configuration",
+    status: "active",
+  },
+  {
+    label: "Help Center",
+    path: "/help",
+    icon: BookOpen,
+    description: "Documentation and guides for using ConvoLab",
   },
   {
     label: "Operations",

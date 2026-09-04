@@ -5,16 +5,18 @@ import { useNavigate } from "react-router";
 export function NotFoundPage() {
   useHelp({
     title: "Page Not Found",
-    description: "You have navigated to a URL that does not exist in the Studio.",
+    description: "The URL you navigated to does not exist in ConvoLab Studio.",
     usageSteps: [
-        "Click the 'Return Home' button to go back to the Dashboard.",
-        "Use the Command Palette (Cmd+K) to search for the page you were looking for."
+          "Click 'Return to Dashboard' to go back to the main platform hub.",
+          "Use the Command Palette (Ctrl+K / Cmd+K) to search for the feature you were looking for.",
+          "Check the URL for typos — Studio paths use lowercase with hyphens (e.g., /conversations, /knowledge)."
     ],
     examples: [
-        "N/A"
+          "If you typed '/prompt-studio', the correct path is '/prompts'.",
+          "If you followed a broken link, report it to your workspace Administrator."
     ],
-    expectedOutput: "Navigation back to a valid platform area.",
-    aiLayerRole: "N/A"
+    expectedOutput: "Navigation back to a valid area of the Studio.",
+    aiLayerRole: "N/A — this page is shown when a route cannot be matched."
   });
 
   const navigate = useNavigate();

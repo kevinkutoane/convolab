@@ -62,19 +62,22 @@ function starterGraph() {
 export function WorkflowDesignerPage() {
   useHelp({
     title: "Workflow Designer",
-    description: "A visual canvas to build complex, multi-step conversational flows, routing logic, and business processes.",
+    description: "A visual node editor for defining the step-by-step logic of your conversational AI pipeline. Workflows connect Knowledge retrieval, Prompt rendering, Intelligence generation, Decision branching, and Response steps into a governed execution flow.",
     usageSteps: [
-        "Drag and drop nodes (LLM Call, Condition, API Request) onto the canvas.",
-        "Connect nodes with edges to define the logic flow.",
-        "Configure the settings for each node (e.g., selecting a prompt for an LLM node).",
-        "Click 'Deploy' to make the workflow active."
+          "Click '+ New workflow' to create a workflow definition (name, owner, tags, description).",
+          "Select a workflow from the left list. A starter graph is created automatically with the standard pipeline: Start → Knowledge → Prompt → Intelligence → Response → End.",
+          "Click '+ Add step' to insert a new node. Choose from: Start, Knowledge, Prompt, Decision, Intelligence, Response, End.",
+          "Drag the grip handle (⠿) on any node to reorder it within the flow.",
+          "Click 'Save workflow' to persist your changes.",
+          "Click 'Run' to execute the workflow against a test message and see the output.",
+          "Use 'Add transition' to create conditional branches between Decision nodes — set the condition text that must match for each path."
     ],
     examples: [
-        "Building a workflow that asks for an order number, checks an API, and then summarizes the status.",
-        "Creating a routing layer that classifies user intent and sends them to a specific sub-agent."
+          "Standard pipeline: Start → Knowledge (retrieve relevant docs) → Prompt (render system instructions) → Intelligence (generate response) → Response (return to user) → End.",
+          "Branching flow: After a Decision node, route high-confidence queries to a fast model and low-confidence ones to a more capable (but slower) model."
     ],
-    expectedOutput: "A robust, deployed state machine that orchestrates AI agents, logic, and external tools.",
-    aiLayerRole: "The workflow orchestrates the AI, determining when it should speak, when it should use a tool, and when it should hand off to a human."
+    expectedOutput: "A saved, versioned workflow definition that can be selected in the Conversation Simulator, Replay Studio, or deployed to production as the AI's execution pipeline.",
+    aiLayerRole: "The workflow orchestrates the full AI pipeline — each node type invokes a different engine (Knowledge Engine for retrieval, Intelligence Engine for generation) in the correct sequence with governed transitions."
   });
 
   const [items, setItems] = useState<WorkflowSummary[]>([]);

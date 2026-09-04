@@ -396,6 +396,51 @@ public sealed class AuthController(
         await db.SaveChangesAsync(ct); return NoContent();
     }
 
+    [HttpPost("{userId:guid}/reset-password")]
+    public async Task<IActionResult> ResetPassword(Guid userId, ResetPasswordRequest request, CancellationToken ct)
+    {
+        var actorId = ClaimGuid(ClaimTypes.NameIdentifier) ?? throw new ResourceNotFoundException("auth.user_not_found", "The user was not found.");
+        
+        var isPlatformAdmin = User.HasClaim("platform_administrator", "true");
+        if (!isPlatformAdmin)
+        {
+            var sharedWorkspaces = await db.WorkspaceMemberships.AsNoTracking()
+                .Where(m => m.UserId == actorId && m.Role == "Administrator" && m.Status == "Active")
+                .Select(m => m.WorkspaceId)
+                .ToListAsync(ct);
+            var isWorkspaceAdminForUser = await db.WorkspaceMemberships.AsNoTracking()
+                .AnyAsync(m => m.UserId == userId && sharedWorkspaces.Contains(m.WorkspaceId) && m.Status == "Active", ct);
+            if (!isWorkspaceAdminForUser) return Forbid();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 12)
+            throw new RequestValidationException("credential.password.weak", "Passwords must contain at least 12 characters.");
+
+        var user = await db.IdentityUsers.SingleOrDefaultAsync(item => item.Id == userId, ct) 
+            ?? throw new ResourceNotFoundException("auth.user_not_found", "The user was not found.");
+        var credential = await db.LocalCredentials.SingleOrDefaultAsync(item => item.UserId == user.Id, ct);
+        
+        var now = timeProvider.GetUtcNow();
+        if (credential == null)
+        {
+            db.LocalCredentials.Add(new LocalCredentialRecord { UserId = user.Id, PasswordHash = passwordHasher.HashPassword(user, request.Password), UpdatedAt = now });
+        }
+        else
+        {
+            credential.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+            credential.UpdatedAt = now;
+            credential.FailedAttempts = 0;
+            credential.LockedUntil = null;
+        }
+        
+        var audit = Audit("Platform", null, null, "User", actorId, User.Identity?.Name ?? "Administrator", "Authentication.PasswordReset", "IdentityUser", user.Id.ToString(), "Succeeded", HttpContext.TraceIdentifier);
+        db.WorkspaceAuditEvents.Add(audit);
+        await AnalyticsOutboxFactory.EnqueueAuditAsync(db, audit, cancellationToken: ct);
+        
+        await db.SaveChangesAsync(ct);
+        return NoContent();
+    }
+
     private async Task<AuthSessionResponse> DescribeAsync(IdentityUserRecord user, AuthenticationSessionRecord session, CancellationToken ct)
     {
         var memberships = await db.WorkspaceMemberships.AsNoTracking().Where(item => item.UserId == user.Id && item.Status == "Active").ToListAsync(ct);
@@ -423,3 +468,4 @@ public sealed record AcceptInvitationRequest(string? Token, string? Password);
 public sealed record PrepareEntraInvitationRequest(string? Token);
 public sealed record WorkspaceChoice(Guid Id, Guid OrganisationId, string Name, string Role);
 public sealed record AuthSessionResponse(Guid UserId, string Email, string DisplayName, bool IsPlatformAdministrator, string AuthenticationProvider, DateTimeOffset ExpiresAt, Guid? ActiveWorkspaceId, IReadOnlyList<WorkspaceChoice> Workspaces);
+public sealed record ResetPasswordRequest(string Password);

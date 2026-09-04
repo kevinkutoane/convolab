@@ -99,18 +99,19 @@ const workspacePaths: Record<keyof typeof topics, string> = {
 export function DocumentationPage() {
   useHelp({
     title: "Platform Documentation",
-    description: "The central repository for API references, SDK guides, and architectural documentation for ConvoLab.",
+    description: "The built-in reference hub for ConvoLab Studio, containing API specifications, SDK guides, and conceptual documentation for every capability.",
     usageSteps: [
-        "Use the left sidebar to navigate between topics (e.g., API Reference, Webhooks).",
-        "Use the search bar (`Cmd+K`) to jump to specific functions or endpoints.",
-        "Copy code snippets directly from the examples."
+          "Use the left sidebar to navigate between documentation topics.",
+          "Use the Command Palette (Ctrl+K / Cmd+K) and type a keyword to jump directly to a specific topic.",
+          "Copy code snippets by clicking the copy icon on any code block.",
+          "Use the breadcrumb trail at the top to navigate back to parent sections."
     ],
     examples: [
-        "Looking up the exact payload structure for a webhook event.",
-        "Finding the authentication headers required for the REST API."
+          "Looking up the REST API payload for creating a new simulation.",
+          "Finding the list of available policy domains when writing a custom governance rule."
     ],
-    expectedOutput: "Detailed technical documentation and code snippets to help developers integrate ConvoLab into external systems.",
-    aiLayerRole: "The documentation uses an AI-powered semantic search, allowing you to ask natural language questions about how to use the API."
+    expectedOutput: "Structured technical documentation, code examples, and conceptual guides that help you use the platform correctly.",
+    aiLayerRole: "Documentation covers how the AI layer processes requests — from how knowledge packages are assembled, to how execution plans are generated, to how policy evaluation works at runtime."
   });
 
   const { topic = "evaluation" } = useParams();

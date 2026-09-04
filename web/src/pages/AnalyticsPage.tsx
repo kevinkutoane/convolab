@@ -35,19 +35,21 @@ const iconFor = (key: string) => key.includes("cost") ? Coins : key.includes("ac
 export function AnalyticsPage() {
   useHelp({
     title: "Platform Analytics",
-    description: "The Analytics page provides a comprehensive dashboard of platform usage, token consumption, latency, and conversation volume across all deployed workflows.",
+    description: "A role-filtered analytics hub that shows usage, cost, quality, governance, performance, and adoption metrics. The tabs you see depend on your role — Administrators see all tabs, while Reviewers see Quality and Adoption but not Cost.",
     usageSteps: [
-        "Select a date range from the top right calendar picker.",
-        "Filter the metrics by specific workflows or capabilities using the sidebar.",
-        "Hover over any chart (e.g., Token Usage over Time) to see granular data points.",
-        "Click 'Export CSV' to download the raw data for external reporting."
+          "Select a time window using the 'Last 30 / 60 / 90 days' selector in the filter bar.",
+          "Switch between tabs (Overview, Usage, Cost & Budget, Quality, Governance, Performance, Adoption, Events, Exports).",
+          "Use the filter dropdowns to narrow data by Provider, Model, Workflow, Prompt, or Knowledge Collection.",
+          "On the 'Exports' tab (Administrators only), click 'Create Export' to generate a downloadable report.",
+          "On the 'Events' tab, click any event row to expand its full detail payload."
     ],
     examples: [
-        "Monitoring cost: Check the 'Token Consumption' widget to ensure you aren't exceeding your budget.",
-        "Debugging latency: Look for spikes in the 'Average Response Time' graph to identify degraded performance."
+          "Cost monitoring: Navigate to the 'Cost & Budget' tab to see ZAR spend vs your configured budget threshold.",
+          "Quality check: Open the 'Quality' tab after updating a prompt to verify conversation scores haven't dropped.",
+          "Governance audit: The 'Governance' tab shows every policy trigger, violation, and enforcement action."
     ],
-    expectedOutput: "Real-time graphs and KPIs that help you understand the health, cost, and usage patterns of your conversational applications.",
-    aiLayerRole: "The AI layer automatically categorizes conversation topics and surfaces anomalies (e.g., sudden spikes in negative sentiment) directly into the dashboard."
+    expectedOutput: "Live metric cards, time-series charts, and filterable event logs that give you a complete picture of platform usage and health.",
+    aiLayerRole: "The AI layer generates the analytics events that populate these charts — every token consumed, policy evaluated, and knowledge retrieval performed is automatically recorded as a structured event."
   });
 
   const auth = useAuth();

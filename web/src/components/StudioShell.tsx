@@ -43,6 +43,7 @@ export function StudioShell({
       <Sidebar
         collapsed={sidebarCollapsed}
         mobileOpen={mobileOpen}
+        version={status?.version ? `v${status.version}` : undefined}
         onToggle={() => setSidebarCollapsed(value => !value)}
         onCloseMobile={() => setMobileOpen(false)}
       />

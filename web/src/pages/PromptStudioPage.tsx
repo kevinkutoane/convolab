@@ -29,19 +29,22 @@ const initialPromptDraft = {name:"Claims Assistant",description:"Governed claims
 export function PromptStudioPage(){
   useHelp({
     title: "Prompt Studio",
-    description: "A dedicated IDE for writing, versioning, and testing the system prompts that guide your AI's behavior.",
+    description: "A version-controlled IDE for building and governing the system prompts that shape your AI's personality, tone, and behaviour. Prompts are composed of typed sections and pass through a formal approval lifecycle before being used in conversations.",
     usageSteps: [
-        "Create a new Prompt Template.",
-        "Write the system instructions using variables like `{{user_name}}` or `{{knowledge_context}}`.",
-        "Use the 'Test Bench' panel to inject sample variables and see the generated output.",
-        "Publish the prompt to a specific version (e.g., v1.2) for use in workflows."
+          "Click '+ New prompt' to create a prompt definition (name, owner, category, tags, description).",
+          "In the 'Prompt definition' panel, edit the sections — each section has a type (System, Developer, Knowledge, Conversation, User, Output) and text content.",
+          "Use template variables like {{customerMessage}}, {{knowledgePackage}}, or {{conversationHistory}} in section content — these are resolved at runtime.",
+          "Enter a version number (e.g., 1.1.0) and click '+ Create version' to snapshot your current sections.",
+          "In the 'Version inspector', click 'Submit' → 'Approve' → 'Publish' to deploy a version for use in simulations and workflows.",
+          "Click 'Render preview' to see exactly how the prompt will look when runtime variables are resolved, showing estimated token count.",
+          "Use 'Compare with' to diff any two versions — the comparison shows token delta and added/removed variables."
     ],
     examples: [
-        "Writing a prompt that instructs the AI to act as a sarcastic pirate.",
-        "Refining an extraction prompt to perfectly output JSON data."
+          "Creating a grounded claims assistant prompt: Set the System section to 'You are a careful claims assistant. Answer only from governed knowledge.' Add a Knowledge section using {{knowledgePackage}}.",
+          "Version comparison: After updating tone instructions in v1.2.0, compare it with v1.1.0 to confirm the token count increased by less than 50 tokens."
     ],
-    expectedOutput: "A version-controlled, highly optimized prompt that dictates the tone, format, and behavior of the AI.",
-    aiLayerRole: "The AI executes your prompt against the test variables in real-time, helping you rapidly iterate on prompt engineering."
+    expectedOutput: "Published, versioned prompt templates with a clear audit trail of changes, variable inventory, and a rendered preview showing exactly what the AI will receive.",
+    aiLayerRole: "Published prompts are injected into the AI's context window at conversation runtime. The Knowledge section variable ({{knowledgePackage}}) is populated by the Knowledge Engine with the most relevant retrieved chunks."
   });
 
  const [items,setItems]=useState<PromptSummary[]>([]),[selectedId,setSelectedId]=useState<string>(),[detail,setDetail]=useState<PromptDetail>(),[selectedVersion,setSelectedVersion]=useState<string>(),[sections,setSections]=useState(defaultSections),[version,setVersion]=useState("1.0.0"),[preview,setPreview]=useState<RenderedPrompt>(),[message,setMessage]=useState(""),[compareId,setCompareId]=useState<string>();

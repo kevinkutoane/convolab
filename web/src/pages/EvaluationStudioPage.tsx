@@ -46,19 +46,21 @@ const defaultScorecard: CreateEvaluationScorecardRequest = {
 export function EvaluationStudioPage() {
   useHelp({
     title: "Evaluation Studio",
-    description: "Run automated batch tests to ensure AI quality and verify that regressions don't occur when you update prompts or knowledge.",
+    description: "A quality assurance workspace for running automated batch tests against your AI. Create scorecards that define what 'good' looks like, then run them against datasets to detect regressions before they reach users.",
     usageSteps: [
-        "Define a 'Scorecard' (e.g., Helpfulness, Toxicity, Faithfulness).",
-        "Upload a CSV dataset of test questions and expected answers.",
-        "Click 'Run Evaluation' to execute the batch test.",
-        "Review the resulting scores and drill down into conversations that failed."
+          "Click '+ New scorecard' to define your quality criteria (name, description, and pass/fail threshold, e.g., 0.85 = 85%).",
+          "Once a scorecard is created, click 'Publish' to make it the active quality gate.",
+          "Click '+ Add test case' to add individual test scenarios (input + expected verdict) to a scorecard.",
+          "Click 'Run batch' to execute all test cases against the current AI configuration.",
+          "Select any run from the list on the left to see detailed results — pass/fail per case, aggregate score, and comparison to baseline.",
+          "Use 'Compare runs' to diff two run IDs side-by-side to see exactly what changed between versions."
     ],
     examples: [
-        "Running a regression suite of 500 questions after updating a core prompt to ensure accuracy didn't drop.",
-        "Testing a new LLM model against your existing benchmark dataset."
+          "Regression testing: After updating a prompt, run your 'Customer Support Quality' scorecard and compare the new run against last week's baseline.",
+          "Safety gate: Create a scorecard with a 0.95 threshold for toxicity checks before promoting a prompt to production."
     ],
-    expectedOutput: "A detailed report card showing how the AI performed across your dataset, with aggregate scores and individual pass/fail metrics.",
-    aiLayerRole: "The AI acts as an evaluator (LLM-as-a-judge), analyzing conversation transcripts and scoring them based on the criteria defined in your scorecard."
+    expectedOutput: "A scored report card for each batch run showing aggregate pass rate, individual test case results, and a comparison to previous runs.",
+    aiLayerRole: "The AI acts as a judge — it reads each test case, executes the conversation, and scores the result against your scorecard criteria using LLM-as-a-judge evaluation."
   });
 
   const queryClient = useQueryClient();

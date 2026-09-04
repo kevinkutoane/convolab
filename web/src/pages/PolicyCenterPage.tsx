@@ -113,18 +113,22 @@ const emptyForm: PolicyForm = {
 export function PolicyCenterPage() {
   useHelp({
     title: "Policy Center",
-    description: "Define strict guardrails, compliance rules, and safety filters that the AI must follow.",
+    description: "The governance control centre for defining and enforcing rules that every AI interaction must comply with. Policies are evaluated in real-time on every message — before the AI responds and after.",
     usageSteps: [
-        "Toggle standard safety filters (e.g., Block Profanity, Redact PII).",
-        "Create a custom policy using natural language (e.g., 'Never mention our competitors').",
-        "Define the action to take if a policy is violated (Block, Flag, or Rewrite)."
+          "Click '+ New policy' and give it a name, domain (e.g., Safety, Compliance, BudgetLimit), scope (Global / Environment / Tenant), and effect (Allow / AllowWithConstraints / Deny).",
+          "Add Rules to your policy using natural language match conditions (e.g., 'message contains competitor name') and set the effect and priority.",
+          "Click 'Create version' to save a new draft, then 'Submit' → 'Approve' → 'Activate' to deploy it.",
+          "Use the 'Test policy' panel to enter a sample message and see immediately which rules would match and what the enforcement action would be.",
+          "Use 'Clone' to copy an existing policy as a starting point for a new one.",
+          "Review the 'Policy metrics' cards at the top to see how many policies are active and how many evaluations have been performed."
     ],
     examples: [
-        "Creating a policy that automatically masks credit card numbers before they are logged.",
-        "Setting a strict guardrail that prevents the AI from offering medical advice."
+          "Safety policy: Create a 'Safety' domain policy with a Deny rule that matches 'instructions to harm'. Effect: Block the response and log the violation.",
+          "Budget policy: Create a 'BudgetLimit' domain policy with AllowWithConstraints that caps max tokens to 500 for Viewer-role users.",
+          "Compliance policy: Add a 'Compliance' domain rule that ensures no PII (credit card, ID numbers) appears in any AI response."
     ],
-    expectedOutput: "Active guardrails that intercept and evaluate every message in real-time to ensure compliance.",
-    aiLayerRole: "A lightweight, high-speed AI model evaluates every incoming user message and outgoing AI response against these policies in milliseconds."
+    expectedOutput: "Active, versioned governance policies that are evaluated in milliseconds against every conversation turn. The Test panel shows you exactly which rules fire for any given input.",
+    aiLayerRole: "The Policy Engine uses a fast, lightweight AI classifier to evaluate every user input and AI output against your rules. Violations trigger the configured effect (Block, Log, Rewrite) before the response reaches the user."
   });
 
   const queryClient = useQueryClient();

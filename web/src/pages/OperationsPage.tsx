@@ -50,18 +50,22 @@ type TabKey = "overview" | "deployments" | "backups" | "auth" | "telemetry" | "b
 export function OperationsPage() {
   useHelp({
     title: "Platform Operations",
-    description: "Administrative controls for infrastructure, backups, and platform-wide maintenance.",
+    description: "An administrator-only control centre for infrastructure monitoring, backup management, deployment approvals, and platform-wide safe mode. Only Platform Administrators can access this page.",
     usageSteps: [
-        "View active background jobs and worker queues.",
-        "Trigger manual backups of the PostgreSQL database.",
-        "Review system logs and memory usage."
+          "The 'Overview' tab shows system readiness, dependency health (API, database, cache, queues), active worker status, and the safe mode toggle.",
+          "Toggle 'Safe Mode' in the Overview tab to block all external AI execution and plugin activity platform-wide — useful during incidents.",
+          "The 'Deployments' tab lists pending and approved deployments. Click 'Approve' to promote a deployment to production.",
+          "The 'Backups' tab lets you trigger a manual database backup, list available restore points, and initiate a recovery.",
+          "The 'Auth' tab shows authentication evidence and secret provider health.",
+          "The 'Telemetry' tab shows the analytics pipeline status and event processing throughput.",
+          "The 'Build' tab shows the CI/CD build evidence and test coverage for the current deployed version."
     ],
     examples: [
-        "Flushing the Redis cache after a major configuration change.",
-        "Exporting an encrypted backup of all workspace data."
+          "Pre-maintenance: Enable Safe Mode to stop all AI execution while you perform infrastructure changes.",
+          "Disaster recovery: Go to Backups → 'List available backups' → select a restore point → click 'Restore'."
     ],
-    expectedOutput: "Successful execution of infrastructure maintenance tasks and system stability.",
-    aiLayerRole: "The AI monitors system logs to proactively warn administrators of potential bottlenecks or failing background jobs."
+    expectedOutput: "Live infrastructure health metrics, backup management controls, deployment approval workflow, and a platform-wide safe mode emergency stop.",
+    aiLayerRole: "The Operations page lets Administrators monitor the infrastructure that hosts the AI layer — including worker queues processing AI jobs and the analytics pipeline that records execution telemetry."
   });
 
   const queryClient = useQueryClient();

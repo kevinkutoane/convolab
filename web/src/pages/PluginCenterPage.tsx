@@ -97,18 +97,22 @@ const emptyForm: PluginForm = {
 export function PluginCenterPage() {
   useHelp({
     title: "Plugin Center",
-    description: "Install and manage third-party extensions that add new features or UI components to the Studio.",
+    description: "Register, configure, activate, and monitor third-party extensions to the ConvoLab platform. Plugins can extend the system with new AI providers, workflow node types, knowledge connectors, evaluation scoring models, and more.",
     usageSteps: [
-        "Browse the catalog of available plugins.",
-        "Click 'Install' on a plugin (e.g., 'Advanced Markdown Editor').",
-        "Configure any necessary API keys or permissions required by the plugin."
+          "Click '+ Register plugin' to add a new plugin by providing its manifest URL, entry point, and configuration schema.",
+          "Select a plugin from the left list to view its full detail — capabilities, permissions, configuration, and health status.",
+          "Click 'Activate' to enable a registered plugin for use across the platform. Click 'Deactivate' to suspend it without removing it.",
+          "Click 'Health check' to run a live liveness probe against the plugin's endpoint.",
+          "Use the filter bar to find plugins by category: Provider, Tool, KnowledgeConnector, Channel, Evaluator, TraceExporter, WorkflowNode, or EnterpriseConnector.",
+          "Click 'Edit configuration' to update the plugin's runtime settings (e.g., API endpoint, credentials)."
     ],
     examples: [
-        "Installing a plugin that exports analytics data directly to Snowflake.",
-        "Adding a custom theme pack to the Studio."
+          "Adding a Provider plugin: Register a custom OpenAI-compatible LLM endpoint so it appears as an option in the Intelligence Center.",
+          "Adding a KnowledgeConnector plugin: Connect SharePoint so documents sync automatically into a Knowledge Collection.",
+          "Adding an Evaluator plugin: Register a custom scoring model that grades conversations using your domain-specific rubric."
     ],
-    expectedOutput: "New capabilities, UI elements, or integrations are seamlessly added to your workspace.",
-    aiLayerRole: "Certain plugins may introduce new AI models, prompt templates, or evaluation scorecards into your environment."
+    expectedOutput: "A registered, activated, and health-checked plugin that adds new capabilities to the platform's provider, knowledge, or evaluation layers.",
+    aiLayerRole: "Provider plugins directly extend which AI models the Intelligence Engine can use. Evaluator plugins add new scoring criteria to the Evaluation Studio. All plugin types integrate with the platform's governed execution layer."
   });
 
   const queryClient = useQueryClient();
