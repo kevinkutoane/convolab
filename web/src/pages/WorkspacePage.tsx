@@ -7,6 +7,7 @@ import { useAuth } from "../contexts/useAuth";
 import { createServiceAccount, getAudit, getMembers, getServiceAccounts, getWorkspace, inviteMember, resetPassword, updateWorkspace, suspendWorkspace, deleteWorkspace, type ServiceAccount, type WorkspaceMember } from "../services/authApi";
 import { getApiErrorMessage } from "../services/apiClient";
 import { listWorkspaceSettings, upsertWorkspaceSetting, listSecretReferences, createSecretReference } from "../services/settingsApi";
+import type { SecretReference } from "../types/settings";
 
 const tabs = ["Overview", "Members", "Roles", "Service Accounts", "Audit", "Settings"] as const;
 type Tab = (typeof tabs)[number];
@@ -140,7 +141,7 @@ function WorkspaceSettingsPanel({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-function WorkspaceConfigForm({ workspaceId, initialName, initialDescription, expectedRevision, onSaved }: any) {
+function WorkspaceConfigForm({ workspaceId, initialName, initialDescription, expectedRevision, onSaved }: { workspaceId: string, initialName: string, initialDescription: string, expectedRevision: number, onSaved: () => void }) {
   const [name, setName] = useState(initialName);
   const [desc, setDesc] = useState(initialDescription);
   const mutation = useMutation({ mutationFn: () => updateWorkspace(workspaceId, { name, description: desc, expectedRevision }), onSuccess: onSaved });
@@ -164,7 +165,7 @@ function WorkspaceConfigForm({ workspaceId, initialName, initialDescription, exp
   );
 }
 
-function WorkspaceDefaultsForm({ workspaceId, initialProvider, initialBudget, initialRetention, onSaved }: any) {
+function WorkspaceDefaultsForm({ workspaceId, initialProvider, initialBudget, initialRetention, onSaved }: { workspaceId: string, initialProvider: string, initialBudget: number, initialRetention: number, onSaved: () => void }) {
   const [provider, setProvider] = useState(initialProvider);
   const [budget, setBudget] = useState(initialBudget);
   const [retention, setRetention] = useState(initialRetention);
@@ -189,11 +190,11 @@ function WorkspaceDefaultsForm({ workspaceId, initialProvider, initialBudget, in
         </label>
         <label className="ws-field">
           <span>Monthly Budget Limit (ZAR)</span>
-          <input type="number" min={0} value={budget} onChange={e => setBudget(e.target.value)} placeholder="e.g. 5000" />
+          <input type="number" min={0} value={budget} onChange={e => setBudget(Number(e.target.value))} placeholder="e.g. 5000" />
         </label>
         <label className="ws-field">
           <span>Data Retention (Days)</span>
-          <input type="number" min={1} value={retention} onChange={e => setRetention(e.target.value)} placeholder="e.g. 30" />
+          <input type="number" min={1} value={retention} onChange={e => setRetention(Number(e.target.value))} placeholder="e.g. 30" />
         </label>
       </div>
       {mutation.isError && <p className="ws-error">{getApiErrorMessage(mutation.error)}</p>}
@@ -204,14 +205,14 @@ function WorkspaceDefaultsForm({ workspaceId, initialProvider, initialBudget, in
   );
 }
 
-function WorkspaceSecurityForm({ workspaceId, initialMfa, members, onSaved }: any) {
+function WorkspaceSecurityForm({ workspaceId, initialMfa, members, onSaved }: { workspaceId: string, initialMfa: boolean, members: { userId: string; displayName: string; email: string }[], onSaved: () => void }) {
   const [mfa, setMfa] = useState(initialMfa);
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
   const settingsMutation = useMutation({ mutationFn: () => upsertWorkspaceSetting(workspaceId, "workspace.security.require_mfa", { valueJson: JSON.stringify(mfa) }), onSuccess: onSaved });
   const resetMutation = useMutation({
     mutationFn: () => {
-      const member = members.find((m: any) => m.userId === userId);
+      const member = members.find(m => m.userId === userId);
       if (!window.confirm(`Reset the password for ${member?.displayName ?? "this user"}?\n\nThey will need to log in with the new password immediately.`))
         return Promise.reject(new Error("Cancelled"));
       return resetPassword(userId, { password });
@@ -235,7 +236,7 @@ function WorkspaceSecurityForm({ workspaceId, initialMfa, members, onSaved }: an
               <span>Member</span>
               <select value={userId} onChange={e => setUserId(e.target.value)} required>
                 <option value="">Select a member...</option>
-                {members.map((m: any) => <option key={m.userId} value={m.userId}>{m.displayName} ({m.email})</option>)}
+                {members.map((m: { userId: string; displayName: string; email: string }) => <option key={m.userId} value={m.userId}>{m.displayName} ({m.email})</option>)}
               </select>
             </label>
             <label className="ws-field">
@@ -253,7 +254,7 @@ function WorkspaceSecurityForm({ workspaceId, initialMfa, members, onSaved }: an
   );
 }
 
-function WorkspaceSecretsForm({ workspaceId, secrets, onSaved }: any) {
+function WorkspaceSecretsForm({ workspaceId, secrets, onSaved }: { workspaceId: string, secrets: SecretReference[], onSaved: () => void }) {
   const [name, setName] = useState("");
   const [type, setType] = useState("api-key");
   const [value, setValue] = useState("");
@@ -284,14 +285,13 @@ function WorkspaceSecretsForm({ workspaceId, secrets, onSaved }: any) {
       </div>
       {secrets.length > 0 && (
         <div className="member-list" style={{ marginTop: "1.5rem" }}>
-          {secrets.map((s: any) => (
+          {secrets.map((s: SecretReference) => (
             <article key={s.id}>
               <KeyRound />
               <div>
-                <strong>{s.name}</strong>
-                <small>{s.type} · Added {new Date(s.createdAt).toLocaleDateString()}</small>
+                <p><strong>{s.displayName}</strong> <small style={{ marginLeft: "6px" }}>{s.provider}</small></p>
+                <small>Added {new Date(s.createdAt).toLocaleDateString()} • {s.status}</small>
               </div>
-              <span className="role-pill">{s.status}</span>
             </article>
           ))}
         </div>
