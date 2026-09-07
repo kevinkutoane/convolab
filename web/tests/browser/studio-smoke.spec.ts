@@ -100,7 +100,7 @@ test("governance workspaces expose functional dialogs, tabs and documentation", 
   await page.getByRole("button", { name: /cancel/i }).click();
 
   await page.goto("/plugins");
-  await page.getByRole("link", { name: /documentation/i }).click();
+  await page.getByRole("link", { name: "Documentation", exact: true }).click();
   await expect(page).toHaveURL(/\/documentation\/plugins/);
   await page.goto("/plugins");
   await page.getByRole("button", { name: /register plugin/i }).click();
