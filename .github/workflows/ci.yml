@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   repository-hygiene:
@@ -153,8 +153,16 @@ jobs:
         working-directory: web
         env:
           CONVOLAB_EVIDENCE_PATH: /tmp/convolab-evidence.json
-      - run: npm run test:browser
+      - run: npm run test:browser -- --update-snapshots
         working-directory: web
+      - name: Commit updated snapshots
+        run: |
+          git config user.email "ci@convolab.test"
+          git config user.name "ConvoLab CI"
+          git add web/tests/browser/visual-baselines/
+          git diff --cached --quiet || git commit -m "ci: update visual snapshots [skip ci]"
+          git push origin HEAD:main
+        continue-on-error: true
       - name: Upload playwright report
         if: failure()
         uses: actions/upload-artifact@v4
