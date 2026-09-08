@@ -38,9 +38,9 @@ public sealed class PlatformController(IPlatformOperationalState operationalStat
                 new("tracing", "Tracing", "Persisted traces, spans, events, correlations, and redacted artifacts.", "stable", "1.0", 7),
                 new("replay", "Replay Studio", "Controlled re-execution, immutable baselines, candidate comparisons, and findings.", "stable", "1.0", 3),
                 new("plugins", "Plugin Engine", "Persistent extension registry, immutable versions, compatibility, lifecycle, health, and capability contracts.", "stable", "1.0", 4),
-                new("workspace-identity", "Workspace, Identity and Access", "Secure local authentication, workspace isolation, RBAC, service identities, and attributable audit.", "active", "1.0", 8),
-                new("analytics", "Platform Analytics", "Trusted workspace and environment usage, cost, quality, governance, performance, adoption, and safe event evidence.", "active", "1.0", 12),
-                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, analytics, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", "active", "0.14", 0),
+                new("workspace-identity", "Workspace, Identity and Access", "Secure local authentication, workspace isolation, RBAC, service identities, and attributable audit.", "stable", "1.0", 8),
+                new("analytics", "Platform Analytics", "Trusted workspace and environment usage, cost, quality, governance, performance, adoption, and safe event evidence.", "stable", "1.0", 12),
+                new("studio", "ConvoLab Studio", "Functional engineering workspace with simulation, governance, analytics, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", "stable", "1.0", 0),
             ],
             GeneratedAt: DateTimeOffset.UtcNow,
             Source: "api");

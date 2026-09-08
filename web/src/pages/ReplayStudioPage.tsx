@@ -1,5 +1,6 @@
 import { useHelp } from "../contexts/HelpContext";
 import { useState } from "react";
+import "./ReplayStudioPage.css";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";

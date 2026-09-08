@@ -206,13 +206,15 @@
 }
 
 .trace-filter-grid select {
-  padding: 10px 14px;
+  padding: 10px 32px 10px 14px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background-color: var(--bg-surface);
   color: var(--text);
   font-size: 13px;
   outline: none;
+  cursor: pointer;
+  appearance: auto;
 }
 
 /* Trace Table */
