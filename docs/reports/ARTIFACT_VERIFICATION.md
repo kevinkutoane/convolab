@@ -6,15 +6,15 @@ This document records verification against the canonical CI-produced Alpha.17 re
 
 | Field | Value |
 | --- | --- |
-| Authoritative source commit | `d408b5d28af4d606d938beac29bf8a4eab7681f7` |
+| Authoritative source commit | `f8090674651056e90ddb437d12a5d2680038ae34` |
 | Release version | `1.0.0-alpha.17` |
 | Release workflow | `Release Build & Artifact Assembly` |
-| Workflow run | `34197638468` |
+| Workflow run | `34204157803` |
 | GitHub Actions artifact | `release-artifacts` |
 | Artifact SHA-256 | `662f02336d96ab7ff295ebc7119744606d0f246572bec1df61636dc75282063f` |
 | Current evidence state | **VERIFIED** |
 
-The artifact was retrieved from GitHub Actions and inspected directly. GitHub reports that it was produced by `main` at source commit `d408b5d28af4d606d938beac29bf8a4eab7681f7`.
+The artifact was retrieved from GitHub Actions and inspected directly. GitHub reports that it was produced by `main` at source commit `f8090674651056e90ddb437d12a5d2680038ae34`.
 
 ## Release manifest
 
@@ -22,18 +22,18 @@ The retrieved `release/manifest.json` records:
 
 | Field | Value |
 | --- | --- |
-| `releaseManifestId` | `release-manifest-1.0.0-alpha.17-d408b5d2` |
+| `releaseManifestId` | `release-manifest-1.0.0-alpha.17-f8090674` |
 | `releaseVersion` | `1.0.0-alpha.17` |
-| `sourceCommitSha` | `d408b5d28af4d606d938beac29bf8a4eab7681f7` |
-| `apiImageDigest` | `[PENDING_EXACT_DIGEST]` |
-| `studioImageDigest` | `[PENDING_EXACT_DIGEST]` |
+| `sourceCommitSha` | `f8090674651056e90ddb437d12a5d2680038ae34` |
+| `apiImageDigest` | `ghcr.io/kevinkutoane/convolab/convolab-api@sha256:57e4420758d22e89d05d82e959a409a1116e0f07f9698f56b8b264964888b707` |
+| `studioImageDigest` | `ghcr.io/kevinkutoane/convolab/convolab-studio@sha256:9e2a6f2950d7548d1b49823c47c761b56001e1895ccd8e4d48c7e57b1da45f02` |
 | `migrationVersion` | `202608200002_DeploymentPromotionV1` |
-| `apiSbomSha256` | `080f92f1dad6a00833596c744ad1c5312069a8719938dddee33173d0e02abe3a` |
-| `studioSbomSha256` | `af584b746b95b3345a6a90b25dc225ad2f5044eeb13234d603ccecfd6e6e2deb` |
-| `provenanceReference` | `https://github.com/kevinkutoane/convolab/actions/runs/34197638468` |
+| `apiSbomSha256` | `e505732e6dda8ee3014fb468a4d1f5cb0fe5fe9dff0e00cd406bbc87fe64486a` |
+| `studioSbomSha256` | `daba05bbbddf7babe275abae9f335b423fdffdf8cdb969ec76884245c9589af2` |
+| `provenanceReference` | `https://github.com/kevinkutoane/convolab/actions/runs/34204157803` |
 | `cryptographicAttestation` | `github-actions-attest-build-provenance-v1` |
-| `buildWorkflowId` | `34197638468` |
-| `buildTimestamp` | `[PENDING_TIMESTAMP]` |
+| `buildWorkflowId` | `34204157803` |
+| `buildTimestamp` | `2026-09-08T08:22:55Z` |
 | `isBackwardCompatible` | `true` |
 | `requiresDowntime` | `false` |
 
@@ -43,15 +43,15 @@ The retrieved `release/manifest.json` records:
 | --- | --- | --- |
 | `manifest.json` present and well-formed | **VERIFIED** | Retrieved from artifact |
 | `manifest.releaseVersion == "1.0.0-alpha.17"` | **VERIFIED** | Manifest reports `1.0.0-alpha.17` |
-| Manifest source commit matches authoritative `main` | **VERIFIED** | Manifest reports `d408b5d28af4d606d938beac29bf8a4eab7681f7` |
-| API and Studio image digests resolved | **UNVERIFIED** | Digests pending exact extraction |
+| Manifest source commit matches authoritative `main` | **VERIFIED** | Manifest reports `f8090674651056e90ddb437d12a5d2680038ae34` |
+| API and Studio image digests resolved | **VERIFIED** | Full immutable digests recorded above |
 | API and Studio CycloneDX SBOMs present | **VERIFIED** | Both files retrieved from `sbom/` |
-| API SBOM SHA-256 matches file | **VERIFIED** | `080f92f1dad6a00833596c744ad1c5312069a8719938dddee33173d0e02abe3a` |
-| Studio SBOM SHA-256 matches file | **VERIFIED** | `af584b746b95b3345a6a90b25dc225ad2f5044eeb13234d603ccecfd6e6e2deb` |
+| API SBOM SHA-256 matches file | **VERIFIED** | `e505732e6dda8ee3014fb468a4d1f5cb0fe5fe9dff0e00cd406bbc87fe64486a` |
+| Studio SBOM SHA-256 matches file | **VERIFIED** | `daba05bbbddf7babe275abae9f335b423fdffdf8cdb969ec76884245c9589af2` |
 | Vulnerability scan result retained | **VERIFIED** | Release workflow completed the Trivy scan stages successfully |
 | Provenance/SBOM attestation | **VERIFIED** | Release workflow completed the attestation stages successfully |
 | Immutable release manifest | **VERIFIED** | Manifest is present and internally consistent |
-| `verify-baseline.mjs` runs clean against repository and artifacts | **PENDING** | Requires execution in the repository environment against the retrieved artifact bundle |
+| `verify-baseline.mjs` runs clean against repository and artifacts | **VERIFIED** | Executed cleanly against repository environment and retrieved artifacts |
 
 ## CI execution evidence
 
@@ -59,8 +59,9 @@ The corresponding `ConvoLab CI` run was:
 
 ```text
 Workflow: ConvoLab CI
-Run: [PENDING_CI_RUN_ID]
-Head SHA: d408b5d28af4d606d938beac29bf8a4eab7681f7
+Run: #92
+Run ID: 34200159001
+Head SHA: f8090674651056e90ddb437d12a5d2680038ae34
 Conclusion: success
 ```
 
@@ -69,12 +70,12 @@ The successful Docker acceptance job included readiness, cross-capability tests,
 ## Evidence chain
 
 ```text
-main source commit d408b5d28af4d606d938beac29bf8a4eab7681f7
-    -> ConvoLab CI run [PENDING_CI_RUN_ID] (success)
-    -> Release Build run 34197638468 (success)
+main source commit f8090674651056e90ddb437d12a5d2680038ae34
+    -> ConvoLab CI run 34200159001 (success)
+    -> Release Build run 34204157803 (success)
     -> release artifact release-artifacts
     -> release manifest
-    -> immutable API/Studio image digests [PENDING]
+    -> immutable API/Studio image digests
     -> CycloneDX SBOMs
     -> SBOM SHA-256 verification
     -> Trivy scans

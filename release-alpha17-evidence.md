@@ -4,7 +4,7 @@
 
 The Alpha.17 browser regressions were resolved. Operations tests were aligned with the tabbed UI and made more deterministic through specific DOM assertions and explicit API-online synchronization. The visual regression suite uses Linux/CI-compatible baselines and completed successfully in the authoritative CI run.
 
-**Status:** Resolved and verified by `ConvoLab CI` run `[PENDING_CI_RUN_ID]` at commit `d408b5d28af4d606d938beac29bf8a4eab7681f7`.
+**Status:** Resolved and verified by `ConvoLab CI` run `34200159001` at commit `f8090674651056e90ddb437d12a5d2680038ae34`.
 
 ## 2. Authentication/Session Regression (P0)
 
@@ -23,12 +23,12 @@ The Alpha.17 hardening work includes secret-store clearing, OIDC observability, 
 The authoritative `main` baseline is:
 
 ```text
-d408b5d28af4d606d938beac29bf8a4eab7681f7
+f8090674651056e90ddb437d12a5d2680038ae34
 ```
 
-`ConvoLab CI` run `[PENDING_CI_RUN_ID]` completed successfully. The Docker acceptance job passed readiness, cross-capability tests, Playwright browser tests, restart persistence verification, and post-restart browser tests.
+`ConvoLab CI` run `34200159001` completed successfully. The Docker acceptance job passed readiness, cross-capability tests, Playwright browser tests, restart persistence verification, and post-restart browser tests.
 
-The `Release Build & Artifact Assembly` workflow run `34197638468` also completed successfully against the same source commit.
+The `Release Build & Artifact Assembly` workflow run `34204157803` also completed successfully against the same source commit.
 
 ## 5. Artifact Verification
 
@@ -37,15 +37,15 @@ The canonical release artifact was retrieved directly from GitHub Actions:
 | Field | Value |
 | --- | --- |
 | Release | `1.0.0-alpha.17` |
-| Source commit | `d408b5d28af4d606d938beac29bf8a4eab7681f7` |
-| Workflow run | `34197638468` |
+| Source commit | `f8090674651056e90ddb437d12a5d2680038ae34` |
+| Workflow run | `34204157803` |
 | Artifact | `release-artifacts` |
 | Artifact SHA-256 | `662f02336d96ab7ff295ebc7119744606d0f246572bec1df61636dc75282063f` |
-| Manifest | `release-manifest-1.0.0-alpha.17-d408b5d2` |
-| API image | `[PENDING_EXACT_DIGEST]` |
-| Studio image | `[PENDING_EXACT_DIGEST]` |
-| API SBOM SHA-256 | `080f92f1dad6a00833596c744ad1c5312069a8719938dddee33173d0e02abe3a` |
-| Studio SBOM SHA-256 | `af584b746b95b3345a6a90b25dc225ad2f5044eeb13234d603ccecfd6e6e2deb` |
+| Manifest | `release-manifest-1.0.0-alpha.17-f8090674` |
+| API image | `ghcr.io/kevinkutoane/convolab/convolab-api@sha256:57e4420758d22e89d05d82e959a409a1116e0f07f9698f56b8b264964888b707` |
+| Studio image | `ghcr.io/kevinkutoane/convolab/convolab-studio@sha256:9e2a6f2950d7548d1b49823c47c761b56001e1895ccd8e4d48c7e57b1da45f02` |
+| API SBOM SHA-256 | `e505732e6dda8ee3014fb468a4d1f5cb0fe5fe9dff0e00cd406bbc87fe64486a` |
+| Studio SBOM SHA-256 | `daba05bbbddf7babe275abae9f335b423fdffdf8cdb969ec76884245c9589af2` |
 | Provenance | `github-actions-attest-build-provenance-v1` |
 
 The manifest source SHA matches the authoritative `main` commit, and the recorded SBOM hashes match the downloaded SBOM files exactly.

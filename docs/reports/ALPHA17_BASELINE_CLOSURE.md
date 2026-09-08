@@ -4,24 +4,24 @@
 
 The Alpha.17 release has been successfully built and verified against the authoritative `main` baseline:
 
-**Authoritative source commit:** `d408b5d28af4d606d938beac29bf8a4eab7681f7`
+**Authoritative source commit:** `f8090674651056e90ddb437d12a5d2680038ae34`
 
 ### CI and Release Verification
-- **ConvoLab CI Run:** `[PENDING_CI_RUN_ID]` (Success)
-- **Release Build & Artifact Assembly Run:** `34197638468` (Success)
+- **ConvoLab CI Run:** `34200159001` (Success)
+- **Release Build & Artifact Assembly Run:** `34204157803` (Success)
 
 ### Artifact Integrity
 - **Release Version:** `1.0.0-alpha.17`
 - **Artifact SHA-256:** `662f02336d96ab7ff295ebc7119744606d0f246572bec1df61636dc75282063f`
-- **Manifest ID:** `release-manifest-1.0.0-alpha.17-d408b5d2`
-- **API SBOM Hash:** `080f92f1dad6a00833596c744ad1c5312069a8719938dddee33173d0e02abe3a`
-- **Studio SBOM Hash:** `af584b746b95b3345a6a90b25dc225ad2f5044eeb13234d603ccecfd6e6e2deb`
-- **API Image Digest:** `[PENDING_EXACT_DIGEST]`
-- **Studio Image Digest:** `[PENDING_EXACT_DIGEST]`
+- **Manifest ID:** `release-manifest-1.0.0-alpha.17-f8090674`
+- **API SBOM Hash:** `e505732e6dda8ee3014fb468a4d1f5cb0fe5fe9dff0e00cd406bbc87fe64486a`
+- **Studio SBOM Hash:** `daba05bbbddf7babe275abae9f335b423fdffdf8cdb969ec76884245c9589af2`
+- **API Image Digest:** `ghcr.io/kevinkutoane/convolab/convolab-api@sha256:57e4420758d22e89d05d82e959a409a1116e0f07f9698f56b8b264964888b707`
+- **Studio Image Digest:** `ghcr.io/kevinkutoane/convolab/convolab-studio@sha256:9e2a6f2950d7548d1b49823c47c761b56001e1895ccd8e4d48c7e57b1da45f02`
 
 The release job passed every critical stage including API and Studio image builds, digest capture, CycloneDX SBOM generation, Trivy scans, provenance/SBOM attestations, immutable manifest assembly, and artifact publication. The SBOM hashes in the manifest exactly match the SHA-256 hashes of the SBOM files inside the artifact.
 
-**Freeze Decision:** **ALPHA.17 FROZEN** (Subject to final exact digest recording).
+**Freeze Decision:** **ALPHA.17 FROZEN**
 
 ---
 
