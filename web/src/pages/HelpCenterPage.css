@@ -5,6 +5,10 @@
   width: 100%;
 }
 
+.help-center-page .panel {
+  padding: 32px;
+}
+
 .help-center-header {
   margin-bottom: 32px;
 }

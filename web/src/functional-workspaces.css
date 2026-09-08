@@ -7,7 +7,7 @@
 .knowledge-main,
 .retrieval-panel,
 .chunk-panel {
-  padding: 22px;
+  padding: 32px;
 }
 
 .provider-control-grid {
@@ -20,13 +20,13 @@
 .workflow-node-editor label,
 .compare-select {
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .provider-warning,
 .knowledge-notice,
 .workflow-notice {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.55;
 }
 
@@ -43,8 +43,8 @@
 .document-card,
 .result-card,
 .chunk-card {
-  padding: 16px;
-  font-size: 13px;
+  padding: 24px;
+  font-size: 14px;
   line-height: 1.55;
 }
 
@@ -71,15 +71,15 @@
 
 .prompt-list-item,
 .workflow-list-item {
-  gap: 7px;
-  padding: 16px;
+  gap: 10px;
+  padding: 20px;
 }
 
 .prompt-list-item span,
 .prompt-list-item small,
 .workflow-list-item span,
 .workflow-list-item small {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -98,7 +98,7 @@
 .prompt-metrics span,
 .compare-select,
 .variable-cloud code {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .prompt-section-card textarea {
@@ -143,16 +143,16 @@
 }
 
 .workflow-palette {
-  gap: 8px;
-  padding: 14px 18px;
+  gap: 10px;
+  padding: 20px 24px;
 }
 
 .workflow-palette button,
 .workflow-link-editor button,
 .danger-button {
-  min-height: 38px;
-  padding: 9px 12px;
-  font-size: 13px;
+  min-height: 42px;
+  padding: 11px 14px;
+  font-size: 14px;
 }
 
 .workflow-canvas {
@@ -160,14 +160,14 @@
 }
 
 .workflow-node {
-  gap: 9px;
-  padding: 13px;
+  gap: 12px;
+  padding: 20px;
 }
 
 .workflow-node small,
 .workflow-health span,
 .workflow-transition-list span {
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .workflow-health {
@@ -196,7 +196,7 @@
 /* Intelligence Center is a monitoring console: metrics wrap and the
    execution inspector owns a row instead of narrowing the table. */
 .intelligence-center {
-  gap: 24px;
+  gap: 32px;
 }
 
 .intelligence-metrics {
@@ -216,13 +216,13 @@
 
 .provider-card-grid {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 14px;
-  padding: 0 22px 22px;
+  gap: 18px;
+  padding: 0 32px 32px;
 }
 
 .provider-card {
-  gap: 14px;
-  padding: 16px;
+  gap: 18px;
+  padding: 24px;
 }
 
 .provider-card-header {
@@ -242,7 +242,7 @@
 .inspector-section-title,
 .token-breakdown span,
 .plan-result-summary span {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
@@ -250,14 +250,14 @@
 .intelligence-inline-message,
 .execution-verdict,
 .plan-warnings p {
-  padding: 11px 13px;
-  font-size: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
 .provider-model-row {
-  gap: 10px;
-  padding: 13px;
+  gap: 12px;
+  padding: 16px;
 }
 
 .capability-cloud {
@@ -299,16 +299,16 @@
 }
 
 .execution-table {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .execution-table th {
-  padding: 13px 14px;
-  font-size: 11px;
+  padding: 16px 20px;
+  font-size: 12px;
 }
 
 .execution-table td {
-  padding: 14px;
+  padding: 16px 20px;
 }
 
 .execution-inspector-content {
@@ -469,7 +469,7 @@
 
 .policy-list-item {
   min-height: 96px;
-  padding: 15px 16px 15px 18px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--border-strong);
 }
 

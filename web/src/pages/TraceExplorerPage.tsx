@@ -1,5 +1,6 @@
 import { useHelp } from "../contexts/HelpContext";
 import { useState } from "react";
+import "./TraceExplorerPage.css";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
