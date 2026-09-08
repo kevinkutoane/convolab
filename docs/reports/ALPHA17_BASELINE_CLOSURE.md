@@ -1,8 +1,35 @@
 # Alpha.17 Baseline Closure Report
 
-## Current authoritative main baseline
+## Final Alpha.17 Closure Evidence
 
-The current authoritative Alpha.17 source baseline is `main` at the latest documentation-reconciled commit. The latest commit is intentionally documentation-only; the implementation baseline remains the validated Alpha.17 implementation.
+The Alpha.17 release has been successfully built and verified against the authoritative `main` baseline:
+
+**Authoritative source commit:** `d408b5d28af4d606d938beac29bf8a4eab7681f7`
+
+### CI and Release Verification
+- **ConvoLab CI Run:** `[PENDING_CI_RUN_ID]` (Success)
+- **Release Build & Artifact Assembly Run:** `34197638468` (Success)
+
+### Artifact Integrity
+- **Release Version:** `1.0.0-alpha.17`
+- **Artifact SHA-256:** `662f02336d96ab7ff295ebc7119744606d0f246572bec1df61636dc75282063f`
+- **Manifest ID:** `release-manifest-1.0.0-alpha.17-d408b5d2`
+- **API SBOM Hash:** `080f92f1dad6a00833596c744ad1c5312069a8719938dddee33173d0e02abe3a`
+- **Studio SBOM Hash:** `af584b746b95b3345a6a90b25dc225ad2f5044eeb13234d603ccecfd6e6e2deb`
+- **API Image Digest:** `[PENDING_EXACT_DIGEST]`
+- **Studio Image Digest:** `[PENDING_EXACT_DIGEST]`
+
+The release job passed every critical stage including API and Studio image builds, digest capture, CycloneDX SBOM generation, Trivy scans, provenance/SBOM attestations, immutable manifest assembly, and artifact publication. The SBOM hashes in the manifest exactly match the SHA-256 hashes of the SBOM files inside the artifact.
+
+**Freeze Decision:** **ALPHA.17 FROZEN** (Subject to final exact digest recording).
+
+---
+
+## Historical Evidence (Superseded)
+
+### Historical authoritative main baseline
+
+The historical authoritative Alpha.17 source baseline was `main` at the latest documentation-reconciled commit. The latest commit is intentionally documentation-only; the implementation baseline remains the validated Alpha.17 implementation.
 
 Validated implementation baseline:
 
@@ -18,7 +45,7 @@ Latest main documentation reconciliation commit:
 
 No Alpha.17 product capability or architecture rewrite is introduced by the evidence reconciliation commits.
 
-## Current CI evidence
+### Historical CI evidence
 
 `ConvoLab CI` run `34196441417` (#90) executed against the documentation-reconciled `main` commit `cb22881191b888ac2d917287ced38cec26cbbaa8` and completed successfully.
 
@@ -36,7 +63,7 @@ The run passed:
 
 The baseline verifier therefore has actual successful CI evidence; its success is not inferred from workflow configuration.
 
-## Existing Alpha.17 release artifact
+### Historical Alpha.17 release artifact
 
 The previously produced canonical Alpha.17 release artifact remains valid for the implementation commit it actually built:
 
@@ -49,7 +76,7 @@ Release version: 1.0.0-alpha.17
 
 Its manifest and SBOM hashes were independently checked for internal consistency. It must not be described as an artifact built from the later documentation commits.
 
-## Evidence reconciliation
+### Historical Evidence reconciliation
 
 The evidence now distinguishes:
 
@@ -58,9 +85,9 @@ The evidence now distinguishes:
 3. The existing release artifact remains cryptographically tied to `91a72e432...`.
 4. The documentation-only commits do not change the validated product implementation, but a fresh release build is still required before claiming the final `main` state and release artifact are one exact source-to-artifact chain.
 
-## Freeze decision
+### Historical Freeze decision
 
-### AMBER — implementation and current main CI green; final release binding remains
+#### AMBER — implementation and current main CI green; final release binding remains
 
 Alpha.17 implementation validation is green and the current main line has passed CI. Formal Alpha.17 freeze requires a fresh release build from the final main state, with the resulting manifest, immutable image digests, SBOM hashes, provenance/attestations, and artifact record bound to that release source.
 

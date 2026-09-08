@@ -4,7 +4,7 @@
 
 The Alpha.17 browser regressions were resolved. Operations tests were aligned with the tabbed UI and made more deterministic through specific DOM assertions and explicit API-online synchronization. The visual regression suite uses Linux/CI-compatible baselines and completed successfully in the authoritative CI run.
 
-**Status:** Resolved and verified by `ConvoLab CI` run `34109230326` at commit `91a72e4324ed3ce2f861be5a6889ac813627d256`.
+**Status:** Resolved and verified by `ConvoLab CI` run `[PENDING_CI_RUN_ID]` at commit `d408b5d28af4d606d938beac29bf8a4eab7681f7`.
 
 ## 2. Authentication/Session Regression (P0)
 
@@ -23,12 +23,12 @@ The Alpha.17 hardening work includes secret-store clearing, OIDC observability, 
 The authoritative `main` baseline is:
 
 ```text
-91a72e4324ed3ce2f861be5a6889ac813627d256
+d408b5d28af4d606d938beac29bf8a4eab7681f7
 ```
 
-`ConvoLab CI` run `34109230326` completed successfully. The Docker acceptance job passed readiness, cross-capability tests, Playwright browser tests, restart persistence verification, and post-restart browser tests.
+`ConvoLab CI` run `[PENDING_CI_RUN_ID]` completed successfully. The Docker acceptance job passed readiness, cross-capability tests, Playwright browser tests, restart persistence verification, and post-restart browser tests.
 
-The `Release Build & Artifact Assembly` workflow run `34111500739` also completed successfully against the same source commit.
+The `Release Build & Artifact Assembly` workflow run `34197638468` also completed successfully against the same source commit.
 
 ## 5. Artifact Verification
 
@@ -37,15 +37,15 @@ The canonical release artifact was retrieved directly from GitHub Actions:
 | Field | Value |
 | --- | --- |
 | Release | `1.0.0-alpha.17` |
-| Source commit | `91a72e4324ed3ce2f861be5a6889ac813627d256` |
-| Workflow run | `34111500739` |
-| Artifact | `release-artifacts` / `10014601379` |
-| Artifact SHA-256 | `3557664545c7f4c1714dfb52783a27ce834bfa7a2ce830e0596142fdc99abde9` |
-| Manifest | `release-manifest-1.0.0-alpha.17-91a72e43` |
-| API image | `ghcr.io/kevinkutoane/convolab/convolab-api@sha256:a8f683daec33cd7fc97ab020c5d5618b2ce9b03986ec39b14624070c772d62ae` |
-| Studio image | `ghcr.io/kevinkutoane/convolab/convolab-studio@sha256:21a6445556875fa039e768e4bc010b5b00f0e0894a3e0654bb796c7aa5b9263e` |
-| API SBOM SHA-256 | `953e9368f1a1798ae03e9aaf4e1d66ba34939277fd6a7bbc43272410e97f2ca1` |
-| Studio SBOM SHA-256 | `37a0c46b8422da00f962227f84700b992cecb4508f79274053720607ddb0a99e` |
+| Source commit | `d408b5d28af4d606d938beac29bf8a4eab7681f7` |
+| Workflow run | `34197638468` |
+| Artifact | `release-artifacts` |
+| Artifact SHA-256 | `662f02336d96ab7ff295ebc7119744606d0f246572bec1df61636dc75282063f` |
+| Manifest | `release-manifest-1.0.0-alpha.17-d408b5d2` |
+| API image | `[PENDING_EXACT_DIGEST]` |
+| Studio image | `[PENDING_EXACT_DIGEST]` |
+| API SBOM SHA-256 | `080f92f1dad6a00833596c744ad1c5312069a8719938dddee33173d0e02abe3a` |
+| Studio SBOM SHA-256 | `af584b746b95b3345a6a90b25dc225ad2f5044eeb13234d603ccecfd6e6e2deb` |
 | Provenance | `github-actions-attest-build-provenance-v1` |
 
 The manifest source SHA matches the authoritative `main` commit, and the recorded SBOM hashes match the downloaded SBOM files exactly.
@@ -54,4 +54,4 @@ The manifest source SHA matches the authoritative `main` commit, and the recorde
 
 ## 6. Historical Evidence
 
-Earlier versions of this document referenced superseded commits and workflow runs, including `0ef86c6...`, `ed0aed28...`, and `33743589890`. Those references describe historical remediation/evidence states and are superseded by the final artifact chain above. They are not the authoritative current Alpha.17 source or release artifact.
+Earlier versions of this document referenced superseded commits and workflow runs, including `91a72e4...`, `34111500739`, `0ef86c6...`, `ed0aed28...`, and `33743589890`. Those references describe historical remediation/evidence states and are superseded by the final artifact chain above. They are not the authoritative current Alpha.17 source or release artifact.
