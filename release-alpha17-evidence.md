@@ -1,28 +1,57 @@
 # ConvoLab Alpha.17 Release Evidence
 
-## 1. Visual Regression (P0)
-The visual regression in `operations.spec.ts` was resolved. The tests were updated to navigate the new tabbed UI structure of the Operations Center, and DOM locators were made more specific (e.g. strict element containment for the `stub` dependency). Test synchronization was improved by explicitly asserting on the semantic "API online" string and `api-online` connectivity classes.
-**Status**: Resolved against commit `0ef86c6e5caba7487b4a22aa138a4114c7316c7f`. Browser suite, cross-capability, and restart persistence tests are fully green locally.
+## 1. Browser and Visual Regression (P0)
+
+The Alpha.17 browser regressions were resolved. Operations tests were aligned with the tabbed UI and made more deterministic through specific DOM assertions and explicit API-online synchronization. The visual regression suite uses Linux/CI-compatible baselines and completed successfully in the authoritative CI run.
+
+**Status:** Resolved and verified by `ConvoLab CI` run `34109230326` at commit `91a72e4324ed3ce2f861be5a6889ac813627d256`.
 
 ## 2. Authentication/Session Regression (P0)
-The `.NET` integration tests for Entra OIDC safe return URLs and session handling were fixed.
-- `AllowAutoRedirect = false` was configured on the test `HttpClient` in `AuthenticationRegressionTests.cs` to prevent Kestrel from validating external redirects internally.
-- `TimeProvider` was added to `ConvoLabAuthenticationHandler` to ensure test assertions on TTL run deterministically.
-**Status**: Resolved. All 99 integration tests pass.
+
+The `.NET` integration tests for Entra OIDC safe return URLs and session handling were fixed. `AllowAutoRedirect = false` prevents the test client from internally following external redirects, and `TimeProvider` makes TTL assertions deterministic.
+
+**Status:** Resolved. The authoritative CI run completed successfully.
 
 ## 3. Security Hardening (P1)
-- **Secret Caching**: `ISecretStore.Clear()` method was introduced and implemented across all components (like `CompositeSecretStore` and test mocks) to properly clear credentials between runs.
-- **OIDC Observability**: Detailed logging points were added to `ConvoLabOpenIdConnectEvents` spanning all critical OIDC flow events.
-- **Secret Canonicalization**: Modified `CompositeSecretStore` cache resolution to lowercase both scheme and key strings (e.g. `$"{scheme.ToLowerInvariant()}:{key.ToLowerInvariant()}"`) to ensure lookups map `env:MyKey` to `env:mykey` safely.
-- **Break-glass Controls**: Replaced `IOptions<AuthenticationOptions>` with `IOptionsSnapshot<AuthenticationOptions>` in `AuthController`, `OperationsController`, `ExternalIdentitiesController`, and `EntraAuthenticationHealthCheck` to enable strict `appsettings.json` override without restart so admins can force `Local` if OIDC is broken.
 
-## 4. Release Validation
-All requirements for the Alpha.17 hardening phase are now met. The baseline is verified and fully passes both browser integration and API tests.
+The Alpha.17 hardening work includes secret-store clearing, OIDC observability, secret-reference canonicalization, break-glass configuration handling, and CI protection around secret exposure. The Docker acceptance path generates an ephemeral 32-byte backup-encryption key and the application remains fail-closed when the key is absent.
+
+**Status:** Implemented and covered by the successful authoritative CI/release workflows. Further security/compliance hardening remains Alpha.18 planning scope and is not represented as delivered Alpha.17 functionality.
+
+## 4. CI and Release Validation
+
+The authoritative `main` baseline is:
+
+```text
+91a72e4324ed3ce2f861be5a6889ac813627d256
+```
+
+`ConvoLab CI` run `34109230326` completed successfully. The Docker acceptance job passed readiness, cross-capability tests, Playwright browser tests, restart persistence verification, and post-restart browser tests.
+
+The `Release Build & Artifact Assembly` workflow run `34111500739` also completed successfully against the same source commit.
 
 ## 5. Artifact Verification
-The final release artifacts have been successfully verified against authoritative commit `ed0aed28bb6a6fb06584c6ef5ef769ff59e7f864`.
-- **Workflow Run**: `33743589890` (Release Build & Artifact Assembly)
-- **Manifest**: `release-manifest-1.0.0-alpha.17-5f32fb6a`
-- **SBOM Validation**: CycloneDX SBOMs for API and Studio generated correctly.
-- **Vulnerability Scans**: Passed (CVE-2026-31789 fixed in Alpine base).
-- **Provenance Attestation**: Created successfully.
+
+The canonical release artifact was retrieved directly from GitHub Actions:
+
+| Field | Value |
+| --- | --- |
+| Release | `1.0.0-alpha.17` |
+| Source commit | `91a72e4324ed3ce2f861be5a6889ac813627d256` |
+| Workflow run | `34111500739` |
+| Artifact | `release-artifacts` / `10014601379` |
+| Artifact SHA-256 | `3557664545c7f4c1714dfb52783a27ce834bfa7a2ce830e0596142fdc99abde9` |
+| Manifest | `release-manifest-1.0.0-alpha.17-91a72e43` |
+| API image | `ghcr.io/kevinkutoane/convolab/convolab-api@sha256:a8f683daec33cd7fc97ab020c5d5618b2ce9b03986ec39b14624070c772d62ae` |
+| Studio image | `ghcr.io/kevinkutoane/convolab/convolab-studio@sha256:21a6445556875fa039e768e4bc010b5b00f0e0894a3e0654bb796c7aa5b9263e` |
+| API SBOM SHA-256 | `953e9368f1a1798ae03e9aaf4e1d66ba34939277fd6a7bbc43272410e97f2ca1` |
+| Studio SBOM SHA-256 | `37a0c46b8422da00f962227f84700b992cecb4508f79274053720607ddb0a99e` |
+| Provenance | `github-actions-attest-build-provenance-v1` |
+
+The manifest source SHA matches the authoritative `main` commit, and the recorded SBOM hashes match the downloaded SBOM files exactly.
+
+**Status:** Artifact chain verified. Repository-side `verify-baseline.mjs` execution against the retrieved artifact bundle remains the final local verification action before formal Alpha.17 freeze.
+
+## 6. Historical Evidence
+
+Earlier versions of this document referenced superseded commits and workflow runs, including `0ef86c6...`, `ed0aed28...`, and `33743589890`. Those references describe historical remediation/evidence states and are superseded by the final artifact chain above. They are not the authoritative current Alpha.17 source or release artifact.
