@@ -7,23 +7,25 @@
 ## Current milestone
 
 - **Platform Core / Studio:** `v1.0.0-alpha.17`
+- **Delivered workstream:** `alpha.17 — Deployment, Environment Promotion & Release Engineering`
 - **Delivered workstream:** `alpha.16 — Backup, Restore & Disaster Recovery`
 - **Delivered workstream:** `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`
-- **Workspace, Identity and Access:** `v1` acceptance
+- **Workspace, Identity and Access:** `v1`
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
 - **Functional Replay Studio:** `v1`
 - **Functional Policy Center:** `v1`
 - **Functional Plugin Center:** `v1`
-- **Platform Analytics:** `v1` UAT candidate
+- **Platform Analytics:** `v1`
+- **Operations Center:** `v1`
 - **Backend:** ASP.NET Core / .NET 8
 - **Frontend:** React 19, TypeScript, Vite
 - **Database adapter:** PostgreSQL-ready infrastructure
 - **Architecture:** Clean Architecture and Domain-Driven Design
 
-The alpha.15 release delivers optional single-tenant Microsoft Entra OIDC, explicit external-identity linking (provider + issuer + subject), opaque ConvoLab sessions, Local/Entra/Hybrid modes, and controlled break-glass access. ConvoLab remains authoritative for roles and memberships. Live Microsoft Entra validation is not executed (provider acceptance is StubValidated). Backup/restore, deployment promotion, supply-chain controls, and live channel integrations remain deferred.
+The alpha.17 release delivers immutable release builds with dual SBOMs, cryptographic build provenance attestations, container vulnerability gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane. ConvoLab remains authoritative for roles and memberships.
 
-Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Active package and release metadata are `1.0.0-alpha.15`.
+Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Active package and release metadata are `1.0.0-alpha.17`.
 
 ## Platform capabilities
 
@@ -39,9 +41,9 @@ Authentication configuration and operating procedures are documented in [Authent
 | Trace Explorer | Persisted traces, spans, events, correlations, redaction, and artifacts | Stable |
 | Replay Studio | Immutable baselines, governed candidates, comparisons, findings, and lifecycle | Stable |
 | Plugin Center | Persistent registry, immutable versions, compatibility, lifecycle, health, capabilities, and permissions | Stable |
-| Platform Analytics | Trusted environment attribution, safe append-only evidence, cost classification, aggregation, exports, and operational views | Active |
-| Workspace, Identity and Access | Local authentication, organisations, workspaces, RBAC, service identities, isolation, and audit | Active |
-| ConvoLab Studio | Visual engineering workspace consuming Platform Core | Active |
+| Platform Analytics | Trusted environment attribution, safe append-only evidence, cost classification, aggregation, exports, and operational views | Stable |
+| Workspace, Identity and Access | Local authentication, organisations, workspaces, RBAC, service identities, isolation, and audit | Stable |
+| ConvoLab Studio | Visual engineering workspace consuming Platform Core | Stable |
 
 ## Architecture
 

@@ -16,7 +16,7 @@ Each new simulation run stores:
 
 ## Current event coverage
 
-Alpha 14 currently emits analytics events for:
+Platform Analytics currently emits analytics events for:
 
 - completed, failed, and policy-denied simulation executions;
 - validated Studio environment selections.

@@ -29,34 +29,33 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 
 ## Current capabilities
 
-### Stable Platform Core
+### Stable Platform Core & Capabilities
 
 - Conversation Engine
 - Workflow Engine
 - Prompt Engine
 - Knowledge Engine
 - Intelligence Engine
-- Execution
+- Policy Engine
+- Evaluation Studio
+- Trace Explorer
+- Replay Studio
+- Plugin Engine
+- Workspace, Identity and Access Control v1
 - Platform Analytics v1
+- Backup, Restore & Disaster Recovery v1
 
-### Capability foundations
+### Product Workspaces
 
-- Policy
-- Tracing
-- Plugins
-- Workspace, Identity and Access Control v1 (active acceptance)
-
-### Active product
-
-- ConvoLab Studio with protected functional capability workspaces and workspace administration
+- ConvoLab Studio: Unified functional engineering workspace with simulation, governance, analytics, evaluation, trace inspection, replay, plugin governance, and workspace isolation.
 
 ## Current release
 
-Platform Core and Studio are at `v1.0.0-alpha.17`. Existing functional v1 capabilities remain stable. Backup, Restore & Disaster Recovery v1 is delivered with authenticated encryption, non-destructive restoration workflows, deep recovery verification, and an overhauled Operations Center console.
+Platform Core and Studio are at `v1.0.0-alpha.17`. All core functional v1 capabilities are stable. Deployment, Environment Promotion & Release Engineering v1 is delivered with immutable release manifests, dual SBOMs, cryptographic build provenance, container vulnerability gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane inside the Operations Center.
 
-## Planned products
+## Engineering Products
 
-- Conversation Explorer
+- Conversation Simulator
 - Workflow Designer
 - Prompt Studio
 - Knowledge Studio
@@ -65,8 +64,10 @@ Platform Core and Studio are at `v1.0.0-alpha.17`. Existing functional v1 capabi
 - Evaluation Studio
 - Trace Explorer
 - Replay Studio
-- AI Playground
-- Analytics and Operations Console (workspace/environment v1 active; platform-wide rollups reserved)
+- Plugin Center
+- Workspace & Access Control
+- Platform Analytics
+- Operations Center
 
 ## Target users
 

@@ -2,6 +2,8 @@
 
 Current release: `v1.0.0-alpha.17`.
 
+Delivered workstream: `alpha.17 — Deployment, Environment Promotion & Release Engineering`. The scope covers immutable container image builds with GHCR publication, dual CycloneDX SBOMs, cryptographic build provenance attestations, container vulnerability scanning gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane inside the Operations Center.
+
 Delivered workstream: `alpha.16 — Backup, Restore & Disaster Recovery`. The scope covers defining the DR runbook, safe PostgreSQL snapshot restoration, handling of data protection keys across environments, active Operations Center telemetry for RPO compliance, and the Operations Center UI overhaul.
 
 Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`. The scope covers tenant-specific OIDC, explicit identity linking (provider + issuer + subject), opaque application sessions, hybrid/local policy, break glass, and truthful identity-provider Operations evidence. Live tenant validation is not executed (provider acceptance is StubValidated) and remains an environment gate before live enterprise tenant readiness can be claimed.
@@ -38,8 +40,8 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 | Trace Explorer | Complete and hardened |
 | Replay Studio | Complete and hardened |
 | Plugin Center | Complete and hardened |
-| Workspace, Identity and Access | Implemented; security and isolation acceptance in progress |
-| Platform Analytics v1 | Complete; controlled UAT candidate |
+| Workspace, Identity and Access | Complete and hardened |
+| Platform Analytics v1 | Complete and hardened |
 
 ## Platform Hardening Sprint 1
 

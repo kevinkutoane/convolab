@@ -586,12 +586,16 @@ gzip_min_length 1000;
 - See `README.md` for quick start
 - See `ARCHITECTURE.md` for architecture overview
 - See `.github/workflows/ci.yml` for CI/CD workflow
-# Operational Foundation & Authentication deployment notes
+# Deployment, Environment Promotion & Release Engineering notes
 
-Active application/package metadata is `1.0.0-alpha.17`; `alpha.16 — Backup, Restore & Disaster Recovery` is completed and verified.
+Active application/package metadata is `1.0.0-alpha.17`.
 
-Before deploying this workstream, review [ProductionSecurityChecklist.md](docs/security/ProductionSecurityChecklist.md) and the operational runbooks in [docs/operations](docs/operations/OperationsCenter.md). Production requires external PostgreSQL values, explicit trusted proxies/hosts, acknowledged local authentication, shared filesystem/X.509 data protection, and an explicit `SafeMode__BlockAnalyticsExports=true|false` decision. UAT/Production Key Vault authentication is restricted to workload or managed identity.
-
-Apply migration `202608030002_OperationalFoundationCorrectionsV1` after `202608030001_OperationalFoundationV1`. It adds only the worker fencing/result columns and Analytics export claim columns/index. Run the fresh-install and both upgrade paths against PostgreSQL, then verify a long lease renewal, contention/takeover, stale final-write rejection, and atomic export retry.
-
-OTLP remains optional and collector outage must not interrupt API service. Operations Center reports configured/reachable evidence without claiming durable delivery. Backups remain `NotConfigured`; do not assign RPO/RTO or promote this workstream as operationally complete.
+`alpha.17 — Deployment, Environment Promotion & Release Engineering` is completed and verified:
+- Build-once, promote-many container publishing to GitHub Container Registry (GHCR) using workload identity / OIDC authentication.
+- Dual CycloneDX SBOM generation for Platform Core .NET (`convolab-api-sbom.json`) and Studio React (`convolab-studio-sbom.json`) with fail-closed integrity gates.
+- Cryptographic build provenance attestations via `actions/attest-build-provenance@v1`.
+- Container vulnerability scanning gates using Trivy (blocking on unapproved `CRITICAL` findings).
+- Authoritative `release-manifest.json` binding version, commit SHA, immutable digests, and dual SBOM hashes.
+- Automated Pre-Migration Backup Gate for Production deployments executing verified snapshots before database migrations.
+- Real-time environment topology, candidate promotion pipelines, and interactive approval gates in Operations Center (`/operations`).
+- Rehearsed and verified live UAT container rollback in 15.75–23.56 seconds with zero data corruption.

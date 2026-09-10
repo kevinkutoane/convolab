@@ -43,9 +43,9 @@ test.beforeEach(async ({ page }) => {
           { id: "tracing", name: "Tracing", description: "Persisted traces, spans, events, correlations, and redacted artifacts.", status: "stable", version: "1.0", domainEvents: 7 },
           { id: "replay", name: "Replay Studio", description: "Controlled re-execution, immutable baselines, candidate comparisons, and findings.", status: "stable", version: "1.0", domainEvents: 3 },
           { id: "plugins", name: "Plugin Engine", description: "Persistent extension registry, immutable versions, compatibility, lifecycle, health, and capability contracts.", status: "stable", version: "1.0", domainEvents: 4 },
-          { id: "workspace-identity", name: "Workspace, Identity and Access", description: "Secure local authentication, workspace isolation, RBAC, service identities, and attributable audit.", status: "active", version: "1.0", domainEvents: 8 },
-          { id: "analytics", name: "Platform Analytics", description: "Trusted workspace and environment usage, cost, quality, governance, performance, adoption, and safe event evidence.", status: "active", version: "1.0", domainEvents: 12 },
-          { id: "studio", name: "ConvoLab Studio", description: "Functional engineering workspace with simulation, governance, analytics, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", status: "active", version: "0.14", domainEvents: 0 }
+          { id: "workspace-identity", name: "Workspace, Identity and Access", description: "Secure local authentication, workspace isolation, RBAC, service identities, and attributable audit.", status: "stable", version: "1.0", domainEvents: 8 },
+          { id: "analytics", name: "Platform Analytics", description: "Trusted workspace and environment usage, cost, quality, governance, performance, adoption, and safe event evidence.", status: "stable", version: "1.0", domainEvents: 12 },
+          { id: "studio", name: "ConvoLab Studio", description: "Functional engineering workspace with simulation, governance, analytics, evaluation, trace inspection, replay, plugin governance, and workspace isolation.", status: "stable", version: "1.0", domainEvents: 0 }
         ],
         generatedAt: "2026-09-02T12:00:00Z",
         source: "api"

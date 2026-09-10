@@ -134,7 +134,7 @@ export const designTimePlatformStatus: PlatformStatus = {
       id: "workspace-identity",
       name: "Workspace, Identity and Access",
       description: "Secure authentication, workspace isolation, fixed RBAC, service identities, and audit.",
-      status: "active",
+      status: "stable",
       version: "1.0",
       domainEvents: 8,
     },
@@ -142,7 +142,7 @@ export const designTimePlatformStatus: PlatformStatus = {
       id: "analytics",
       name: "Platform Analytics",
       description: "Trusted workspace and environment usage, cost, quality, governance, performance, and adoption evidence.",
-      status: "active",
+      status: "stable",
       version: "1.0",
       domainEvents: 12,
     },
@@ -150,8 +150,8 @@ export const designTimePlatformStatus: PlatformStatus = {
       id: "studio",
       name: "ConvoLab Studio",
       description: "Functional conversation simulation, governance, evaluation, tracing, replay, and plugin workspace.",
-      status: "active",
-      version: "0.14",
+      status: "stable",
+      version: "1.0",
       domainEvents: 0,
     },
   ],
@@ -497,7 +497,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     description:
       "Monitor adoption, quality, containment, latency, cost, reliability, and capability health.",
     icon: BarChart3,
-    status: "active",
+    status: "stable",
     metrics: [
       { label: "Scope", value: "Workspace", detail: "Environment-filtered" },
       { label: "Cost", value: "ZAR", detail: "Actual, estimated, or unavailable" },
@@ -519,7 +519,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     description:
       "Configure Studio appearance, API connectivity, environment context, and developer preferences.",
     icon: Settings,
-    status: "active",
+    status: "stable",
     metrics: [
       { label: "Environment", value: "Local", detail: "Design-time workspace" },
       { label: "API", value: "Auto", detail: "Uses /api proxy" },

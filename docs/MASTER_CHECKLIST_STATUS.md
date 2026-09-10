@@ -8,6 +8,8 @@ The 22 July 2026 PDF remains the product backlog source, with these stabilizatio
 - Workspace, Identity and Access Control v1 is implemented and verified.
 - Microsoft Entra ID, External Identities & Hybrid Authentication (alpha.15) is completed with invitation linking, break-glass hardening, and operational evidence (provider acceptance: StubValidated; live Entra validation: Not executed).
 - Backup, Restore & Disaster Recovery v1 (alpha.16) is completed with authenticated chunked AES-GCM encryption, deep recovery verification, isolated rehearsal profiling, and an overhauled Operations Center.
+- Deployment, Environment Promotion & Release Engineering v1 (alpha.17) is completed with immutable GHCR image publishing, dual CycloneDX SBOMs, cryptographic build provenance, container vulnerability scanning gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane.
+- All core Platform capabilities (Conversation, Workflow, Prompt, Knowledge, Intelligence, Policy, Evaluation, Tracing, Replay, Plugins, Workspace/IAM, and Analytics) are stable with unified design system styling, legible spacious layouts, and full test suite verification.
 - Opaque sessions, local credentials, organisations, workspaces, memberships, fixed RBAC, service identities, ownership backfill, sensitive-trace audit, and protected Studio routes are implemented.
 - Environment and Secret Management follows Workspace/IAM and remains required for beta.
 - Platform Analytics v1 includes trusted runtime attribution, immutable configuration snapshots, transactional outbox delivery, restart-safe aggregation and exports, permission-filtered APIs, and the lazy-loaded Studio workspace.

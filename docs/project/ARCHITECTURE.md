@@ -108,8 +108,8 @@ ConvoLab/
 
 | Technology | Version | Purpose |
 |---|---|---|
-| **.NET** | 10.0 | Runtime and framework |
-| **ASP.NET Core** | 10.0 | Web API framework |
+| **.NET** | 8.0 | Runtime and framework |
+| **ASP.NET Core** | 8.0 | Web API framework |
 | **Entity Framework Core** | 8.0+ | ORM for data persistence |
 | **MediatR** | Latest | CQRS pattern implementation |
 | **FluentValidation** | Latest | Input validation |
