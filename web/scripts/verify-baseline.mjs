@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const repository = path.resolve(process.cwd(), "..");
-const expectedVersion = "1.0.0-alpha.17";
+const expectedVersion = "1.0.0-alpha.18";
 const failures = [];
 const packageJson = JSON.parse(fs.readFileSync(path.join(repository, "web", "package.json"), "utf8"));
 if (packageJson.version !== expectedVersion) failures.push(`web/package.json reports ${packageJson.version}`);
