@@ -5,9 +5,9 @@ namespace ConvoLab.Application.Operations;
 
 public static class OperationalWorkstream
 {
-    public const string ReleaseVersion = "1.0.0-alpha.17";
-    public const string Label = "alpha.17 — Deployment, Environment Promotion & Release Engineering";
-    public const string Marker = "alpha.17-deployment-environment-promotion-release-engineering";
+    public const string ReleaseVersion = "1.0.0-alpha.18";
+    public const string Label = "alpha.18 — Security & Compliance Hardening";
+    public const string Marker = "alpha.18-security-compliance-hardening";
 }
 
 public enum OperationalDependencyState

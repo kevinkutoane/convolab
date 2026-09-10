@@ -1,8 +1,8 @@
-# Product Readiness Assessment — v1.0.0-alpha.17
+# Product Readiness Assessment — v1.0.0-alpha.18
 
 ## Decision
 
-The functional Studio baseline is stabilized at alpha.17 (including Entra OIDC, Hybrid authentication, Deployment/Release Engineering, and Backup/Restore/DR v1) and suitable for controlled internal evaluation. It is not yet a secure multi-user beta or production-ready enterprise platform.
+The functional Studio baseline is stabilized at alpha.18 (including Entra OIDC, Hybrid authentication, Deployment/Release Engineering, Backup/Restore/DR, and Security & Compliance Hardening v1) and suitable for controlled internal evaluation. It is not yet a secure multi-user beta or production-ready enterprise platform.
 
 ## Ready
 

@@ -1,6 +1,6 @@
 /*
  * ==============================================================================
- * # STATUS MAINTENANCE
+ * # STATUS MAINTENANCE — Platform Version: 1.0.0-alpha.18
  * ==============================================================================
  * The capabilities and navigationItems below contain 'status' properties 
  * (stable, active, foundation, planned). 

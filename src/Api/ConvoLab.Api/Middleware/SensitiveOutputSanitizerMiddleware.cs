@@ -23,7 +23,7 @@ public sealed partial class SensitiveOutputSanitizerMiddleware(
     private static readonly string[] SensitiveKeys =
     [
         "secret", "password", "credential", "token", "nonce",
-        "subject", "code", "authorization", "access_token",
+        "subject", "authorization", "access_token",
         "id_token", "refresh_token", "client_secret"
     ];
 

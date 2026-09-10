@@ -54,8 +54,8 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next, IWebHostEnvi
             "form-action 'self'";
 
         // HSTS — 2 years, includeSubDomains, preload-eligible
-        // Only emit in non-development environments; UseHsts() handles the Production case.
-        if (!environment.IsDevelopment())
+        // Only emit in Production environments; UseHsts() handles the Production case.
+        if (environment.IsProduction())
         {
             headers["Strict-Transport-Security"] =
                 $"max-age={HstsMaxAgeSeconds}; includeSubDomains; preload";

@@ -1,5 +1,7 @@
 # Deployment Guide
 
+Platform baseline: `v1.0.0-alpha.18`.
+
 This document provides comprehensive instructions for deploying the ConvoLab application to various environments.
 
 ## Table of Contents

@@ -6,7 +6,8 @@
 
 ## Current milestone
 
-- **Platform Core / Studio:** `v1.0.0-alpha.17`
+- **Platform Core / Studio:** `v1.0.0-alpha.18`
+- **Delivered workstream:** `alpha.18 — Security & Compliance Hardening`
 - **Delivered workstream:** `alpha.17 — Deployment, Environment Promotion & Release Engineering`
 - **Delivered workstream:** `alpha.16 — Backup, Restore & Disaster Recovery`
 - **Delivered workstream:** `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`

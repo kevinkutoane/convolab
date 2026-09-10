@@ -25,6 +25,9 @@ public sealed class AuditControllerTests
         await using var factory = new AuditControllerFactory();
         using var client = factory.CreateClient();
 
+        // Pass invalid authorization to ensure unauthenticated rejection rather than fallback Testing principal
+        client.DefaultRequestHeaders.Add("Authorization", "Bearer invalid");
+
         var response = await client.GetAsync("/api/audit/events");
 
         // Unauthenticated request must be rejected.
@@ -163,6 +166,16 @@ internal sealed class AuditControllerFactory : WebApplicationFactory<Program>, I
         var loginResponse = await client.PostAsJsonAsync("/api/auth/login",
             new { email = "admin@audit.test", password = "ValidPassword123!" });
         loginResponse.EnsureSuccessStatusCode();
+
+        if (loginResponse.Headers.TryGetValues("Set-Cookie", out var cookies))
+        {
+            var sessionCookie = cookies.FirstOrDefault(c => c.StartsWith("convolab_session="));
+            if (sessionCookie != null)
+            {
+                var cookieValue = sessionCookie.Split(';')[0];
+                client.DefaultRequestHeaders.Add("Cookie", cookieValue);
+            }
+        }
 
         return client;
     }

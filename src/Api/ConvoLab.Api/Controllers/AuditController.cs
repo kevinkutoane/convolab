@@ -55,13 +55,28 @@ public sealed class AuditController(
             query = query.Where(e => e.ActorType == actorType);
         if (!string.IsNullOrWhiteSpace(outcome))
             query = query.Where(e => e.Outcome == outcome);
-        if (from.HasValue)
-            query = query.Where(e => e.OccurredAt >= from.Value);
-        if (to.HasValue)
-            query = query.Where(e => e.OccurredAt <= to.Value);
 
-        var total = await query.CountAsync(ct);
-        var events = await query
+        List<AuditEventRecord> allRecords;
+        if (db.Database.IsSqlite())
+        {
+            var raw = await query.ToListAsync(ct);
+            if (from.HasValue)
+                raw = raw.Where(e => e.OccurredAt >= from.Value).ToList();
+            if (to.HasValue)
+                raw = raw.Where(e => e.OccurredAt <= to.Value).ToList();
+            allRecords = raw;
+        }
+        else
+        {
+            if (from.HasValue)
+                query = query.Where(e => e.OccurredAt >= from.Value);
+            if (to.HasValue)
+                query = query.Where(e => e.OccurredAt <= to.Value);
+            allRecords = await query.ToListAsync(ct);
+        }
+
+        var total = allRecords.Count;
+        var events = allRecords
             .OrderByDescending(e => e.OccurredAt)
             .Skip(skip)
             .Take(pageSize)
@@ -77,7 +92,7 @@ public sealed class AuditController(
                 e.Outcome,
                 e.CorrelationId,
                 e.OccurredAt))
-            .ToListAsync(ct);
+            .ToList();
 
         return Ok(new AuditEventPageResponse(events, total, page, pageSize));
     }
@@ -89,23 +104,21 @@ public sealed class AuditController(
     public async Task<ActionResult<AuditEventSummary>> GetEvent(Guid id, CancellationToken ct)
     {
         var record = await db.WorkspaceAuditEvents.AsNoTracking()
-            .Where(e => e.Id == id)
-            .Select(e => new AuditEventSummary(
-                e.Id,
-                e.Scope,
-                e.OrganisationId,
-                e.WorkspaceId,
-                e.ActorType,
-                e.Action,
-                e.ResourceType,
-                e.ResourceId,
-                e.Outcome,
-                e.CorrelationId,
-                e.OccurredAt))
-            .SingleOrDefaultAsync(ct);
+            .SingleOrDefaultAsync(e => e.Id == id, ct);
 
         if (record is null) return NotFound();
-        return Ok(record);
+        return Ok(new AuditEventSummary(
+            record.Id,
+            record.Scope,
+            record.OrganisationId,
+            record.WorkspaceId,
+            record.ActorType,
+            record.Action,
+            record.ResourceType,
+            record.ResourceId,
+            record.Outcome,
+            record.CorrelationId,
+            record.OccurredAt));
     }
 
     /// <summary>
@@ -122,17 +135,18 @@ public sealed class AuditController(
         var effectiveFrom = from ?? DateTimeOffset.UtcNow.AddDays(-7);
         var effectiveTo = to ?? DateTimeOffset.UtcNow;
 
-        var query = db.WorkspaceAuditEvents.AsNoTracking()
-            .Where(e => e.OccurredAt >= effectiveFrom && e.OccurredAt <= effectiveTo);
-
+        var query = db.WorkspaceAuditEvents.AsNoTracking();
         if (workspaceId.HasValue)
             query = query.Where(e => e.WorkspaceId == workspaceId.Value);
 
-        var breakdown = await query
+        var rawList = await query.ToListAsync(ct);
+        var filtered = rawList.Where(e => e.OccurredAt >= effectiveFrom && e.OccurredAt <= effectiveTo);
+
+        var breakdown = filtered
             .GroupBy(e => new { e.Action, e.ResourceType, e.Outcome })
             .Select(g => new AuditActionBreakdown(g.Key.Action, g.Key.ResourceType, g.Key.Outcome, g.Count()))
             .OrderByDescending(b => b.Count)
-            .ToListAsync(ct);
+            .ToList();
 
         var total = breakdown.Sum(b => b.Count);
         return Ok(new AuditSummaryResponse(total, effectiveFrom, effectiveTo, breakdown));
@@ -158,12 +172,14 @@ public sealed class AuditController(
         var query = db.WorkspaceAuditEvents.AsNoTracking();
         if (workspaceId.HasValue)
             query = query.Where(e => e.WorkspaceId == workspaceId.Value);
-        if (from.HasValue)
-            query = query.Where(e => e.OccurredAt >= from.Value);
-        if (to.HasValue)
-            query = query.Where(e => e.OccurredAt <= to.Value);
 
-        var events = await query
+        var raw = await query.ToListAsync(ct);
+        if (from.HasValue)
+            raw = raw.Where(e => e.OccurredAt >= from.Value).ToList();
+        if (to.HasValue)
+            raw = raw.Where(e => e.OccurredAt <= to.Value).ToList();
+
+        var events = raw
             .OrderBy(e => e.OccurredAt)
             .Select(e => new AuditEventSummary(
                 e.Id,
@@ -177,7 +193,7 @@ public sealed class AuditController(
                 e.Outcome,
                 e.CorrelationId,
                 e.OccurredAt))
-            .ToListAsync(ct);
+            .ToList();
 
         return Ok(new { exportedAt = DateTimeOffset.UtcNow, environment = environment.EnvironmentName, count = events.Count, events });
     }

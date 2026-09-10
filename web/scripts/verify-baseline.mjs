@@ -20,7 +20,7 @@ for (const relative of [
   "docs/project/README.md",
   "docs/project/ROADMAP.md",
   "docs/project/DEPLOYMENT.md",
-  "docs/releases/PlatformCore-v1.0.0-alpha.17.md",
+  "docs/releases/PlatformCore-v1.0.0-alpha.18.md",
 ]) {
   const absolutePath = path.join(repository, relative);
   if (!fs.existsSync(absolutePath)) continue;
