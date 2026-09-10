@@ -35,6 +35,7 @@ try
     builder.Host.UseSerilog((context, services, logger) => logger
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
+        .Filter.With<ConvoLab.Api.Telemetry.SensitiveTelemetryLogFilter>()
         .Enrich.FromLogContext()
         .Enrich.WithProperty("Service", "ConvoLab.Api")
         .Enrich.WithProperty("Version", AssemblyVersion())
@@ -53,7 +54,7 @@ try
     ConfigureForwardedHeaders(builder.Services, builder.Configuration);
     builder.Services.AddHsts(options =>
     {
-        options.MaxAge = TimeSpan.FromDays(365);
+        options.MaxAge = TimeSpan.FromDays(730); // 2 years — required for HSTS preload list
         options.IncludeSubDomains = true;
         options.Preload = true;
     });
@@ -78,6 +79,18 @@ try
                 PermitLimit = localAuthentication.BreakGlass.RateLimitPerMinute,
                 Window = TimeSpan.FromMinutes(1), QueueLimit = 0
             }));
+        // High-risk surface: invitation creation — 5 per IP per minute
+        options.AddPolicy("invitations", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        // High-risk surface: external identity lifecycle mutations — 10 per IP per minute
+        options.AddPolicy("identity-mutations", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+        // High-risk surface: workspace member mutations — 20 per IP per minute
+        options.AddPolicy("member-mutations", context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     });
     builder.Services.AddScoped<WorkspaceIdentityBootstrapper>();
     builder.Services.AddScoped<ConvoLab.Infrastructure.Settings.SettingsBootstrapper>();
@@ -193,16 +206,9 @@ try
                 diagnosticContext.Set("EnvironmentContext", runtime.EnvironmentName);
         };
     });
+    app.UseMiddleware<SensitiveOutputSanitizerMiddleware>();
     app.UseMiddleware<GlobalExceptionMiddleware>();
-    app.Use(async (context, next) =>
-    {
-        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        context.Response.Headers["X-Frame-Options"] = "DENY";
-        context.Response.Headers["Referrer-Policy"] = "no-referrer";
-        context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'; object-src 'none'";
-        await next();
-    });
+    app.UseMiddleware<SecurityHeadersMiddleware>();
 
     if (app.Environment.IsDevelopment())
     {

@@ -1,4 +1,4 @@
-# Master Checklist Status — v1.0.0-alpha.17
+# Master Checklist Status — v1.0.0-alpha.18
 
 The 22 July 2026 PDF remains the product backlog source, with these stabilization corrections:
 
@@ -15,3 +15,4 @@ The 22 July 2026 PDF remains the product backlog source, with these stabilizatio
 - Platform Analytics v1 includes trusted runtime attribution, immutable configuration snapshots, transactional outbox delivery, restart-safe aggregation and exports, permission-filtered APIs, and the lazy-loaded Studio workspace.
 - The Analytics completion sprint now uses effective persisted Settings at runtime, separates events from executions, covers the governed execution loop, enforces field-level cost/actor/token security, provides category-specific metrics and drill-down, and includes 10k/100k PostgreSQL evidence.
 - Premium glass Studio acceptance includes roomy adaptive workspaces and desktop-only removal of the hamburger, close control, and mobile backdrop.
+- Security & Compliance Hardening (alpha.18) is completed: hardened HTTP security headers middleware (COOP, COEP, XCDO, extended CSP, 2-year HSTS), extended audit trail covering workspace member, external identity, environment, and settings mutations, dedicated AuditController with paginated/filtered/exported audit access, SensitiveOutputSanitizerMiddleware and SensitiveTelemetryLogFilter enforcing the sensitive-output prohibition, targeted rate-limiting on invitation creation (5/IP/min), identity mutations (10/IP/min), and member mutations (20/IP/min), SafeMode:BlockAnalyticsExports fixed to true in Production defaults, SafeMode:BlockAuditExports introduced, four new ProductionReadinessValidator rules (BlockAuditExports, AllowDeterministicVerification, Serilog level, BlockAuditExports), ThreatModel.md and ComplianceControls.md (SOC 2 trust-service categories), and .gitignore hardened to exclude SQLite WAL/SHM sidecar files.

@@ -42,6 +42,9 @@ public sealed class ProductionReadinessValidatorTests : IDisposable
             ["DataProtection:CertificatePemPath"] = certificatePath,
             ["DataProtection:PrivateKeyPemPath"] = keyPath,
             ["SafeMode:BlockAnalyticsExports"] = "true",
+            ["SafeMode:BlockAuditExports"] = "false",
+            ["SafeMode:AllowDeterministicVerification"] = "false",
+            ["Serilog:MinimumLevel"] = "Warning",
             ["OTEL_EXPORTER_OTLP_ENDPOINT"] = "https://otel.convolab.test"
         };
     }
@@ -74,6 +77,12 @@ public sealed class ProductionReadinessValidatorTests : IDisposable
     [InlineData("Authentication:Local:BreakGlass:LockoutMinutes", "1441", "production.authentication.break_glass_lockout_invalid")]
     [InlineData("Authentication:Local:BreakGlass:RateLimitPerMinute", "0", "production.authentication.break_glass_rate_limit_invalid")]
     [InlineData("Authentication:Local:BreakGlass:RateLimitPerMinute", "61", "production.authentication.break_glass_rate_limit_invalid")]
+    // Alpha.18 — new SafeMode and logging rules
+    [InlineData("SafeMode:BlockAuditExports", null, "production.safe_mode.audit_export_decision_required")]
+    [InlineData("SafeMode:AllowDeterministicVerification", "true", "production.safe_mode.deterministic_verification_must_be_disabled")]
+    [InlineData("Serilog:MinimumLevel", "Information", "production.logging.minimum_level_too_verbose")]
+    [InlineData("Serilog:MinimumLevel", "Debug", "production.logging.minimum_level_too_verbose")]
+    [InlineData("Serilog:MinimumLevel", "Verbose", "production.logging.minimum_level_too_verbose")]
     public void Unsafe_static_condition_is_rejected(string key, string? value, string expectedCode)
     {
         var values = new Dictionary<string, string?>(_valid) { [key] = value };

@@ -36,6 +36,7 @@ public sealed class ExternalIdentitiesController(
     }
 
     [HttpPost("invitations")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("invitations")]
     public async Task<ActionResult> Invite(Guid userId, CreateExternalIdentityInvitationRequest request, CancellationToken ct)
     {
         var user = await EnsureUserAsync(userId, ct);
@@ -71,10 +72,12 @@ public sealed class ExternalIdentitiesController(
     }
 
     [HttpPost("{identityId:guid}/disable")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("identity-mutations")]
     public async Task<IActionResult> Disable(Guid userId, Guid identityId, IdentityMutationRequest request, CancellationToken ct) =>
         await SetEnabledAsync(userId, identityId, request, false, "Authentication.ExternalIdentityDisabled", ct);
 
     [HttpPost("{identityId:guid}/enable")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("identity-mutations")]
     public async Task<IActionResult> Enable(Guid userId, Guid identityId, IdentityMutationRequest request, CancellationToken ct) =>
         await SetEnabledAsync(userId, identityId, request, true, "Authentication.ExternalIdentityEnabled", ct);
 

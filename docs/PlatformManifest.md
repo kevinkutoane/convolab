@@ -51,7 +51,7 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 
 ## Current release
 
-Platform Core and Studio are at `v1.0.0-alpha.17`. All core functional v1 capabilities are stable. Deployment, Environment Promotion & Release Engineering v1 is delivered with immutable release manifests, dual SBOMs, cryptographic build provenance, container vulnerability gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane inside the Operations Center.
+Platform Core and Studio are at `v1.0.0-alpha.18`. All core functional v1 capabilities are stable. Security & Compliance Hardening v1 (alpha.18) is delivered with hardened HTTP security response headers, an extended audit trail, a dedicated AuditController, SensitiveOutputSanitizerMiddleware, SensitiveTelemetryLogFilter, targeted rate-limiting on high-risk surfaces, SafeMode hardening, four new ProductionReadinessValidator rules, ThreatModel.md and SOC 2-aligned ComplianceControls.md. Deployment, Environment Promotion & Release Engineering v1 (alpha.17) is also delivered with immutable release manifests, dual SBOMs, cryptographic build provenance, container vulnerability gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane inside the Operations Center.
 
 ## Engineering Products
 
@@ -112,4 +112,4 @@ Platform Core is not:
 
 ## Current maturity
 
-Platform Core and Studio are at `v1.0.0-alpha.17`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, managed environments, trusted runtime attribution, workspace/environment Platform Analytics, Entra/Hybrid Authentication, and Backup/Restore/Disaster Recovery v1 are functional capabilities. Production live enterprise SSO validation, managed vault adapters, enterprise operational rehearsal, and UAT sign-off remain beta work.
+Platform Core and Studio are at `v1.0.0-alpha.18`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, managed environments, trusted runtime attribution, workspace/environment Platform Analytics, Entra/Hybrid Authentication, Backup/Restore/Disaster Recovery v1, and Security & Compliance Hardening v1 (alpha.18) are functional capabilities. Production live enterprise SSO validation, managed vault adapters, enterprise operational rehearsal, and UAT sign-off remain beta work.

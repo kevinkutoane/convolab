@@ -124,6 +124,28 @@ const topics = {
       "GET /api/workspaces/{id}/environments/{envId}/settings/effective",
     ],
   },
+  audit: {
+    title: "Audit Trail",
+    summary: "Access the immutable, platform-wide audit log covering asset lifecycle, member operations, identity mutations, environment changes, settings edits, and all governed activity.",
+    capabilities: [
+      "Query paginated audit events filtered by workspace, action, resource type, actor type, outcome, and date range.",
+      "Retrieve aggregate action/resource breakdowns for configurable time windows (default: 7 days).",
+      "Export raw audit event data as structured JSON; blocked when SafeMode:BlockAuditExports is true.",
+      "Audit records are immutable — the platform rejects any attempt to modify or delete an existing event.",
+    ],
+    workflow: [
+      "Sign in as Platform Administrator and navigate to the Audit section.",
+      "Apply workspace, action, resource type, outcome, or date filters to narrow results.",
+      "Inspect the summary chart for action distribution over your chosen time window.",
+      "Export a date-bounded JSON snapshot when SafeMode:BlockAuditExports is false.",
+    ],
+    endpoints: [
+      "GET /api/audit/events",
+      "GET /api/audit/events/{id}",
+      "GET /api/audit/summary",
+      "GET /api/audit/export",
+    ],
+  },
 } as const;
 
 const workspacePaths: Record<keyof typeof topics, string> = {
@@ -135,6 +157,7 @@ const workspacePaths: Record<keyof typeof topics, string> = {
   workspace: "/workspace",
   analytics: "/analytics",
   settings: "/settings",
+  audit: "/audit",
 };
 
 export function DocumentationPage() {

@@ -114,6 +114,7 @@ public sealed class WorkspacesController(ApplicationDbContext db) : ControllerBa
 
     [Authorize(Policy = WorkspacePermissions.ManageMembers)]
     [HttpPost("{workspaceId:guid}/members")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("member-mutations")]
     public async Task<ActionResult> Invite(Guid workspaceId, InviteMemberRequest request, CancellationToken ct)
     {
         await CurrentWorkspace(workspaceId, false, ct);
@@ -129,6 +130,7 @@ public sealed class WorkspacesController(ApplicationDbContext db) : ControllerBa
 
     [Authorize(Policy = WorkspacePermissions.ManageMembers)]
     [HttpPut("{workspaceId:guid}/members/{membershipId:guid}")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("member-mutations")]
     public async Task<ActionResult<WorkspaceMembershipRecord>> ChangeMembership(Guid workspaceId, Guid membershipId, ChangeMembershipRequest request, CancellationToken ct)
     {
         await CurrentWorkspace(workspaceId, false, ct);

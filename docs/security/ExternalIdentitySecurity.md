@@ -11,3 +11,13 @@ External identity mutations require `PlatformAdministrator` and optimistic concu
 Raw ID/access/refresh tokens, authorization codes, state, nonce, client secrets, invitation tokens, subjects, and email claims are prohibited in logs, traces, metric labels, Analytics payloads, audit details, Problem Details, and Operations responses. OIDC tokens are neither persisted nor used as ConvoLab sessions.
 
 The main session cookie stays Strict. OIDC nonce and correlation cookies alone are cross-site compatible and always secure. Forwarded host/protocol values are accepted only from explicit trusted proxies; Production requires HTTPS, an exact public origin, and an AllowedHosts entry matching the callback host.
+
+## Sensitive Output Prohibitions — Enforcement
+
+The prohibitions in the previous section are enforced at two layers as of `v1.0.0-alpha.18`:
+
+1. **Runtime middleware** (`SensitiveOutputSanitizerMiddleware`) — intercepts all outgoing `application/problem+json` responses and redacts JWT-shaped values, email patterns in string values, and known-sensitive key-value pairs (token, secret, password, nonce, subject, code, authorization). A `Warning`-level log signal is emitted whenever a scrub occurs so it can be investigated without re-leaking the value.
+
+2. **Serilog filter** (`SensitiveTelemetryLogFilter`) — suppresses log events before they reach any configured sink if the event contains a JWT-shaped value in its rendered message or a structured property whose name matches a known sensitive key. This is a regression backstop; call-site discipline remains the primary control.
+
+Neither layer decrypts or re-emits the redacted content. The scrub signal provides evidence for incident investigation.

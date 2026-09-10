@@ -216,6 +216,21 @@ public sealed class ProductionReadinessValidator(
             "production.safe_mode.analytics_export_decision_required", "SafeMode:BlockAnalyticsExports",
             "Production must explicitly decide whether safe mode blocks Analytics exports.");
 
+        Reject(configuration.GetValue<bool?>("SafeMode:BlockAuditExports") is null,
+            "production.safe_mode.audit_export_decision_required", "SafeMode:BlockAuditExports",
+            "Production must explicitly decide whether safe mode blocks Audit exports.");
+
+        Reject(configuration.GetValue<bool?>("SafeMode:AllowDeterministicVerification") == true,
+            "production.safe_mode.deterministic_verification_must_be_disabled", "SafeMode:AllowDeterministicVerification",
+            "Deterministic provider verification must be disabled in Production.");
+
+        var serilogLevel = configuration["Serilog:MinimumLevel"]?.Trim();
+        var verboseLevels = new[] { "Verbose", "Debug", "Information" };
+        Reject(!string.IsNullOrWhiteSpace(serilogLevel)
+               && verboseLevels.Any(l => string.Equals(l, serilogLevel, StringComparison.OrdinalIgnoreCase)),
+            "production.logging.minimum_level_too_verbose", "Serilog:MinimumLevel",
+            "Production log level must be Warning or higher; verbose levels risk leaking sensitive data to log sinks.");
+
         var otlpEndpoint = configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]
                            ?? Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT");
         Reject(!string.IsNullOrWhiteSpace(otlpEndpoint)

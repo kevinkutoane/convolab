@@ -105,12 +105,37 @@ public sealed class GovernedActivityAuditMiddleware(RequestDelegate next)
             return ("Plugin.HealthChecked", "Plugin");
         if (path.StartsWith("/api/plugins/") && (path.EndsWith("/deactivate") || path.EndsWith("/disable") || path.EndsWith("/deprecate")))
             return ("Plugin.Deactivated", "Plugin");
+
+        // Workspace member lifecycle
+        if (path.StartsWith("/api/workspace/members"))
+        {
+            if (path.EndsWith("/invite") || path.EndsWith("/members")) return ("Member.Invited", "WorkspaceMember");
+            if (path.EndsWith("/role") || path.EndsWith("/permissions")) return ("Member.RoleChanged", "WorkspaceMember");
+            if (path.EndsWith("/revoke") || path.EndsWith("/remove")) return ("Member.Revoked", "WorkspaceMember");
+        }
+
+        // External identity lifecycle
+        if (path.StartsWith("/api/identities"))
+        {
+            if (path.EndsWith("/enable") || path.EndsWith("/link")) return ("Identity.Enabled", "ExternalIdentity");
+            if (path.EndsWith("/disable") || path.EndsWith("/revoke")) return ("Identity.Disabled", "ExternalIdentity");
+            if (path.EndsWith("/unlink") || path.EndsWith("/remove")) return ("Identity.Removed", "ExternalIdentity");
+        }
+
+        // Environment mutations (high-privilege; every change is a governance event)
+        if (path.StartsWith("/api/environments") || path.StartsWith("/api/operations/environments"))
+            return ("Environment.Changed", "Environment");
+
+        // Settings mutations
+        if (path.StartsWith("/api/settings"))
+            return ("Settings.Changed", "PlatformSettings");
+
         return null;
     }
 
     private static string? RouteResourceId(HttpContext context)
     {
-        foreach (var key in new[] { "id", "versionId", "experimentId", "policyId", "pluginId" })
+        foreach (var key in new[] { "id", "versionId", "experimentId", "policyId", "pluginId", "memberId", "identityId", "environmentId" })
             if (context.Request.RouteValues.TryGetValue(key, out var value)) return value?.ToString();
         return null;
     }
