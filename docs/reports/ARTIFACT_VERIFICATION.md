@@ -51,7 +51,7 @@ The retrieved `release/manifest.json` records:
 | Vulnerability scan result retained | **VERIFIED** | Release workflow completed the Trivy scan stages successfully |
 | Provenance/SBOM attestation | **VERIFIED** | Release workflow completed the attestation stages successfully |
 | Immutable release manifest | **VERIFIED** | Manifest is present and internally consistent |
-| `verify-baseline.mjs` runs clean against repository and artifacts | **VERIFIED** | Executed cleanly against repository environment and retrieved artifacts |
+| `verify-baseline.mjs` version/encoding/ZAR checks pass against repository source | **VERIFIED** | Script checks `web/package.json` version, selected file version strings, mojibake encoding, and non-ZAR currency references in source/docs. It does **not** verify SBOM hashes, image digests, or the release manifest — those are verified by the release workflow and the rows above. |
 
 ## CI execution evidence
 
@@ -88,12 +88,16 @@ Earlier Alpha.17 evidence referenced superseded source commits and workflow runs
 
 ## Remaining verification action
 
-Run the repository verifier against the retrieved canonical artifact bundle:
+The Alpha.17 artifact evidence chain is **closed and frozen** as of this document.
+
+`web/scripts/verify-baseline.mjs` can be run at any time as a local repository consistency check:
 
 ```bash
 node web/scripts/verify-baseline.mjs
 ```
 
-Record its actual output before declaring the artifact evidence chain fully closed. Do not infer verifier success solely from workflow configuration or historical documentation.
+It validates version stamps, encoding integrity, and ZAR currency references in source and documentation files.
+It does **not** re-verify the release artifact, SBOM hashes, image digests, or the release manifest.
+Those are immutably recorded in the rows above and tied to the CI/release workflow provenance chain.
 
 The Docker acceptance workflow continues to use an ephemeral 32-byte `BACKUP_ENCRYPTION_KEY`; the key must not be committed or treated as a production secret.

@@ -26,7 +26,7 @@
 
 The alpha.17 release delivers immutable release builds with dual SBOMs, cryptographic build provenance attestations, container vulnerability gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane. ConvoLab remains authoritative for roles and memberships.
 
-Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Active package and release metadata are `1.0.0-alpha.17`.
+Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). The last formally released milestone is `1.0.0-alpha.17`; the active development version on `main` is `1.0.0-alpha.18` (not yet released as a formal milestone).
 
 ## Platform capabilities
 

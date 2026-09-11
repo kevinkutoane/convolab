@@ -1,5 +1,7 @@
 # Alpha.17 Baseline Closure Report
 
+> **Freeze status: ALPHA.17 FROZEN** — The AMBER state recorded in the historical evidence section below was an intermediate status. The Alpha.17 release is fully frozen. Authoritative evidence is in the "Final Alpha.17 Closure Evidence" section and in [`docs/reports/ARTIFACT_VERIFICATION.md`](ARTIFACT_VERIFICATION.md).
+
 ## Final Alpha.17 Closure Evidence
 
 The Alpha.17 release has been successfully built and verified against the authoritative `main` baseline:

@@ -590,7 +590,7 @@ gzip_min_length 1000;
 - See `.github/workflows/ci.yml` for CI/CD workflow
 # Deployment, Environment Promotion & Release Engineering notes
 
-Active application/package metadata is `1.0.0-alpha.17`.
+Active application/package metadata is `1.0.0-alpha.18` (development — last formally released milestone: `1.0.0-alpha.17`).
 
 `alpha.17 — Deployment, Environment Promotion & Release Engineering` is completed and verified:
 - Build-once, promote-many container publishing to GitHub Container Registry (GHCR) using workload identity / OIDC authentication.
