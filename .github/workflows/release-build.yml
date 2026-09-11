@@ -11,7 +11,7 @@ on:
       version:
         description: 'Release Version (e.g. 1.0.0-alpha.17)'
         required: true
-        default: '1.0.0-alpha.17'
+        default: '1.0.0-alpha.18'
 
 permissions:
   contents: write
@@ -28,7 +28,7 @@ env:
 jobs:
   build-publish-and-attest:
     name: Build, Publish, Scan & Assemble Manifest
-    if: github.event_name != 'push' || github.event.head_commit == null || contains(github.event.head_commit.message, '[release-alpha17]') || github.ref_type == 'tag'
+    if: github.event_name != 'push' || github.event.head_commit == null || contains(github.event.head_commit.message, '[release-alpha18]') || github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Source
@@ -59,7 +59,7 @@ jobs:
       - name: Determine Version & Metadata
         id: meta
         run: |
-          VERSION="${{ github.event.inputs.version || (github.ref_type == 'tag' && github.ref_name || '1.0.0-alpha.17') }}"
+          VERSION="${{ github.event.inputs.version || (github.ref_type == 'tag' && github.ref_name || '1.0.0-alpha.18') }}"
           VERSION="${VERSION#v}"
           COMMIT_SHA=$(git rev-parse HEAD)
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
