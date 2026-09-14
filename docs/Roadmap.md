@@ -94,10 +94,9 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 - Supply-chain artifacts and SBOM release workflow: **implemented in CI**; successful evidence for the authoritative baseline remains to be attached and verified.
 - Full load/endurance evidence and the final operational readiness report: **pending**.
 
-## Next planning gate
+## Active development milestone
 
-- `alpha.19 — Live Environment Validation & Load Testing`: **planning only until the alpha.18 baseline is green and frozen**. Scope: live Entra tenant acceptance, backup/restore drill evidence, SBOM artifact verification, full load/endurance evidence, and the final operational readiness report.
-- The alpha.19 plan is maintained separately and must not be treated as delivered functionality.
+- `alpha.19 — Live Environment Validation & Load Testing`: **Active on `main`**. Scope: live Entra tenant acceptance protocol and runner (`Blocked (Environment Gate)`), isolated disaster recovery drill harness and objective verification, deterministic release artifact verifier in CI hygiene, full native load and endurance testing framework, performance smoke CI gate, and the final operational readiness report.
 
 ## Phase 6 — Developer ecosystem
 
