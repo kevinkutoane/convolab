@@ -38,6 +38,9 @@ services:
       DataProtection__KeyRingPath: "/app/data/recovery-keys"
       Operations__Backups__DirectoryPath: "/app/data/recovery-backups"
       Knowledge__StoragePath: "/app/data/recovery-documents"
+      ASPNETCORE_HTTP_PORTS: "5000"
+      Bootstrap__Administrator__Email: "recovery-admin@convolab.test"
+      Bootstrap__Administrator__Password: "Recovery-Admin-Alpha19!"
     ports:
       - "5001:5000"
     volumes:
