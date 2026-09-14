@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const repository = path.resolve(process.cwd(), "..");
+const repository = fs.existsSync(path.join(process.cwd(), "web", "package.json"))
+  ? process.cwd()
+  : path.resolve(process.cwd(), "..");
 const expectedVersion = "1.0.0-alpha.18";
 const failures = [];
 const packageJson = JSON.parse(fs.readFileSync(path.join(repository, "web", "package.json"), "utf8"));
