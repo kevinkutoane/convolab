@@ -101,3 +101,37 @@ It does **not** re-verify the release artifact, SBOM hashes, image digests, or t
 Those are immutably recorded in the rows above and tied to the CI/release workflow provenance chain.
 
 The Docker acceptance workflow continues to use an ephemeral 32-byte `BACKUP_ENCRYPTION_KEY`; the key must not be committed or treated as a production secret.
+
+---
+
+## Alpha.18 Authoritative Baseline
+
+Alpha.18 represents the frozen baseline for the active Alpha.19 operational milestone:
+
+| Field | Value |
+| --- | --- |
+| Release version | `1.0.0-alpha.18` |
+| Authoritative source commit | `073152a40fe81cb3ea3669eeb512d345f6032a4b` |
+| Release workflow | `Release Build & Artifact Assembly` |
+| Workflow run | `34586715291` |
+| GitHub Actions artifact | `release-artifacts` |
+| Artifact SHA-256 | `23c5232f0604b0796c5aa46ae7314f9ffc626a37b790c97b8ea99f679b92ea3c` |
+| Status | **VERIFIED & FROZEN** |
+
+---
+
+## Deterministic Release Artifact Verifier (`verify-release-artifacts.mjs`)
+
+To ensure that releases are validated against actual build artifacts rather than merely source-tree metadata, ConvoLab includes a dedicated artifact verifier:
+
+```bash
+node scripts/ci/verify-release-artifacts.mjs
+```
+
+### Distinction from `verify-baseline.mjs`
+
+* **`web/scripts/verify-baseline.mjs`**: Source-code integrity tool. Validates version stamps across C# and TypeScript code, detects broken file encoding / mojibake, and enforces the prohibition on non-ZAR currency symbols in application source.
+* **`scripts/ci/verify-release-artifacts.mjs`**: Artifact & supply-chain verifier. Inspects the published `manifest.json`, validates immutable image digests (`@sha256:`), confirms the existence and schema of both CycloneDX SBOMs (API & Studio), recomputes SHA-256 checksums over actual SBOM files to match the manifest, verifies in-toto/GitHub provenance attestations, and validates database migration identifiers.
+
+The verifier strictly fails closed on any schema violation, missing file, or cryptographic hash mismatch.
+
