@@ -175,6 +175,9 @@ jobs:
           echo "=== Release Manifest Assembled ==="
           cat "$MANIFEST_FILE"
 
+      - name: Verify Release Artifacts Integrity
+        run: node scripts/ci/verify-release-artifacts.mjs --required --manifest artifacts/release/manifest.json --sbom-dir artifacts/sbom
+
       - name: Publish Release Manifest & SBOM Artifacts
         uses: actions/upload-artifact@v4
         with:

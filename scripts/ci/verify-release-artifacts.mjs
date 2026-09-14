@@ -26,6 +26,7 @@ const manifestPath = getArgValue('--manifest') || findDefaultManifest();
 const sbomDir = getArgValue('--sbom-dir') || findDefaultSbomDir(manifestPath);
 const expectedVersion = getArgValue('--expected-version');
 const expectedCommit = getArgValue('--expected-commit');
+const isRequired = args.includes('--required');
 
 function findDefaultManifest() {
   const candidates = [
@@ -67,8 +68,14 @@ console.log(`Inspecting manifest: ${manifestPath}`);
 console.log(`Inspecting SBOM dir:  ${sbomDir}\n`);
 
 if (!fs.existsSync(manifestPath)) {
-  console.error(`FATAL: Release manifest file not found at ${manifestPath}`);
-  process.exit(1);
+  if (isRequired) {
+    console.error(`FATAL: Release manifest file not found at ${manifestPath}`);
+    process.exit(1);
+  } else {
+    console.log(`Release manifest not found at ${manifestPath}.`);
+    console.log('Skipping verification (no release artifacts present in this workspace / CI context).');
+    process.exit(0);
+  }
 }
 
 let manifest;
