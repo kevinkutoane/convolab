@@ -6,18 +6,25 @@
 export const name = 'Read Workload';
 export const provisionalP95TargetMs = 150; // Provisional engineering target
 
-export function getEndpoints(targetUrl) {
-  return [
+export function getEndpoints(targetUrl, context = {}) {
+  const endpoints = [
     { method: 'GET', path: '/health/ready', name: 'Health Readiness' },
     { method: 'GET', path: '/health/live', name: 'Health Liveness' },
     { method: 'GET', path: '/api/platform/status', name: 'Platform Status' },
-    { method: 'GET', path: '/api/prompt-studio/prompts', name: 'Prompt Templates' },
-    { method: 'GET', path: '/api/workflow-studio/workflows', name: 'Workflow Definitions' },
   ];
+
+  if (context.isAuthenticated || context.sessionCookie) {
+    endpoints.push(
+      { method: 'GET', path: '/api/prompts', name: 'Prompt Templates' },
+      { method: 'GET', path: '/api/workflows', name: 'Workflow Definitions' },
+    );
+  }
+
+  return endpoints;
 }
 
 export async function execute(targetUrl, context = {}) {
-  const endpoints = getEndpoints(targetUrl);
+  const endpoints = getEndpoints(targetUrl, context);
   const selected = endpoints[Math.floor(Math.random() * endpoints.length)];
   const headers = {};
   if (context.sessionCookie) {

@@ -59,7 +59,80 @@ function calculatePercentiles(latencies) {
   };
 }
 
-async function runWorkload(name, workloadModule) {
+async function resolveAuthContext(targetUrl) {
+  const envEmail = process.env.CONVOLAB_ACCEPTANCE_ADMIN_EMAIL
+    || process.env.CONVOLAB_BOOTSTRAP_ADMIN_EMAIL
+    || getArgValue('--email', null);
+  const envPassword = process.env.CONVOLAB_ACCEPTANCE_ADMIN_PASSWORD
+    || process.env.CONVOLAB_BOOTSTRAP_ADMIN_PASSWORD
+    || getArgValue('--password', null);
+
+  const candidateCreds = [
+    { email: envEmail, password: envPassword },
+    { email: 'acceptance-admin@convolab.test', password: 'Acceptance-Only-Alpha12!' },
+    { email: 'admin@convolab.test', password: 'Ephemeral-Alpha12!' }
+  ].filter(c => Boolean(c.email && c.password));
+
+  for (const cred of candidateCreds) {
+    try {
+      const loginRes = await fetch(`${targetUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cred.email, password: cred.password })
+      });
+
+      if (!loginRes.ok) continue;
+
+      const extractCookies = (res) => {
+        if (typeof res.headers.getSetCookie === 'function') {
+          return res.headers.getSetCookie();
+        }
+        const single = res.headers.get('set-cookie');
+        return single ? [single] : [];
+      };
+
+      const cookieJar = new Map();
+      const addCookies = (rawList) => {
+        for (const raw of rawList) {
+          if (!raw) continue;
+          const firstPart = raw.split(';')[0];
+          const eqIdx = firstPart.indexOf('=');
+          if (eqIdx !== -1) {
+            cookieJar.set(firstPart.substring(0, eqIdx).trim(), firstPart.substring(eqIdx + 1).trim());
+          }
+        }
+      };
+
+      addCookies(extractCookies(loginRes));
+
+      let xsrfToken = null;
+      try {
+        const cookieHeaderForAnti = Array.from(cookieJar.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
+        const antiRes = await fetch(`${targetUrl}/api/auth/antiforgery`, {
+          headers: { 'Cookie': cookieHeaderForAnti }
+        });
+        if (antiRes.ok) {
+          addCookies(extractCookies(antiRes));
+          const antiData = await antiRes.json();
+          xsrfToken = antiData.token;
+        }
+      } catch {
+        // ignore
+      }
+
+      const sessionCookie = Array.from(cookieJar.entries()).map(([k, v]) => `${k}=${v}`).join('; ');
+      console.log(`[AUTH] Authenticated as ${cred.email}`);
+      return { sessionCookie, xsrfToken, isAuthenticated: true };
+    } catch {
+      // Continue to next
+    }
+  }
+
+  console.log('[AUTH] No valid credentials found. Running in anonymous client mode.');
+  return { isAuthenticated: false };
+}
+
+async function runWorkload(name, workloadModule, authContext) {
   console.log(`\n--- Running Workload: ${workloadModule.name} ---`);
   console.log(`Target: ${targetUrl} | Concurrency: ${concurrency} | Duration: ${durationSec}s`);
 
@@ -78,7 +151,7 @@ async function runWorkload(name, workloadModule) {
       if (maxRequests > 0 && totalRequests >= maxRequests) break;
       totalRequests++;
 
-      const res = await workloadModule.execute(targetUrl);
+      const res = await workloadModule.execute(targetUrl, authContext);
       latencies.push(res.latencyMs);
 
       statusCounts[res.status] = (statusCounts[res.status] || 0) + 1;
@@ -141,6 +214,8 @@ async function main() {
   console.log(`Target URL:  ${targetUrl}`);
   console.log(`Mode:        ${isSmoke ? 'Smoke (Lightweight CI Gate)' : 'Standard Load Test'}`);
 
+  const authContext = await resolveAuthContext(targetUrl);
+
   const activeWorkloads = selectedWorkload === 'all'
     ? Object.keys(workloads)
     : [selectedWorkload];
@@ -151,7 +226,7 @@ async function main() {
       console.error(`Unknown workload: '${w}'. Available: ${Object.keys(workloads).join(', ')}`);
       process.exit(1);
     }
-    const res = await runWorkload(w, workloads[w]);
+    const res = await runWorkload(w, workloads[w], authContext);
     results.push(res);
   }
 
