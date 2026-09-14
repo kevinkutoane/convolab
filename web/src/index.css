@@ -49,6 +49,8 @@
   --sidebar-collapsed: 72px;
   --topbar-height: 72px;
   --statusbar-height: 30px;
+  --border-color: var(--border);
+  --text-color: var(--text);
 }
 
 :root[data-theme="light"] {
@@ -80,6 +82,8 @@
   --shadow: 0 22px 60px rgba(63, 72, 98, 0.12);
   --shadow-soft: 0 12px 34px rgba(63, 72, 98, 0.1);
   --shadow-glow: 0 18px 52px rgba(224, 0, 77, 0.1);
+  --border-color: var(--border);
+  --text-color: var(--text);
 }
 
 * {

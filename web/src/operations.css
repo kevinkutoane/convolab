@@ -1,59 +1,77 @@
+/* Platform Operations Center Styling */
+
 .operations-page {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding-bottom: 3rem;
 }
 
 .operations-header {
   align-items: flex-start;
 }
 
-.operations-metrics {
+/* Primary KPI Ribbon */
+.operations-metrics,
+.metric-grid.operations-metrics,
+.metrics-grid.operations-metrics {
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
 }
 
 /* Segmented Navigation Tabs */
 .operations-tabs {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.25rem;
-  background: color-mix(in srgb, var(--surface-raised) 70%, transparent);
-  border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.operations-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .operations-tabs .tab-button {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 1rem;
+  padding: 0.65rem 1.15rem;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-muted);
-  border: none;
+  border: 1px solid transparent;
   background: transparent;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.15s ease-in-out;
   white-space: nowrap;
 }
 
 .operations-tabs .tab-button:hover {
-  color: var(--text-color);
-  background: color-mix(in srgb, var(--surface-raised) 90%, transparent);
+  color: var(--text);
+  background: var(--panel-hover);
 }
 
 .operations-tabs .tab-button.active {
-  color: var(--text-color);
-  background: var(--surface-raised);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  color: var(--text);
+  background: var(--panel-solid);
+  border-color: var(--border);
+  box-shadow: var(--shadow-soft);
 }
 
 .tab-pane {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
   animation: fadeIn 0.15s ease-in-out;
 }
 
@@ -65,7 +83,260 @@
 .operations-grid-two {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.25rem;
+  gap: 1.5rem;
+}
+
+/* Ensure panel containers in Operations Center clip cleanly and maintain token borders */
+.operations-page .panel {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--panel);
+}
+
+/* Safe Mode Emergency Control Gate */
+.safe-mode-panel {
+  border-color: color-mix(in srgb, var(--amber) 35%, var(--border));
+  background: color-mix(in srgb, var(--amber-soft) 25%, var(--panel));
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.safe-mode-panel.active {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  background: color-mix(in srgb, var(--danger-soft) 30%, var(--panel));
+  box-shadow: inset 4px 0 var(--danger);
+}
+
+.safe-mode-panel > p {
+  padding: 1.25rem 18px 0;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.safe-mode-panel .operations-facts {
+  padding: 1rem 18px;
+}
+
+.safe-mode-form {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1.2fr) minmax(14rem, 1fr) auto;
+  gap: 1rem;
+  align-items: end;
+  padding: 0 18px 18px;
+}
+
+.safe-mode-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.safe-mode-form input {
+  height: 2.75rem;
+  padding: 0 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.safe-mode-form input:focus {
+  border-color: var(--accent);
+  background: var(--panel-solid);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.safe-mode-form input::placeholder {
+  color: var(--text-subtle);
+}
+
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, var(--border));
+  border-radius: var(--radius-sm);
+  background: var(--danger);
+  color: #ffffff;
+  padding: 0 1.5rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease-in-out;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 85%, black);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--danger) 35%, transparent);
+}
+
+.danger-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(20%);
+}
+
+/* Key-Value Facts Grid */
+.operations-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 16px 18px;
+  margin: 0;
+}
+
+.operations-facts div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  min-width: 0;
+}
+
+.operations-facts dt {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.operations-facts dd {
+  margin: 0.35rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Subsystems & Dependency List */
+.dependency-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 18px 1.25rem;
+}
+
+.dependency-list > div {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 1rem;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 0;
+}
+
+.dependency-list > div:last-child {
+  border-bottom: none;
+}
+
+.dependency-list > div strong {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.dependency-list > div span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Dependency State Badge */
+.dependency-state {
+  border-radius: 999px;
+  padding: 0.22rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.state-livevalidated,
+.state-configured {
+  color: var(--green);
+  background: var(--green-soft);
+  border-color: color-mix(in srgb, var(--green) 35%, var(--border));
+}
+
+.state-degraded {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-color: color-mix(in srgb, var(--amber) 35%, var(--border));
+}
+
+.state-unavailable {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+
+.state-notconfigured {
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  border-color: var(--border);
+}
+
+/* Status Pills (used across Deployments, Backups, and Status Tables) */
+.status-pill.status-healthy {
+  color: var(--green);
+  background: var(--green-soft);
+  border-color: color-mix(in srgb, var(--green) 35%, var(--border));
+}
+
+.status-pill.status-warning {
+  color: var(--amber);
+  background: var(--amber-soft);
+  border-color: color-mix(in srgb, var(--amber) 35%, var(--border));
+}
+
+.status-pill.status-danger {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+
+/* Environment Cards in Deployments Tab */
+.environment-card {
+  padding: 1.25rem !important;
+  background: var(--surface-subtle) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+}
+
+.environment-card .operations-facts {
+  padding: 0.5rem 0 0 !important;
+  grid-template-columns: 1fr !important;
+  gap: 0.5rem !important;
+}
+
+.environment-card .operations-facts div {
+  padding: 0.55rem 0.75rem !important;
 }
 
 /* Backup Actions & Verification Styling */
@@ -74,11 +345,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 1.5rem;
-  padding: 1.25rem 1.5rem;
+  padding: 1.25rem 18px;
 }
 
 .backup-action-info h3 {
   margin: 0.25rem 0 0.15rem;
+  font-size: 1.1rem;
 }
 
 .backup-action-info p {
@@ -95,18 +367,19 @@
 
 .verification-result-panel {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-  background: color-mix(in srgb, var(--accent-soft) 40%, var(--panel));
+  background: color-mix(in srgb, var(--accent-soft) 20%, var(--panel));
 }
 
 .verification-details {
-  padding: 0 1.25rem 1.25rem;
+  padding: 0;
 }
 
 .inconsistency-list {
-  margin-top: 1rem;
-  padding: 0.85rem 1rem;
+  margin: 0 18px 18px;
+  padding: 0.85rem 1.25rem;
   border-radius: var(--radius-sm);
   background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border));
   color: var(--danger);
   font-size: 0.85rem;
 }
@@ -178,13 +451,22 @@
 
 .restore-form-group select,
 .restore-form-group input {
-  height: var(--control-height);
+  height: 2.75rem;
   padding: 0 0.85rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface-subtle);
   color: var(--text);
   font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.restore-form-group select:focus,
+.restore-form-group input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .restore-modal-actions {
@@ -220,143 +502,63 @@
 .restore-state-badge.state-failed svg { color: var(--danger); }
 .restore-state-badge.state-running svg { color: var(--accent); }
 
-.safe-mode-panel {
-  border-color: color-mix(in srgb, var(--border-color) 75%, #e0a12f);
+/* Provider Warnings & Messages */
+.provider-warning {
+  margin: 0 18px 18px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, var(--border));
+  color: var(--danger);
+  font-size: 0.85rem;
 }
 
-.safe-mode-panel.active {
-  box-shadow: inset 4px 0 #e05a3f;
-}
-
-.operations-facts {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin: 1rem 0;
-}
-
-.operations-facts div {
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.65rem;
-  background: color-mix(in srgb, var(--surface-raised) 40%, transparent);
-}
-
-.operations-facts dt {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.operations-facts dd {
-  margin: 0.35rem 0 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.safe-mode-form {
-  display: grid;
-  grid-template-columns: minmax(12rem, 1fr) minmax(16rem, 1fr) auto;
-  gap: 0.75rem;
-  align-items: end;
-}
-
-.safe-mode-form label {
-  display: grid;
-  gap: 0.35rem;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-}
-
-.safe-mode-form input {
-  min-height: 2.5rem;
-}
-
-.danger-button {
-  min-height: 2.5rem;
-  border: 1px solid #c64c38;
-  border-radius: 0.5rem;
-  background: #9e3325;
-  color: white;
-  padding: 0 1.25rem;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.danger-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
+/* Fallback Preformatted JSON */
 .operations-json {
   max-height: 22rem;
   overflow: auto;
-  padding: 0.75rem;
-  border-radius: 0.5rem;
-  background: color-mix(in srgb, var(--surface-raised) 85%, black);
-  font-size: 0.75rem;
+  padding: 1rem 1.25rem;
+  margin: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.dependency-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.dependency-list > div {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 0.75rem;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color);
-  padding: 0.6rem 0;
-}
-
-.dependency-state {
-  border-radius: 999px;
-  padding: 0.2rem 0.55rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  background: var(--surface-raised);
-}
-
-.state-livevalidated, .state-configured {
-  color: #53c49b;
-}
-
-.state-degraded {
-  color: #e2a739;
-}
-
-.state-unavailable {
-  color: #ec7160;
-}
-
-.state-notconfigured {
-  color: var(--text-muted);
-}
-
+/* Not Configured State */
 .not-configured {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 1rem;
   color: var(--text-muted);
-  padding: 1rem 0;
+  padding: 1.5rem 18px;
 }
 
 .not-configured p {
-  margin: 0;
+  margin: 0.25rem 0 0;
   font-size: 0.85rem;
+  color: var(--text-subtle);
 }
 
+/* Responsive Breakpoints */
 @media (max-width: 1050px) {
   .operations-metrics,
-  .operations-facts,
-  .operations-grid-two {
+  .metric-grid.operations-metrics,
+  .metrics-grid.operations-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .operations-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .operations-grid-two {
+    grid-template-columns: 1fr;
   }
   .safe-mode-form {
     grid-template-columns: 1fr;
@@ -365,8 +567,16 @@
 
 @media (max-width: 700px) {
   .operations-metrics,
-  .operations-facts,
-  .operations-grid-two {
+  .metric-grid.operations-metrics,
+  .metrics-grid.operations-metrics,
+  .operations-facts {
     grid-template-columns: 1fr;
+  }
+  .backup-action-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .pipeline-grid {
+    grid-template-columns: 1fr !important;
   }
 }
