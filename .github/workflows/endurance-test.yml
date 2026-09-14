@@ -1,0 +1,84 @@
+name: ConvoLab Endurance & Soak Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration:
+        description: 'Duration of endurance run in seconds'
+        required: true
+        default: '120'
+      concurrency:
+        description: 'Number of concurrent workers'
+        required: true
+        default: '5'
+      window:
+        description: 'Sampling window size in seconds'
+        required: true
+        default: '10'
+  schedule:
+    # Optional scheduled run: weekly on Sunday at 02:00 UTC
+    - cron: '0 2 * * 0'
+
+permissions:
+  contents: read
+
+jobs:
+  endurance-soak:
+    name: Platform Endurance & Soak Test
+    runs-on: ubuntu-latest
+    env:
+      CONVOLAB_BOOTSTRAP_ADMIN_EMAIL: endurance-admin@convolab.test
+      CONVOLAB_BOOTSTRAP_ADMIN_PASSWORD: Endurance-Alpha19-Secure!
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+
+      - name: Generate ephemeral backup encryption key
+        shell: bash
+        run: |
+          export BACKUP_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+          echo "BACKUP_ENCRYPTION_KEY=$BACKUP_ENCRYPTION_KEY" >> "$GITHUB_ENV"
+
+      - name: Start ConvoLab Stack
+        run: docker compose up --build -d
+
+      - name: Wait for API Readiness
+        run: timeout 120 sh -c 'until curl --fail --silent http://127.0.0.1:5000/health/ready; do sleep 2; done'
+
+      - name: Execute Endurance Soak Runner
+        run: |
+          node tools/load-test/soak-runner.mjs \
+            --target http://127.0.0.1:5000 \
+            --duration ${{ github.event.inputs.duration || '120' }} \
+            --concurrency ${{ github.event.inputs.concurrency || '5' }} \
+            --window ${{ github.event.inputs.window || '10' }} \
+            --output /tmp/soak-test-report.json
+
+      - name: Upload Soak Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: soak-test-report
+          path: /tmp/soak-test-report.json
+          retention-days: 14
+
+      - name: Capture Container Logs on Completion
+        if: always()
+        run: docker compose logs --no-color > /tmp/docker-endurance-logs.txt
+
+      - name: Upload Docker Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-endurance-logs
+          path: /tmp/docker-endurance-logs.txt
+          retention-days: 7
+
+      - name: Teardown Stack
+        if: always()
+        run: docker compose down -v
