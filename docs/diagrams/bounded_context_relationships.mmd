@@ -1,21 +1,63 @@
 graph TD
-    subgraph Bounded Contexts
-        Execution --> Conversation
-        Execution --> Prompt
-        Execution --> Knowledge
-        Execution --> AI
-        Execution --> Evaluation
-        Execution --> Tracing
-        Execution --> Plugins
-        Conversation --> Users
+    subgraph GovernanceAndSecurity[Security, Governance & Observability]
+        IAM[Workspace, Identity & Access]
+        Settings[Environment Settings & Secrets]
+        Policy[Policy Center]
+        Audit[Audit & Compliance]
+        Analytics[Platform Analytics]
+        Tracing[Trace Engine]
     end
 
-    style Execution fill:#afa,stroke:#333,stroke-width:2px
-    style Conversation fill:#bbf,stroke:#333,stroke-width:2px
-    style Prompt fill:#ccf,stroke:#333,stroke-width:2px
-    style Knowledge fill:#ddf,stroke:#333,stroke-width:2px
-    style AI fill:#eef,stroke:#333,stroke-width:2px
-    style Evaluation fill:#ffc,stroke:#333,stroke-width:2px
-    style Tracing fill:#cfc,stroke:#333,stroke-width:2px
-    style Plugins fill:#fcf,stroke:#333,stroke-width:2px
-    style Users fill:#f9f,stroke:#333,stroke-width:2px
+    subgraph CoreOrchestration[Conversational & Execution Core]
+        Conversation[Conversation Engine]
+        Workflow[Workflow & Execution]
+        Prompt[Prompt Engine]
+        Knowledge[Knowledge Engine]
+        Intelligence[Intelligence Engine]
+        Evaluation[Evaluation Engine]
+        Plugins[Plugin Engine]
+    end
+
+    subgraph OperationsControl[Platform Operations]
+        Operations[Operations & DR Control Plane]
+    end
+
+    IAM -->|tenant & actor context| Conversation
+    IAM -->|role & permission scope| Policy
+    IAM -->|mutation audit facts| Audit
+
+    Settings -->|effective runtime config| Intelligence
+    Settings -->|pricing & secrets| Policy
+
+    Conversation -->|workflow reference| Workflow
+    Conversation -->|memory / context| Intelligence
+    Workflow -->|render prompt| Prompt
+    Workflow -->|query package| Knowledge
+    Workflow -->|planned execution| Intelligence
+
+    Knowledge -->|retrieval policy| Policy
+    Prompt -->|version governance| Policy
+    Intelligence -->|execution guardrails| Policy
+    Intelligence -->|execution result| Evaluation
+
+    Plugins -. implement retriever .-> Knowledge
+    Plugins -. implement provider .-> Intelligence
+    Plugins -. extension health .-> Operations
+
+    Conversation -. facts & telemetry .-> Tracing
+    Workflow -. facts & telemetry .-> Tracing
+    Intelligence -. facts & telemetry .-> Tracing
+    Evaluation -. facts & telemetry .-> Tracing
+
+    Conversation -. usage & turns .-> Analytics
+    Intelligence -. tokens & cost ZAR .-> Analytics
+    Policy -. decisions .-> Analytics
+
+    Operations -->|snapshots & recovery| Conversation
+    Operations -->|governed deployments| Settings
+
+    style IAM fill:#e0e7ff,stroke:#4338ca,stroke-width:2px
+    style Policy fill:#fee2e2,stroke:#b91c1c,stroke-width:2px
+    style Intelligence fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    style Analytics fill:#dcfce7,stroke:#15803d,stroke-width:2px
+    style Operations fill:#ffedd5,stroke:#c2410c,stroke-width:2px

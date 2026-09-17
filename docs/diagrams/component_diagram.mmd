@@ -1,53 +1,94 @@
 graph TD
-    Studio[ConvoLab Studio] --> API[ConvoLab API]
+    subgraph Frontend[ConvoLab Studio Frontend]
+        Studio[ConvoLab Studio (React 19 + Vite)]
+    end
 
-    subgraph Application[Application services]
+    subgraph Presentation[API Host & Middleware Layer]
+        API[ASP.NET Core Platform API Host]
+        SecHeaders[SecurityHeadersMiddleware]
+        Sanitizer[SensitiveOutputSanitizerMiddleware]
+        AuthN[Authentication & OIDC Handler]
+        RateLimiter[Fixed-Window Rate Limiter]
+        Auditor[GovernedActivityAuditMiddleware]
+        RuntimeEnv[RuntimeEnvironmentMiddleware]
+        
+        API --> SecHeaders --> Sanitizer --> AuthN --> RateLimiter --> Auditor --> RuntimeEnv
+    end
+
+    Studio -->|HTTPS / JSON / Session Cookie| API
+
+    subgraph Application[Application Services & Use Cases]
         Simulation[ConversationSimulationService]
         Knowledge[KnowledgeStudioService]
         Prompt[PromptStudioService]
         Workflow[WorkflowStudioService]
-        Intelligence[IntelligenceStudioService]
-        Evaluation[EvaluationStudioService]
+        Intelligence[IntelligenceEngine & Studio]
+        Evaluation[EvaluationEngine & Studio]
         Trace[TraceStudioService]
         Replay[ReplayStudioService]
         Policy[PolicyStudioService]
         Plugin[PluginStudioService]
+        Identity[WorkspaceIdentityService & Auth]
+        Settings[Settings & EnvironmentService]
+        Analytics[PlatformAnalyticsService]
+        Operations[Operations & DeploymentService]
+        Audit[AuditService & AuditController]
     end
 
-    API --> Simulation
-    API --> Knowledge
-    API --> Prompt
-    API --> Workflow
-    API --> Intelligence
-    API --> Evaluation
-    API --> Trace
-    API --> Replay
-    API --> Policy
-    API --> Plugin
+    RuntimeEnv --> Simulation
+    RuntimeEnv --> Knowledge
+    RuntimeEnv --> Prompt
+    RuntimeEnv --> Workflow
+    RuntimeEnv --> Intelligence
+    RuntimeEnv --> Evaluation
+    RuntimeEnv --> Trace
+    RuntimeEnv --> Replay
+    RuntimeEnv --> Policy
+    RuntimeEnv --> Plugin
+    RuntimeEnv --> Identity
+    RuntimeEnv --> Settings
+    RuntimeEnv --> Analytics
+    RuntimeEnv --> Operations
+    RuntimeEnv --> Audit
+
+    subgraph Infrastructure[Infrastructure Adapters & Persistence]
+        EF[EF Core Repositories & UnitOfWork]
+        PostgreSQL[(PostgreSQL 16 Multi-Tenant DB)]
+        DocStorage[Local / Volume Knowledge Document Storage]
+        Routing[RoutingIntelligenceExecutor]
+        Gemini[Gemini Provider Adapter]
+        Deterministic[Deterministic Intelligence Adapter]
+        PluginHealth[Plugin Health & HTTP Probes]
+        SecretStore[Composite Secret Store & Key Vault]
+        BackupEngine[Postgres Backup Tooling & AES-GCM Encryptor]
+        DataProtection[Data Protection Key Ring Archiver]
+        TelemetrySink[OpenTelemetry & Serilog Sanitized Logger]
+    end
 
     Simulation --> Policy
     Simulation --> Intelligence
+    Simulation --> Knowledge
+    Simulation --> Prompt
     Simulation --> Evaluation
     Simulation --> Trace
+    Simulation --> Settings
+
     Replay --> Policy
     Replay --> Intelligence
     Replay --> Evaluation
     Replay --> Trace
 
-    subgraph Infrastructure[Production adapters]
-        EF[EF Core repositories]
-        PostgreSQL[(PostgreSQL)]
-        Documents[Local knowledge document storage]
-        Routing[Routing intelligence executor]
-        Gemini[Gemini adapter]
-        Deterministic[Explicit deterministic adapter]
-        PluginHealth[HTTP and built-in plugin health probe]
-    end
-
     Application --> EF
     EF --> PostgreSQL
-    Knowledge --> Documents
+
+    Knowledge --> DocStorage
     Intelligence --> Routing
     Routing --> Gemini
     Routing --> Deterministic
     Plugin --> PluginHealth
+    Settings --> SecretStore
+    Operations --> BackupEngine
+    Operations --> DataProtection
+    Audit --> EF
+    Analytics --> EF
+    Application --> TelemetrySink

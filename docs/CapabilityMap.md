@@ -44,6 +44,7 @@
 ```mermaid
 flowchart TD
     Studio[ConvoLab Studio] --> API[Platform API]
+    API --> IAM[Workspace, Identity & Access]
     API --> Conversation
     API --> Workflow
     API --> Prompt
@@ -52,6 +53,14 @@ flowchart TD
     API --> Policy
     API --> Evaluation
     API --> Tracing
+    API --> Analytics[Platform Analytics]
+    API --> Operations[Operations Center]
+    API --> Settings[Settings & Environment]
+
+    IAM -->|tenant & security context| Policy
+    IAM -->|actor attribution| Conversation
+    Settings -->|runtime configuration| Intelligence
+    Settings -->|budget parameters| Policy
 
     Conversation -->|references| Workflow
     Workflow --> Prompt
@@ -65,6 +74,12 @@ flowchart TD
     Intelligence --> Tracing
     Evaluation --> Tracing
     Conversation --> Tracing
+    
+    Conversation -. safe metrics .-> Analytics
+    Intelligence -. token & cost attribution .-> Analytics
+    Policy -. decisions .-> Analytics
+    Operations -. backup & promotion .-> API
+
     Plugins -. implement public contracts .-> Knowledge
     Plugins -. implement public contracts .-> Intelligence
     Plugins -. implement public contracts .-> Tracing

@@ -51,7 +51,7 @@ sequenceDiagram
     participant K as Knowledge Engine
     participant R as Retriever (Infra)
     participant P as Prompt Engine
-    participant A as AI Orchestrator
+    participant IE as Intelligence Engine
 
     W->>K: RetrievePackageAsync(Query, Strategy)
     K->>R: RetrieveAsync(Query)
@@ -61,5 +61,5 @@ sequenceDiagram
     K-->>W: KnowledgePackage (Ranked, Token Estimates)
     W->>P: GeneratePromptAsync(Template, Package Variables)
     P-->>W: Rendered Prompt String
-    W->>A: Execute(Rendered Prompt)
+    W->>IE: ExecuteAsync(Rendered Prompt, Requirements)
 ```

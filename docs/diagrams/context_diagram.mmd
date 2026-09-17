@@ -1,27 +1,82 @@
 graph TD
-    subgraph ConvoLab Platform
-        A[Users] --> B[Conversation]
-        B --> C[Prompt]
-        C --> D[AI]
-        D --> E[Knowledge]
-        E --> F[Evaluation]
-        F --> G[Tracing]
-        G --> H[Plugins]
-        B -- orchestrates --> I[Execution]
-        C -- orchestrates --> I
-        D -- orchestrates --> I
-        E -- orchestrates --> I
-        F -- orchestrates --> I
-        G -- orchestrates --> I
-        H -- orchestrates --> I
+    subgraph UsersAndClients[Users & Actors]
+        Users[Engineers & Operators]
+        ExternalIdP[Microsoft Entra ID / External IdP]
+        DeploymentRunner[Deployment Promotion Runner]
     end
 
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style B fill:#bbf,stroke:#333,stroke-width:2px
-    style C fill:#ccf,stroke:#333,stroke-width:2px
-    style D fill:#ddf,stroke:#333,stroke-width:2px
-    style E fill:#eef,stroke:#333,stroke-width:2px
-    style F fill:#ffc,stroke:#333,stroke-width:2px
-    style G fill:#cfc,stroke:#333,stroke-width:2px
-    style H fill:#fcf,stroke:#333,stroke-width:2px
-    style I fill:#afa,stroke:#333,stroke-width:2px
+    subgraph ConvoLabPlatform[ConvoLab Platform Core & Studio]
+        Studio[ConvoLab Studio]
+        IAM[Workspace, Identity & Access]
+        Conv[Conversation Engine]
+        Work[Workflow & Execution Engine]
+        Prompt[Prompt Engine]
+        Intel[Intelligence Engine]
+        Know[Knowledge Engine]
+        Policy[Policy Center]
+        Eval[Evaluation Engine]
+        Trace[Trace Engine & OpenTelemetry]
+        Plug[Plugin Engine]
+        Analytics[Platform Analytics]
+        Ops[Operations & Disaster Recovery]
+        Audit[Platform Audit & Compliance]
+    end
+
+    subgraph ExternalSystems[External Systems & Adapters]
+        LLMs[AI Providers: Gemini / OpenAI / Custom]
+        DocSources[Document Sources / File Storage]
+        PostgreSQL[(PostgreSQL Multi-Tenant DB)]
+        OTelCollector[OTel Collector / APM]
+        GHCR[GitHub Container Registry / Provenance]
+    end
+
+    Users --> Studio
+    ExternalIdP -. OIDC PKCE .-> IAM
+    DeploymentRunner -. Promotion API .-> Ops
+    Studio --> IAM
+    Studio --> Conv
+    Studio --> Work
+    Studio --> Prompt
+    Studio --> Know
+    Studio --> Intel
+    Studio --> Policy
+    Studio --> Eval
+    Studio --> Trace
+    Studio --> Plug
+    Studio --> Analytics
+    Studio --> Ops
+    Studio --> Audit
+
+    Conv --> Work
+    Work --> Know
+    Work --> Prompt
+    Work --> Intel
+    Prompt --> Policy
+    Know --> Policy
+    Intel --> Policy
+    Intel --> Eval
+    Intel --> LLMs
+    Know --> DocSources
+
+    Conv -. events & metrics .-> Analytics
+    Intel -. usage & cost .-> Analytics
+    Policy -. decisions .-> Analytics
+    
+    Conv -. telemetry .-> Trace
+    Work -. telemetry .-> Trace
+    Intel -. telemetry .-> Trace
+    Eval -. telemetry .-> Trace
+    Trace --> OTelCollector
+
+    IAM -. audit events .-> Audit
+    Ops -. pre-migration backups .-> PostgreSQL
+    Ops -. release promotion .-> GHCR
+    ConvoLabPlatform --> PostgreSQL
+
+    style Users fill:#e0f2fe,stroke:#0284c7,stroke-width:2px
+    style ExternalIdP fill:#fef3c7,stroke:#d97706,stroke-width:2px
+    style Studio fill:#f3e8ff,stroke:#9333ea,stroke-width:2px
+    style Intel fill:#dbeafe,stroke:#2563eb,stroke-width:2px
+    style Policy fill:#fee2e2,stroke:#dc2626,stroke-width:2px
+    style Analytics fill:#dcfce7,stroke:#16a34a,stroke-width:2px
+    style Ops fill:#ffedd5,stroke:#ea580c,stroke-width:2px

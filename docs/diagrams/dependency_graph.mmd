@@ -1,17 +1,24 @@
 graph TD
-    subgraph Layers
-        API[ConvoLab.Api]
-        Application[ConvoLab.Application]
-        Infrastructure[ConvoLab.Infrastructure]
-        Domain[ConvoLab.Domain]
+    subgraph ClientLayers[Presentation Clients]
+        Web[ConvoLab Studio<br/>React 19 + Vite]
     end
 
+    subgraph BackendLayers[Clean Architecture Backend .NET 8]
+        API[ConvoLab.Api<br/>Endpoints, Middleware, Auth, Health]
+        Application[ConvoLab.Application<br/>Use Cases, DTOs, Handlers, Ports]
+        Domain[ConvoLab.Domain<br/>Aggregates, Entities, Value Objects, Invariants]
+        Infrastructure[ConvoLab.Infrastructure<br/>EF Core, PostgreSQL, Gemini, Tooling]
+    end
+
+    Web -->|HTTP / JSON API| API
     API --> Application
+    API -. DI composition root .-> Infrastructure
     Application --> Domain
     Infrastructure --> Application
     Infrastructure --> Domain
 
-    style API fill:#f9f,stroke:#333,stroke-width:2px
-    style Application fill:#bbf,stroke:#333,stroke-width:2px
-    style Infrastructure fill:#ccf,stroke:#333,stroke-width:2px
-    style Domain fill:#ddf,stroke:#333,stroke-width:2px
+    style Web fill:#f3e8ff,stroke:#7e22ce,stroke-width:2px
+    style API fill:#fce7f3,stroke:#be185d,stroke-width:2px
+    style Application fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    style Domain fill:#dcfce7,stroke:#15803d,stroke-width:2px
+    style Infrastructure fill:#fef3c7,stroke:#b45309,stroke-width:2px

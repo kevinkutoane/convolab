@@ -33,7 +33,7 @@ To treat prompts as governed, versioned, and reusable enterprise assets. The Pro
 
 ## Dependencies
 *   **Upstream**: None (Core Domain).
-*   **Downstream**: Consumed by Workflow Engine and AI Orchestrator.
+*   **Downstream**: Consumed by Workflow Engine and Intelligence Engine.
 
 ## Roadmap & Future Enhancements
 *   Integration with Prompt Studio for visual editing.

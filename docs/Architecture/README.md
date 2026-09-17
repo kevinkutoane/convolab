@@ -19,11 +19,36 @@ This handbook is the architecture baseline for Platform Core and ConvoLab Studio
 ## Baseline topology
 
 ```mermaid
-flowchart LR
-    Studio[ConvoLab Studio] --> API[ASP.NET Core API]
-    API --> Application[Application Contracts]
-    Application --> Domain[Domain Capabilities]
-    Infrastructure[Infrastructure Adapters] --> Application
+flowchart TD
+    subgraph Client[Client Presentation]
+        Studio[ConvoLab Studio (React 19 + Vite)]
+    end
+
+    subgraph APIHost[ASP.NET Core API Host]
+        Middleware[Security Headers / Sanitizer / Rate Limiter / Auth]
+        Endpoints[API Controllers & Endpoints]
+        Middleware --> Endpoints
+    end
+
+    subgraph Core[Platform Core]
+        Application[Application Contracts & Use Cases]
+        Domain[Domain Aggregates & Invariants]
+        Application --> Domain
+    end
+
+    subgraph Adapters[Infrastructure Adapters & Storage]
+        Infrastructure[Infrastructure Repositories & Adapters]
+        PostgreSQL[(PostgreSQL 16 DB)]
+        LLM[Gemini / AI Providers]
+        Storage[Document & Backup Stores]
+        Infrastructure --> PostgreSQL
+        Infrastructure --> LLM
+        Infrastructure --> Storage
+    end
+
+    Studio -->|HTTPS / JSON API| Middleware
+    Endpoints --> Application
+    Infrastructure --> Application
     Infrastructure --> Domain
 ```
 

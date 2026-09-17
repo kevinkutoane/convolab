@@ -1,44 +1,58 @@
 sequenceDiagram
-    participant User as User
-    participant UI as User Interface
-    participant WorkflowEngine as IWorkflowEngine
-    participant ConversationEngine as IConversationEngine
-    participant PromptEngine as IPromptEngine
-    participant KnowledgeEngine as IKnowledgeEngine
-    participant AIOrchestrator as IAIOrchestrator
-    participant EvaluationEngine as IEvaluationEngine
-    participant TraceEngine as ITraceEngine
+    autonumber
+    participant User as User / Client
+    participant UI as ConvoLab Studio
+    participant API as Platform API Host
+    participant Sim as ConversationSimulationService
+    participant Settings as RuntimeConfigResolver
+    participant Knowledge as KnowledgeEngine
+    participant Prompt as PromptEngine
+    participant Policy as PolicyDecisionService
+    participant Intel as IntelligenceEngine
+    participant Exec as IIntelligenceExecutor (Gemini/Determ)
+    participant Eval as EvaluationEngine
+    participant Trace as TraceEngine
 
-    User->>UI: Sends Message
-    UI->>WorkflowEngine: ProcessUserMessage(conversationId, userId, userMessage)
+    User->>UI: Sends Turn / Trigger Run
+    UI->>API: POST /api/simulations/{id}/runs (X-Environment-Id, X-Correlation-ID)
+    API->>Sim: ExecuteRunAsync(state, userMessage, config)
 
-    WorkflowEngine->>TraceEngine: StartTrace("ProcessUserMessage")
-    activate WorkflowEngine
+    activate Sim
+    Sim->>Settings: Resolve effective configuration & secrets
+    Settings-->>Sim: Governed runtime settings (pricing, limits)
 
-    WorkflowEngine->>ConversationEngine: AddMessageToConversation(userMessage)
-    ConversationEngine-->>WorkflowEngine: Message Added
+    Sim->>Knowledge: BuildKnowledgePackageAsync(query)
+    Knowledge-->>Sim: Sealed KnowledgePackage (ranked citations, tokens)
 
-    WorkflowEngine->>KnowledgeEngine: SearchKnowledge(userMessage)
-    KnowledgeEngine-->>WorkflowEngine: Retrieved Knowledge Context
+    Sim->>Prompt: RenderPromptAsync(template, knowledgePackage)
+    Prompt-->>Sim: Rendered Prompt String
 
-    WorkflowEngine->>PromptEngine: GeneratePrompt(templateId, parameters)
-    PromptEngine-->>WorkflowEngine: Generated AI Prompt
+    Sim->>Policy: EvaluateExecutionAsync(PolicyExecutionRequest)
+    Policy-->>Sim: Guardrails (Allowed, MaxTokens, MaxCostZar)
 
-    WorkflowEngine->>AIOrchestrator: ProcessPrompt(modelId, promptTemplateId, promptParameters)
-    AIOrchestrator-->>WorkflowEngine: AI Response
+    alt Policy Denied
+        Sim->>Trace: Record denied execution fact
+        Sim-->>API: DomainRuleViolationException (policy.execution.denied)
+        API-->>UI: 400 Bad Request / Problem Details
+    else Policy Allowed
+        Sim->>Intel: PlanExecutionAsync(context, requirement, policy)
+        Intel-->>Sim: ExecutionPlan (Provider, Model, Fallbacks)
 
-    WorkflowEngine->>ConversationEngine: AddMessageToConversation(aiResponse)
-    ConversationEngine-->>WorkflowEngine: AI Response Added
+        Sim->>Intel: ExecuteAsync(context, plan, renderedPrompt)
+        activate Intel
+        Intel->>Exec: ExecuteAsync(request, prompt)
+        Exec-->>Intel: Normalized ExecutionResult (Tokens, Latency, ZAR Cost)
+        Intel-->>Sim: ExecutionResponse
+        deactivate Intel
 
-    WorkflowEngine->>EvaluationEngine: StartEvaluation(conversationId)
-    EvaluationEngine-->>WorkflowEngine: Evaluation Started
-    WorkflowEngine->>EvaluationEngine: AddEvaluationResult(...)
-    EvaluationEngine-->>WorkflowEngine: Result Added
-    WorkflowEngine->>EvaluationEngine: CompleteEvaluation(...)
-    EvaluationEngine-->>WorkflowEngine: Evaluation Completed
+        Sim->>Eval: Evaluate(response, knowledgePackage)
+        Eval-->>Sim: Scorecard (Groundedness, Relevance, Safety)
 
-    WorkflowEngine->>TraceEngine: EndTrace()
-    deactivate WorkflowEngine
+        Sim->>Eval: RecordSimulationRunAsync(runId, evaluation)
+        Sim->>Trace: RecordSimulationRunAsync(traceSpans, telemetry)
 
-    WorkflowEngine-->>UI: Conversation Response
-    UI->>User: Displays Response
+        Sim-->>API: Completed SimulationRun
+        API-->>UI: 200 OK (Run DTO, Timeline, Metrics)
+        UI->>User: Displays Response & Run Inspector
+    end
+    deactivate Sim
