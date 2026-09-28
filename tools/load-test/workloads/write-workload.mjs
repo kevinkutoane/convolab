@@ -44,6 +44,9 @@ export async function execute(targetUrl, context = {}) {
 
     return {
       name: 'Create Prompt Template',
+      endpointName: 'Create Prompt Template',
+      endpoint: '/api/prompts',
+      method: 'POST',
       status: res.status,
       latencyMs: latency,
       success
@@ -52,6 +55,9 @@ export async function execute(targetUrl, context = {}) {
     const latency = performance.now() - start;
     return {
       name: 'Create Prompt Template',
+      endpointName: 'Create Prompt Template',
+      endpoint: '/api/prompts',
+      method: 'POST',
       status: 0,
       latencyMs: latency,
       success: false,

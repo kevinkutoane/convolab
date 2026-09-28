@@ -27,6 +27,9 @@ export async function execute(targetUrl, context = {}) {
 
     return {
       name: 'Simulation Options',
+      endpointName: 'Simulation Options',
+      endpoint: '/api/simulations/options',
+      method: 'GET',
       status: optionsRes.status,
       latencyMs: latency,
       success
@@ -35,6 +38,9 @@ export async function execute(targetUrl, context = {}) {
     const latency = performance.now() - start;
     return {
       name: 'Simulation Execution Query',
+      endpointName: 'Simulation Options',
+      endpoint: '/api/simulations/options',
+      method: 'GET',
       status: 0,
       latencyMs: latency,
       success: false,

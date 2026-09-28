@@ -50,6 +50,9 @@ export async function execute(targetUrl, context = {}) {
 
     return {
       name: selected.name,
+      endpointName: selected.name,
+      endpoint: selected.path,
+      method: selected.method,
       status: res.status,
       latencyMs: latency,
       success: isSecurityPass,
@@ -59,6 +62,9 @@ export async function execute(targetUrl, context = {}) {
     const latency = performance.now() - start;
     return {
       name: selected.name,
+      endpointName: selected.name,
+      endpoint: selected.path,
+      method: selected.method,
       status: 0,
       latencyMs: latency,
       success: false,
