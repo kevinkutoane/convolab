@@ -41,8 +41,8 @@ import type {
 export const designTimePlatformStatus: PlatformStatus = {
   platformName: "ConvoLab Platform",
   productName: "ConvoLab Studio",
-  version: "1.0.0-alpha.17",
-  workstream: "alpha.17 — Deployment, Environment Promotion & Release Engineering",
+  version: "1.0.0-alpha.18",
+  workstream: "alpha.18 — Security & Compliance Hardening",
   safeMode: false,
   environment: "Development",
   architectureHealth: "Healthy",
@@ -266,7 +266,7 @@ export const navigationItems: NavigationItem[] = [
     path: "/operations",
     icon: Gauge,
     description: "Inspect readiness, workers, telemetry, and safe mode",
-    status: "foundation",
+    status: "stable",
   },
 ];
 
