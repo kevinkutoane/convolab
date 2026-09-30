@@ -185,7 +185,7 @@ export function LoginPage() {
               )}
 
               <div className="lp-field">
-                <label htmlFor="lp-email">Work email</label>
+                <label htmlFor="lp-email">Email</label>
                 <input
                   id="lp-email"
                   type="email"
