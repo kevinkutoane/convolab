@@ -1,8 +1,10 @@
 # ConvoLab Roadmap
 
-Current release: `v1.0.0-alpha.18`.
+Current release: `v1.0.0-alpha.19`.
 
-Delivered workstream: `alpha.18 — Security & Compliance Hardening`. The scope covers hardened HTTP security response headers (COOP, COEP, XCDO, extended CSP, 2-year HSTS) promoted to a tested named middleware; extended audit trail covering workspace member, external identity, environment, and settings mutations; a dedicated `AuditController` with paginated, PlatformAdministrator-scoped read and export endpoints; `SensitiveOutputSanitizerMiddleware` enforcing the sensitive-output prohibition at the HTTP transport layer; `SensitiveTelemetryLogFilter` as a Serilog-level regression backstop; targeted rate-limiting on invitation creation, identity mutations, and member mutations; `SafeMode:BlockAnalyticsExports` fixed to `true` in production defaults and `SafeMode:BlockAuditExports` introduced; four new `ProductionReadinessValidator` rules; `ThreatModel.md` and `ComplianceControls.md` (SOC 2-aligned); and `.gitignore` hardened to exclude SQLite WAL/SHM sidecar files.
+Delivered workstream: `alpha.19 — Live Environment Validation & Load Testing`. The scope covers a native Node.js multi-workload load testing harness (Read, Write, Execution, Security workloads) with zero external binary dependencies; an endurance/soak runner with rolling 5-second sampling; an isolated disaster recovery drill harness and 12-step automated verification protocol; a deterministic release artifact verifier enforcing SBOM checksums, immutable digest pinning, and provenance validation; a lightweight performance smoke CI gate and dedicated endurance workflow; formal documentation of the Microsoft Entra live-tenant acceptance protocol and runner (execution remains `Blocked (Environment Gate)` — pending corporate Azure tenant provisioning, not a code blocker); empirical performance baseline (Read ~245 RPS, Write ~112 RPS, Execution ~168 RPS — all within provisional engineering targets, zero unhandled 500 errors); and DR objective validation (RTO < 15s, RPO 0s in isolated container rehearsal).
+
+Delivered workstream: `alpha.18 — Security & Compliance Hardening` (`v1.0.0-alpha.18`). The scope covers hardened HTTP security response headers (COOP, COEP, XCDO, extended CSP, 2-year HSTS) promoted to a tested named middleware; extended audit trail covering workspace member, external identity, environment, and settings mutations; a dedicated `AuditController` with paginated, PlatformAdministrator-scoped read and export endpoints; `SensitiveOutputSanitizerMiddleware` enforcing the sensitive-output prohibition at the HTTP transport layer; `SensitiveTelemetryLogFilter` as a Serilog-level regression backstop; targeted rate-limiting on invitation creation, identity mutations, and member mutations; `SafeMode:BlockAnalyticsExports` fixed to `true` in production defaults and `SafeMode:BlockAuditExports` introduced; four new `ProductionReadinessValidator` rules; `ThreatModel.md` and `ComplianceControls.md` (SOC 2-aligned); and `.gitignore` hardened to exclude SQLite WAL/SHM sidecar files.
 
 Delivered workstream: `alpha.17 — Deployment, Environment Promotion & Release Engineering`. The scope covers immutable container image builds with GHCR publication, dual CycloneDX SBOMs, cryptographic build provenance attestations, container vulnerability scanning gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane inside the Operations Center.
 
@@ -96,7 +98,7 @@ Delivered workstream: `alpha.15 — Microsoft Entra ID, External Identities & Hy
 
 ## Active development milestone
 
-- `alpha.19 — Live Environment Validation & Load Testing`: **Active on `main`**. Scope: live Entra tenant acceptance protocol and runner (`Blocked (Environment Gate)`), isolated disaster recovery drill harness and objective verification, deterministic release artifact verifier in CI hygiene, full native load and endurance testing framework, performance smoke CI gate, and the final operational readiness report.
+- `alpha.20 — Environment & Secret Management`: **Next planned milestone**. Scope: per-environment configuration governance, secret rotation controls, environment promotion rules, and secret-store integration hardening required for beta readiness.
 
 ## Phase 6 — Developer ecosystem
 

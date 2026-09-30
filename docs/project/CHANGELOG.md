@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.0.0-alpha.19 — 2026-09-30
+
+### Live Environment Validation & Load Testing
+- Added native Node.js multi-workload load testing harness (`tools/load-test/load-runner.mjs`) with Read, Write, Execution, and Security workload modules — zero external binary dependencies.
+- Added endurance/soak testing runner (`tools/load-test/soak-runner.mjs`) with rolling 5-second sampling windows for latency drift and socket stability monitoring.
+- Added isolated disaster recovery drill harness (`docker-compose.recovery.yml`) with dedicated port and volume separation from active environments.
+- Added automated 12-step DR drill scripts (`scripts/operations/run-recovery-drill.ps1` and `.sh`) executing full backup → destructive drop → restore → reconciliation → key roundtrip verification.
+- Added deterministic release artifact verifier (`scripts/ci/verify-release-artifacts.mjs`) enforcing SBOM checksums, immutable digest pinning, and provenance chain validation.
+- Added lightweight 5-second performance smoke gate to CI pipeline (`ci.yml`) with a dedicated endurance workflow (`endurance-test.yml`).
+- Documented live Microsoft Entra tenant acceptance protocol (`docs/operations/EntraLiveAcceptanceProtocol.md`) and acceptance runner script (`scripts/operations/test-entra-live.mjs`); execution remains `Blocked (Environment Gate)` pending corporate Azure tenant provisioning.
+- Recorded empirical performance baseline: Read ~245 RPS (p95 38.2ms), Write ~112 RPS (p95 88.7ms), Execution ~168 RPS (p95 59.4ms), Security ~210 RPS — all within provisional engineering targets. Zero unhandled 500 errors under load.
+- Validated DR objectives: RTO < 15 seconds (isolated container rehearsal), RPO 0 seconds (zero delta snapshot-to-restore).
+- Published `ALPHA19_BASELINE_EVIDENCE_MATRIX.md`, `ALPHA19_OPERATIONAL_READINESS_REPORT.md`, `ALPHA19_PERFORMANCE_REPORT.md`, and `ALPHA19_RECOVERY_DRILL_REPORT.md`.
+
+## 1.0.0-alpha.18 — 2026-08-26
+
+### Security & Compliance Hardening
+- Added `SecurityHeadersMiddleware` enforcing COOP (`same-origin`), COEP (`require-corp`), XCDO (`nosniff`), extended Content Security Policy, and conditional 2-year HSTS (Production only).
+- Added `SensitiveOutputSanitizerMiddleware` scrubbing credential and token patterns from outgoing HTTP problem-detail responses.
+- Added `SensitiveTelemetryLogFilter` as a Serilog-level regression backstop against accidental secret logging.
+- Added dedicated `AuditController` (`GET /api/audit/events`, `/api/audit/events/{id}`, `/api/audit/summary`, `/api/audit/export`) scoped to `PlatformAdministrator` policy.
+- Extended audit trail to cover workspace member, external identity, environment, and settings mutations.
+- Added `SafeMode:BlockAuditExports` gate; fixed `SafeMode:BlockAnalyticsExports` to `true` in Production configuration defaults.
+- Added targeted rate-limiting on invitation creation (5/IP/min), identity mutations (10/IP/min), and member mutations (20/IP/min).
+- Extended `ProductionReadinessValidator` with four new rules: `BlockAuditExports`, `AllowDeterministicVerification`, Serilog minimum level, and audit export governance.
+- Added `docs/security/ThreatModel.md` and `docs/security/ComplianceControls.md` (SOC 2 trust-service category alignment).
+- Hardened `.gitignore` to exclude SQLite WAL/SHM sidecar files (`*.db-wal`, `*.db-shm`).
+
 ## 1.0.0-alpha.17 — 2026-08-21
 
 ### Deployment, Environment Promotion & Release Engineering v1
