@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
+  Info,
 } from "lucide-react";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../contexts/useAuth";
@@ -21,15 +22,16 @@ import { getAuthenticationOptions, type AuthenticationOptions } from "../service
 export function LoginPage() {
   useHelp({
     title: "Sign In",
-    description: "The authentication entry point for ConvoLab Studio. Access is controlled by your organisation's identity provider.",
+    description: "The authentication entry point for ConvoLab Studio. Access is governed by corporate single sign-on (Microsoft Entra ID) or local platform credentials.",
     usageSteps: [
-      "Enter your email and password, or use the SSO button to sign in via your corporate identity provider (e.g., Microsoft Entra, Okta).",
-      "If Multi-Factor Authentication is required, complete the MFA challenge after your initial credentials.",
-      "After sign-in, you will be directed to your active workspace. If you have access to multiple workspaces, you can switch them from the top bar.",
+      "In deployments with Microsoft Entra ID configured, click 'Sign in with Microsoft' to authenticate via corporate SSO.",
+      "In local development or unconfigured deployments, enter your email and password in the credentials form.",
+      "If Multi-Factor Authentication is required, complete the MFA challenge after initial credentials.",
+      "After sign-in, you will be directed to your active workspace.",
     ],
     examples: [
-      "First-time login: Use your work email and the temporary password sent by your Administrator.",
-      "SSO login: Click 'Sign in with Microsoft' and enter your corporate email to be redirected to your organisation's login portal.",
+      "SSO login (when enabled): Click 'Sign in with Microsoft' and authenticate through your corporate Microsoft tenant.",
+      "Local login: Use your platform administrator or engineer email and password.",
     ],
     expectedOutput: "A valid authenticated session scoped to your assigned workspaces and role-based permissions.",
     aiLayerRole: "Authentication is handled by standard secure protocols. The AI layer is not involved in sign-in, but once authenticated, your role determines which AI capabilities and data you can access.",
@@ -41,6 +43,7 @@ export function LoginPage() {
   const [options, setOptions] = useState<AuthenticationOptions>();
   const [optionsLoading, setOptionsLoading] = useState(true);
   const [emergency, setEmergency] = useState(false);
+  const [showSsoInfo, setShowSsoInfo] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -96,6 +99,16 @@ export function LoginPage() {
         <div className="lp-bg-orb lp-bg-orb--1" />
         <div className="lp-bg-orb lp-bg-orb--2" />
         <div className="lp-bg-grid" />
+        <div className="lp-particles">
+          <div className="lp-particle lp-particle--1" />
+          <div className="lp-particle lp-particle--2" />
+          <div className="lp-particle lp-particle--3" />
+          <div className="lp-particle lp-particle--4" />
+          <div className="lp-particle lp-particle--5" />
+          <div className="lp-particle lp-particle--6" />
+          <div className="lp-particle lp-particle--7" />
+          <div className="lp-particle lp-particle--8" />
+        </div>
       </div>
 
       <div className="lp-layout">
@@ -143,36 +156,75 @@ export function LoginPage() {
             ) : error && !busy ? (
               <><AlertCircle size={13} className="lp-status-icon--error" /><span className="lp-status-text--error">{error}</span></>
             ) : (
-              <><CheckCircle2 size={13} className="lp-status-icon--ok" /><span>Platform reachable · {options?.mode ?? "Local"} authentication</span></>
+              <><CheckCircle2 size={13} className="lp-status-icon--ok" /><span>Platform reachable · {options?.mode ?? "Local"} authentication {options?.entraLoginAvailable ? "· SSO active" : "· SSO unconfigured"}</span></>
             )}
           </div>
 
           {/* Entra SSO */}
-          {options?.entraLoginAvailable && !emergency && (
+          {!emergency && (
             <div className="lp-sso-section">
-              <button
-                id="lp-sso-btn"
-                className="lp-sso-btn"
-                onClick={entraLogin}
-                disabled={busy}
-                type="button"
-                aria-label="Sign in with Microsoft corporate identity"
-              >
-                <Building2 size={17} />
-                <span>Sign in with Microsoft</span>
-                <ChevronRight size={15} className="lp-sso-arrow" />
-              </button>
-              <p className="lp-hint">
-                Corporate sign-in requires a linked identity or a valid invitation.
-                Contact your platform administrator if access is denied.
-              </p>
+              {options?.entraLoginAvailable ? (
+                <>
+                  <button
+                    id="lp-sso-btn"
+                    className="lp-sso-btn"
+                    onClick={entraLogin}
+                    disabled={busy}
+                    type="button"
+                    aria-label="Sign in with Microsoft corporate identity"
+                  >
+                    <Building2 size={17} />
+                    <span>Sign in with Microsoft</span>
+                    <ChevronRight size={15} className="lp-sso-arrow" />
+                  </button>
+                  <p className="lp-hint">
+                    Corporate sign-in requires a linked identity or a valid invitation.
+                    Contact your platform administrator if access is denied.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <button
+                    id="lp-sso-btn"
+                    className="lp-sso-btn lp-sso-btn--unconfigured"
+                    onClick={() => setShowSsoInfo((v) => !v)}
+                    type="button"
+                    aria-label="Microsoft single sign-on (unconfigured)"
+                    aria-expanded={showSsoInfo}
+                  >
+                    <Building2 size={17} />
+                    <span>Sign in with Microsoft</span>
+                    <span className="lp-sso-badge">Not configured</span>
+                  </button>
+                  {showSsoInfo ? (
+                    <div className="lp-sso-info-callout" role="region" aria-label="Single Sign-On configuration info">
+                      <div className="lp-sso-info-header">
+                        <Info size={15} />
+                        <span>Microsoft Entra ID (SSO) Support</span>
+                      </div>
+                      <p>
+                        Corporate single sign-on via Microsoft 365 / Entra ID is supported by ConvoLab Platform. In this deployment, the authentication mode is currently <code>{options?.mode ?? "Local"}</code>.
+                      </p>
+                      <div className="lp-sso-info-guide">
+                        <span className="lp-sso-step-badge">Platform Administrator Setup:</span>
+                        <code>Authentication__Mode=Hybrid</code>
+                        <span className="lp-hint">Configure tenant credentials in <code>appsettings.json</code> or container environment.</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="lp-hint">
+                      Microsoft Entra ID single sign-on is supported. Click to view configuration guidance.
+                    </p>
+                  )}
+                </>
+              )}
             </div>
           )}
 
           {/* Divider */}
-          {options?.entraLoginAvailable && showLocalForm && !emergency && (
+          {showLocalForm && !emergency && (
             <div className="lp-divider" role="separator">
-              <span>{isHybrid ? "Local development access" : "or sign in locally"}</span>
+              <span>{options?.entraLoginAvailable ? (isHybrid ? "Local development access" : "or sign in locally") : "Local credentials"}</span>
             </div>
           )}
 
