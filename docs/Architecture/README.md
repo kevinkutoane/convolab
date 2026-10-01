@@ -1,6 +1,6 @@
 # ConvoLab Architecture Handbook v1
 
-This handbook is the architecture baseline for Platform Core and ConvoLab Studio `v1.0.0-alpha.18`.
+This handbook is the architecture baseline for Platform Core and ConvoLab Studio `v1.0.0-alpha.18` (formal release baseline, with operational validation milestone `Alpha.19` formally closed and next planned milestone `Alpha.20 — Environment & Secret Management`).
 
 ## Contents
 

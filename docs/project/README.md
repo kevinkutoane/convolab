@@ -4,13 +4,17 @@
 
 **ConvoLab Studio** is the visual workspace built on top of Platform Core. The Studio does not contain business orchestration; it consumes the ASP.NET Core platform API and presents each capability as an engineering workspace.
 
-## Current milestone
+## Current milestone & release state
 
-- **Platform Core / Studio:** `v1.0.0-alpha.18`
-- **Delivered workstream:** `alpha.18 — Security & Compliance Hardening`
-- **Delivered workstream:** `alpha.17 — Deployment, Environment Promotion & Release Engineering`
-- **Delivered workstream:** `alpha.16 — Backup, Restore & Disaster Recovery`
-- **Delivered workstream:** `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`
+- **Latest formal product release:** `v1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`)
+- **Completed operational milestone:** `alpha.19 — Live Environment Validation & Load Testing` (tagged `v1.0.0-alpha.19`)
+- **Current development milestone:** `alpha.20 — Environment & Secret Management`
+- **Delivered workstreams:**
+  - `alpha.19 — Live Environment Validation & Load Testing` (load testing harness, endurance soak runner, automated DR drill, deterministic artifact verifier)
+  - `alpha.18 — Security & Compliance Hardening` (hardened security headers, transport sanitization, Serilog telemetry filtering, dedicated AuditController, SafeMode hardening)
+  - `alpha.17 — Deployment, Environment Promotion & Release Engineering` (immutable release builds, dual SBOMs, build provenance, vulnerability scanning, pre-migration backup gate, Operations Center promotion)
+  - `alpha.16 — Backup, Restore & Disaster Recovery`
+  - `alpha.15 — Microsoft Entra ID, External Identities & Hybrid Authentication`
 - **Workspace, Identity and Access:** `v1`
 - **Functional Evaluation Studio:** `v1`
 - **Functional Trace Explorer:** `v1`
@@ -24,9 +28,9 @@
 - **Database adapter:** PostgreSQL-ready infrastructure
 - **Architecture:** Clean Architecture and Domain-Driven Design
 
-The alpha.17 release delivers immutable release builds with dual SBOMs, cryptographic build provenance attestations, container vulnerability gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane. ConvoLab remains authoritative for roles and memberships.
+The latest formal product release is `v1.0.0-alpha.18`. Milestone Alpha.19 establishes operational validation and endurance baselines, and is formally closed on `main`. ConvoLab remains authoritative for roles and memberships.
 
-Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). The last formally released milestone is `1.0.0-alpha.17`; the active development version on `main` is `1.0.0-alpha.18` (not yet released as a formal milestone).
+Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Live enterprise Entra tenant validation remains intentionally environment-gated (`Blocked (Environment Gate)` pending corporate tenant provisioning).
 
 ## Platform capabilities
 

@@ -31,6 +31,14 @@ for (const relative of [
   if (!content.includes(expectedVersion)) failures.push(`${relative} does not report ${expectedVersion}`);
 }
 
+const platformPath = path.join(repository, "web/src/data/platform.ts");
+if (fs.existsSync(platformPath)) {
+  const platformContent = fs.readFileSync(platformPath, "utf8");
+  if (platformContent.includes("alpha.18 — Security & Compliance Hardening")) {
+    failures.push("web/src/data/platform.ts retains stale alpha.18 workstream metadata");
+  }
+}
+
 const ignored = new Set([".git", "bin", "obj", "node_modules", "dist", "playwright-report", "test-results"]);
 const extensions = new Set([".cs", ".css", ".html", ".js", ".json", ".md", ".mjs", ".ts", ".tsx", ".yml", ".yaml"]);
 const mojibake = [

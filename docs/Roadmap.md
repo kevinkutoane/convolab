@@ -1,6 +1,8 @@
 # ConvoLab Roadmap
 
-Current release: `v1.0.0-alpha.19`.
+Latest formal product release: `v1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`).  
+Completed operational milestone: `alpha.19 — Live Environment Validation & Load Testing` (tagged `v1.0.0-alpha.19`, formally closed on `main`).  
+Current development milestone: `alpha.20 — Environment & Secret Management` (next planned milestone).
 
 Delivered workstream: `alpha.19 — Live Environment Validation & Load Testing`. The scope covers a native Node.js multi-workload load testing harness (Read, Write, Execution, Security workloads) with zero external binary dependencies; an endurance/soak runner with rolling 5-second sampling; an isolated disaster recovery drill harness and 12-step automated verification protocol; a deterministic release artifact verifier enforcing SBOM checksums, immutable digest pinning, and provenance validation; a lightweight performance smoke CI gate and dedicated endurance workflow; formal documentation of the Microsoft Entra live-tenant acceptance protocol and runner (execution remains `Blocked (Environment Gate)` — pending corporate Azure tenant provisioning, not a code blocker); empirical performance baseline (Read ~245 RPS, Write ~112 RPS, Execution ~168 RPS — all within provisional engineering targets, zero unhandled 500 errors); and DR objective validation (RTO < 15s, RPO 0s in isolated container rehearsal).
 

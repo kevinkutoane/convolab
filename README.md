@@ -4,8 +4,9 @@
 
 ConvoLab is a conversational AI platform that provides a complete lifecycle for building, evaluating, and operating production-grade conversational experiences. It pairs a .NET 8 API backend with a React + Vite frontend (ConvoLab Studio).
 
-**Last release:** `v1.0.0-alpha.17` ([release evidence](release-alpha17-evidence.md))
-**Development branch:** `v1.0.0-alpha.18` (post-Alpha.17 engineering — not yet released)
+**Latest formal product release:** `v1.0.0-alpha.18` ([release evidence](release-alpha18-evidence.md))  
+**Completed operational milestone:** `Alpha.19 — Live Environment Validation & Load Testing` ([milestone evidence](release-alpha19-evidence.md), tagged `v1.0.0-alpha.19`)  
+**Current development milestone:** `Alpha.20 — Environment & Secret Management`
 
 ---
 

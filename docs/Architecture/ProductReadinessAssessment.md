@@ -2,37 +2,42 @@
 
 ## Decision
 
-The functional Studio baseline is stabilized at alpha.18 (including Entra OIDC, Hybrid authentication, Deployment/Release Engineering, Backup/Restore/DR, and Security & Compliance Hardening v1) and suitable for controlled internal evaluation. It is not yet a secure multi-user beta or production-ready enterprise platform.
+The functional Studio baseline is stabilized at `v1.0.0-alpha.18` formal product release, with operational validation milestone `Alpha.19` formally closed (validating deployment automation, container acceptance, and enterprise login experience). It is suitable for controlled internal evaluation and pre-production staging. It is not yet a multi-tenant public beta or production-ready enterprise platform.
 
-## Ready
+## Ready / Implemented
 
 - Provider-neutral domain model
 - Stable Conversation, Workflow, Prompt, Knowledge, and Intelligence boundaries
 - Clean Architecture project structure
 - Architecture and domain test projects
 - Governance documentation and ADR history
-- Single React Studio frontend
+- Single React Studio frontend with enterprise sign-in experience
 - Single ASP.NET Core backend topology
 - Studio dashboard, navigation, command palette, responsive shell, and meaningful capability workspaces
 - Platform status endpoint and design-time fallback
 - Trusted environment attribution, append-only analytics evidence, restart-safe aggregation, and permission-filtered Analytics workspace
 - Microsoft Entra ID OIDC integration, external identities, hybrid authentication, invitation linking, and hardened break glass (StubValidated)
 - Backup, Restore & Disaster Recovery v1 with authenticated chunked AES-256-GCM encryption, deep recovery verification, and isolated rehearsal profiling
+- Multi-container Docker Compose acceptance pipeline and GitHub Actions CI/CD release workflow
 
-## Experimental
+## Environment-Gated (Pending External Infrastructure)
 
-- Workspace/IAM browser and PostgreSQL acceptance
+- Live Microsoft Entra ID Enterprise Tenant Validation (`Blocked (Environment Gate)` — requires live corporate tenant app registration credentials)
+- Distributed APM / OpenTelemetry Collector endpoint verification
+
+## Experimental / In-Progress Foundations
+
+- Workspace/IAM browser and PostgreSQL container acceptance
 - Secure plugin invocation and sandboxing
-- Managed environments, promotion, and secret governance
 
-## Not implemented
+## Deferred / Next Milestones
 
-- Production SSO, custom roles, and environment promotion
-- Enterprise knowledge connectors
-- Secret management
-- Streaming transport
-- Tool execution runtime
-- Deployment automation and SLOs
+- Environment & Secret Management (Planned: Alpha.20)
+- Production SCIM user lifecycle & granular custom roles
+- Enterprise knowledge connectors (SharePoint, Confluence)
+- Streaming transport & SSE-based interactive completions
+- Sandboxed tool execution runtime
+- Dynamic SLO tracking and alerting engine
 
 ## Products that can now be built
 

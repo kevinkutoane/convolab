@@ -42,7 +42,7 @@ export const designTimePlatformStatus: PlatformStatus = {
   platformName: "ConvoLab Platform",
   productName: "ConvoLab Studio",
   version: "1.0.0-alpha.18",
-  workstream: "alpha.18 — Security & Compliance Hardening",
+  workstream: "development (post-alpha.19 — next: alpha.20)",
   safeMode: false,
   environment: "Development",
   architectureHealth: "Healthy",

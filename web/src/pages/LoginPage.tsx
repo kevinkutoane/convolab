@@ -130,7 +130,7 @@ export function LoginPage() {
           </ul>
           <div className="lp-version-badge">
             <Shield size={13} />
-            <span>v1.0.0-alpha.18 · Security &amp; Compliance Hardening</span>
+            <span>v1.0.0-alpha.18 · Development (Post-Alpha.19)</span>
           </div>
         </aside>
 
