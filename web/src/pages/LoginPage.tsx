@@ -85,7 +85,9 @@ export function LoginPage() {
   }
 
   const isHybrid = options?.mode === "Hybrid";
-  const showLocalForm = options?.localLoginAvailable || emergency;
+  // Show the local form optimistically before the API options resolve (options=undefined during load).
+  // Hide it only when options are loaded AND local login is explicitly unavailable AND not in emergency mode.
+  const showLocalForm = !options || options.localLoginAvailable || emergency;
 
   return (
     <main className="lp-root" aria-label="ConvoLab Studio sign in">
