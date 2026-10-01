@@ -17,9 +17,9 @@ export default async function globalSetup(config: FullConfig) {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
   await page.goto("/login");
-  await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await page.getByLabel("Email", { exact: true }).fill(email);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByRole("button", { name: /^sign in$/i }).click();
   await page.waitForURL(/\/$/);
   await context.storageState({ path: acceptanceAuthState });
   await browser.close();

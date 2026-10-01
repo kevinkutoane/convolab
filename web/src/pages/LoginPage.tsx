@@ -221,7 +221,7 @@ export function LoginPage() {
                     type="button"
                     className="lp-password-toggle"
                     onClick={() => setShowPassword((v) => !v)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={showPassword ? "Hide secret" : "Reveal secret"}
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
