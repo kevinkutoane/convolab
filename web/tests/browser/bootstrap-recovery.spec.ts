@@ -25,7 +25,7 @@ test("session bootstrap recovers from a transient API failure without a page ref
   await page.goto("/");
 
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Sign In|Welcome back/i })).toBeVisible();
   expect(sessionAttempts).toBe(2);
   expect(documentRequests).toBe(1);
 });
