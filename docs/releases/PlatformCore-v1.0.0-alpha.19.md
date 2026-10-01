@@ -1,9 +1,10 @@
 ﻿# ConvoLab Platform and Studio v1.0.0-alpha.19
 
-> **Status: Engineering Complete — Formally Closed**
-> This document describes engineering work delivered in the `1.0.0-alpha.19` milestone on `main`.
-> The last formally released baseline is `v1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`).
-> Alpha.19 delivers operational-validation evidence and tooling rather than new product features.
+> **Status: Operational Milestone — Formally Closed**
+> This document describes engineering work delivered in the `1.0.0-alpha.19` operational milestone on `main`.
+> The last formal product release is `v1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`).
+> Alpha.19 is bound to operational tag `v1.0.0-alpha.19` and release-build workflow `36931388866` for evidence and reproducibility. No formal GitHub Release was published for Alpha.19.
+> Alpha.19 delivers operational-validation evidence and tooling rather than a new product release.
 
 Alpha.19 delivers **Live Environment Validation & Load Testing**, establishing a reproducible performance baseline, isolated disaster recovery verification, deterministic supply-chain artifact verification, and formal documentation of all outstanding environment gates.
 
