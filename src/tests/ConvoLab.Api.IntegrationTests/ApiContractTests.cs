@@ -1234,7 +1234,9 @@ public sealed class ConvoLabApiFactory : WebApplicationFactory<Program>
                 ["Knowledge:StoragePath"] = Path.Combine(Path.GetTempPath(), "convolab-api-tests"),
                 ["Bootstrap:Administrator:Email"] = "admin@convolab.test",
                 ["Bootstrap:Administrator:DisplayName"] = "Test Administrator",
-                ["Bootstrap:Administrator:Password"] = "Ephemeral-Alpha12!"
+                ["Bootstrap:Administrator:Password"] = "Ephemeral-Alpha12!",
+                ["Connectors:Infobip:WebhookSecret"] = "test-infobip-secret",
+                ["Connectors:Infobip:RecipientNumber"] = "27829999999"
             });
         });
     }
