@@ -31,6 +31,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
     private readonly WorkspaceRequestContext _workspace;
     private readonly IWebHostEnvironment _environment;
     private readonly TimeProvider _timeProvider;
+    private readonly IConfiguration _config;
 
     public ConvoLabAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -39,15 +40,45 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         ApplicationDbContext db,
         WorkspaceRequestContext workspace,
         IWebHostEnvironment environment,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IConfiguration config)
         : base(options, logger, encoder)
     {
-        _db = db; _workspace = workspace; _environment = environment; _timeProvider = timeProvider;
+        _db = db; _workspace = workspace; _environment = environment; _timeProvider = timeProvider; _config = config;
     }
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (_environment.IsEnvironment("Testing") && !Request.Headers.ContainsKey("Authorization") && !Request.Cookies.ContainsKey(ConvoLabAuthentication.SessionCookie))
+        if (Request.Path.StartsWithSegments("/api/connectors/infobip/webhook"))
+        {
+            var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
+                ?? _config["Infobip:WebhookSecret"]
+                ?? InfobipWebhookSecurity.DefaultSecret;
+
+            Request.EnableBuffering();
+            Request.Body.Position = 0;
+            using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
+            var rawBody = await reader.ReadToEndAsync();
+            Request.Body.Position = 0;
+
+            if (InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret))
+            {
+                var claims = new List<Claim>
+                {
+                    new(ClaimTypes.NameIdentifier, "webhook:infobip"),
+                    new(ClaimTypes.Name, "Infobip Webhook"),
+                    new("actor_type", "Webhook"),
+                    new("provider", "Infobip")
+                };
+                return Success(claims);
+            }
+
+            return AuthenticateResult.Fail("Unauthorized: Invalid or missing Infobip webhook signature or secret.");
+        }
+
+        if (_environment.IsEnvironment("Testing")
+            && !Request.Headers.ContainsKey("Authorization")
+            && !Request.Cookies.ContainsKey(ConvoLabAuthentication.SessionCookie))
             return BuildTestingPrincipal();
 
         var authorization = Request.Headers.Authorization.ToString();

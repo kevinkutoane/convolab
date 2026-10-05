@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ConvoLab.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("202610050002_DeploymentPromotionV1")]
+    [Migration("202608200002_DeploymentPromotionV1")]
     public partial class DeploymentPromotionV1 : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
