@@ -24,7 +24,12 @@ public sealed class OmnichannelService : IOmnichannelService
         InboundMessageEnvelope envelope,
         CancellationToken cancellationToken = default)
     {
-        var sessionKey = $"{envelope.Channel}:{envelope.SenderId}";
+        var workspaceScope = envelope.ChannelMetadata.TryGetValue("workspaceId", out var workspaceId)
+            ? workspaceId
+            : null;
+        var recipientScope = string.IsNullOrWhiteSpace(envelope.ReceiverId) ? "unknown-receiver" : envelope.ReceiverId.Trim();
+        var sessionScope = !string.IsNullOrWhiteSpace(workspaceScope) ? $"workspace:{workspaceScope}" : $"recipient:{recipientScope}";
+        var sessionKey = $"{envelope.Channel}:{sessionScope}:{envelope.SenderId}";
 
         // 1. Evaluate for immediate human handoff / escalation
         var handoff = _handoffEvaluator.Evaluate(envelope.Text);

@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using ConvoLab.Api.Security;
@@ -11,6 +10,7 @@ using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ConvoLab.Api.Controllers;
 
@@ -22,21 +22,24 @@ public sealed class InfobipWebhookController : ControllerBase
     private readonly ApplicationDbContext _db;
     private readonly WorkspaceRequestContext _runtime;
     private readonly IConfiguration _config;
+    private readonly IMemoryCache _cache;
     private readonly ILogger<InfobipWebhookController> _logger;
 
-    private static readonly ConcurrentDictionary<string, DateTimeOffset> ProcessedMessagesCache = new();
+    private static readonly TimeSpan ProcessedMessageCacheTtl = TimeSpan.FromMinutes(30);
 
     public InfobipWebhookController(
         IOmnichannelService omnichannelService,
         ApplicationDbContext db,
         WorkspaceRequestContext runtime,
         IConfiguration config,
+        IMemoryCache cache,
         ILogger<InfobipWebhookController> logger)
     {
         _omnichannelService = omnichannelService;
         _db = db;
         _runtime = runtime;
         _config = config;
+        _cache = cache;
         _logger = logger;
     }
 
@@ -57,10 +60,9 @@ public sealed class InfobipWebhookController : ControllerBase
         Request.Body.Position = 0;
 
         var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
-            ?? _config["Infobip:WebhookSecret"]
-            ?? InfobipWebhookSecurity.DefaultSecret;
+            ?? _config["Infobip:WebhookSecret"];
 
-        if (!InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret))
+        if (!InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret ?? string.Empty))
         {
             _logger.LogWarning("Infobip webhook rejected: signature or shared secret verification failed.");
             return Unauthorized(new { error = "Unauthorized: Invalid or missing webhook signature or secret." });
@@ -113,9 +115,9 @@ public sealed class InfobipWebhookController : ControllerBase
                 _runtime.EnvironmentType = tenantContext.EnvironmentType;
 
                 // 3. Webhook Delivery Deduplication
-                var deduplicationKey = $"webhook:infobip:{messageId}";
+                var deduplicationKey = $"webhook:infobip:{tenantContext.WorkspaceId:N}:{messageId}";
 
-                if (ProcessedMessagesCache.TryGetValue(deduplicationKey, out _))
+                if (_cache.TryGetValue(deduplicationKey, out _))
                 {
                     _logger.LogInformation("Duplicate webhook delivery detected (in-memory) for messageId '{MessageId}'. Ignoring retry.", messageId);
                     responses.Add(new
@@ -137,52 +139,8 @@ public sealed class InfobipWebhookController : ControllerBase
 
                 if (alreadyProcessed)
                 {
-                    ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
+                    MarkProcessed(deduplicationKey);
                     _logger.LogInformation("Duplicate webhook delivery detected (database) for messageId '{MessageId}'. Ignoring retry.", messageId);
-                    responses.Add(new
-                    {
-                        messageId,
-                        sender,
-                        handled = true,
-                        duplicate = true,
-                        status = "DUPLICATE_IGNORED",
-                        escalatedToHuman = false,
-                        reply = (string?)null,
-                        quickReplies = Array.Empty<string>()
-                    });
-                    continue;
-                }
-
-                // Persist processed messageId using unique constraint on EventKey
-                var deduplicationEvent = new AnalyticsEventRecord
-                {
-                    Id = Guid.NewGuid(),
-                    EventKey = deduplicationKey,
-                    OrganisationId = tenantContext.OrganisationId,
-                    WorkspaceId = tenantContext.WorkspaceId,
-                    EnvironmentId = tenantContext.EnvironmentId,
-                    Capability = "Omnichannel",
-                    EventType = "WebhookDeliveryProcessed",
-                    Outcome = "Success",
-                    CostType = "Unavailable",
-                    SourceType = "InfobipWebhook",
-                    SourceId = Guid.Empty,
-                    ConfigurationRevision = "v1",
-                    CorrelationId = HttpContext.TraceIdentifier,
-                    OccurredAt = DateTimeOffset.UtcNow
-                };
-
-                _db.AnalyticsEvents.Add(deduplicationEvent);
-
-                try
-                {
-                    await _db.SaveChangesAsync(cancellationToken);
-                    ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
-                }
-                catch (DbUpdateException)
-                {
-                    _logger.LogWarning("Concurrent duplicate delivery caught by unique constraint for messageId '{MessageId}'.", messageId);
-                    ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
                     responses.Add(new
                     {
                         messageId,
@@ -214,11 +172,49 @@ public sealed class InfobipWebhookController : ControllerBase
                     ChannelMetadata: new Dictionary<string, string>
                     {
                         ["provider"] = "Infobip",
-                        ["rawSender"] = sender ?? ""
+                        ["rawSender"] = sender ?? "",
+                        ["workspaceId"] = tenantContext.WorkspaceId.ToString("N")
                     },
                     ReceivedAt: DateTimeOffset.UtcNow);
 
+                // Only record a successful delivery after inbound processing completes.
                 var processResult = await _omnichannelService.ProcessInboundAsync(envelope, cancellationToken);
+
+                var deduplicationEvent = new AnalyticsEventRecord
+                {
+                    Id = Guid.NewGuid(),
+                    EventKey = deduplicationKey,
+                    OrganisationId = tenantContext.OrganisationId,
+                    WorkspaceId = tenantContext.WorkspaceId,
+                    EnvironmentId = tenantContext.EnvironmentId,
+                    Capability = "Omnichannel",
+                    EventType = "WebhookDeliveryProcessed",
+                    Outcome = "Success",
+                    CostType = "Unavailable",
+                    SourceType = "InfobipWebhook",
+                    SourceId = Guid.Empty,
+                    ConfigurationRevision = "v1",
+                    CorrelationId = HttpContext.TraceIdentifier,
+                    OccurredAt = DateTimeOffset.UtcNow
+                };
+
+                _db.AnalyticsEvents.Add(deduplicationEvent);
+
+                try
+                {
+                    await _db.SaveChangesAsync(cancellationToken);
+                    MarkProcessed(deduplicationKey);
+                }
+                catch (DbUpdateException)
+                {
+                    _db.Entry(deduplicationEvent).State = EntityState.Detached;
+                    var concurrentMarkerExists = await _db.AnalyticsEvents.AsNoTracking()
+                        .AnyAsync(e => e.EventKey == deduplicationKey, cancellationToken);
+                    if (!concurrentMarkerExists)
+                        throw;
+                    MarkProcessed(deduplicationKey);
+                }
+
                 responses.Add(new
                 {
                     messageId,
@@ -312,6 +308,15 @@ public sealed class InfobipWebhookController : ControllerBase
 
         // Strict tenant isolation: never fall back to global default environment across tenants
         return null;
+    }
+
+    private void MarkProcessed(string deduplicationKey)
+    {
+        _cache.Set(deduplicationKey, true, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = ProcessedMessageCacheTtl,
+            Size = 1
+        });
     }
 
     private static string NormalizeRecipient(string recipient)

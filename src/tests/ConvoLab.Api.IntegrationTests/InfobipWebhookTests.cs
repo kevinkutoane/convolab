@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using ConvoLab.Api.Security;
+using Microsoft.AspNetCore.Http;
 using Xunit.Abstractions;
 
 namespace ConvoLab.Api.IntegrationTests;
@@ -53,6 +54,14 @@ public sealed class InfobipWebhookTests : IClassFixture<ConvoLabApiFactory>
         var response = await _client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public void Webhook_Security_Rejects_When_Expected_Secret_Is_Missing()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers["X-Callback-Secret"] = TestWebhookSecret;
+        Assert.False(InfobipWebhookSecurity.VerifyWebhookRequest(context.Request, "{}", string.Empty));
     }
 
     [Fact]
