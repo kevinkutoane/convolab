@@ -153,6 +153,12 @@ public sealed class AuditEventRecord
     public string DetailJson { get; set; } = "{}";
     public string CorrelationId { get; set; } = string.Empty;
     public DateTimeOffset OccurredAt { get; set; }
+    /// <summary>Chain partition: the workspace id ("N" format) or "platform". Null for legacy unsealed events.</summary>
+    public string? ChainKey { get; set; }
+    /// <summary>1-based position within the chain. Null for legacy unsealed events.</summary>
+    public long? Sequence { get; set; }
+    public string? PreviousHash { get; set; }
+    public string? Hash { get; set; }
 }
 
 public sealed class WorkspaceRequestContext : ConvoLab.Application.Common.Interfaces.IRuntimeRequestContext

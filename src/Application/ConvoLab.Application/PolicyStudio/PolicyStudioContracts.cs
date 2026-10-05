@@ -140,7 +140,8 @@ public sealed record PolicyExecutionRequest(
     Guid? RunId = null,
     Guid? TenantId = null,
     string? ConfigurationRevision = null,
-    string? CorrelationId = null);
+    string? CorrelationId = null,
+    string? PromptText = null);
 
 public sealed record PolicyExecutionGuardrails(
     bool IsAllowed,

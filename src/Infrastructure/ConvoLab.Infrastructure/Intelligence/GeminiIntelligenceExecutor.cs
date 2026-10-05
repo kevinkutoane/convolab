@@ -4,6 +4,7 @@ using ConvoLab.Domain.Intelligence.Aggregates;
 using ConvoLab.Domain.Intelligence.Enums;
 using ConvoLab.Domain.Intelligence.Interfaces;
 using ConvoLab.Domain.Intelligence.ValueObjects;
+using ConvoLab.Domain.Privacy;
 using ConvoLab.Application.Settings;
 using ConvoLab.Application.Operations;
 
@@ -14,16 +15,19 @@ public sealed class GeminiIntelligenceExecutor : IIntelligenceExecutor
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ISecretStore _secretStore;
     private readonly IPlatformOperationalState _operationalState;
+    private readonly IPiiRedactionEngine _redaction;
     public IReadOnlyCollection<ProviderKind> SupportedProviders { get; } = [ProviderKind.Gemini];
 
     public GeminiIntelligenceExecutor(
         IHttpClientFactory httpClientFactory,
         ISecretStore secretStore,
-        IPlatformOperationalState operationalState)
+        IPlatformOperationalState operationalState,
+        IPiiRedactionEngine? redaction = null)
     {
         _httpClientFactory = httpClientFactory;
         _secretStore = secretStore;
         _operationalState = operationalState;
+        _redaction = redaction ?? new RegexPiiRedactionEngine();
     }
 
     public async Task<ExecutionResult> ExecuteAsync(ExecutionRequest request, string renderedPrompt, CancellationToken cancellationToken = default)
@@ -43,7 +47,11 @@ public sealed class GeminiIntelligenceExecutor : IIntelligenceExecutor
             throw new InvalidOperationException("The effective runtime configuration did not resolve a Gemini model.");
         var temperature = double.TryParse(ExtractMarker(renderedPrompt, "TEMPERATURE"), out var parsedTemperature) ? parsedTemperature : 0.2;
         var maxTokens = int.TryParse(ExtractMarker(renderedPrompt, "MAX_OUTPUT_TOKENS"), out var parsedTokens) ? parsedTokens : 400;
-        var providerPrompt = StripOperationalMarkers(renderedPrompt);
+        // Operational markers are stripped first so secret references are never scanned or sent;
+        // only the redacted text leaves the platform.
+        var redaction = _redaction.Redact(StripOperationalMarkers(renderedPrompt));
+        var providerPrompt = redaction.RedactedText;
+        activity?.SetTag("pii.redactions", redaction.RedactionCount);
         var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Uri.EscapeDataString(model)}:generateContent";
         var payload = new
         {
@@ -67,6 +75,7 @@ public sealed class GeminiIntelligenceExecutor : IIntelligenceExecutor
         }
         using var document = JsonDocument.Parse(body);
         var text = document.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? string.Empty;
+        text = _redaction.Restore(text, redaction.Mappings);
         var usage = document.RootElement.TryGetProperty("usageMetadata", out var metadata)
             ? ExecutionUsage.Create(metadata.TryGetProperty("promptTokenCount", out var input) ? input.GetInt32() : Math.Max(1, providerPrompt.Length / 4), metadata.TryGetProperty("candidatesTokenCount", out var output) ? output.GetInt32() : Math.Max(1, text.Length / 4))
             : ExecutionUsage.Create(Math.Max(1, providerPrompt.Length / 4), Math.Max(1, text.Length / 4));

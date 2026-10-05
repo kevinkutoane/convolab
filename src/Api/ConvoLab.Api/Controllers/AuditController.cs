@@ -98,6 +98,29 @@ public sealed class AuditController(
     }
 
     /// <summary>
+    /// Verifies the tamper-evident hash chain of one audit partition: the given workspace,
+    /// or the platform chain when no workspace is supplied. Events written before the chain
+    /// was introduced are reported as unsealed rather than as tampering.
+    /// </summary>
+    [HttpGet("verify")]
+    public async Task<ActionResult<AuditChainVerificationResponse>> Verify(
+        [FromQuery] Guid? workspaceId,
+        CancellationToken ct = default)
+    {
+        var chainKey = AuditHashChain.ChainKeyFor(workspaceId);
+        var sealedEvents = await db.WorkspaceAuditEvents.AsNoTracking()
+            .Where(e => e.ChainKey == chainKey && e.Sequence != null)
+            .OrderBy(e => e.Sequence)
+            .ToListAsync(ct);
+        var unsealed = await db.WorkspaceAuditEvents.AsNoTracking()
+            .LongCountAsync(e => e.Sequence == null && e.WorkspaceId == workspaceId, ct);
+        var result = AuditHashChain.Verify(chainKey, sealedEvents);
+        return Ok(new AuditChainVerificationResponse(
+            result.ChainKey, result.IsIntact, result.VerifiedCount,
+            result.FirstBrokenSequence, result.Reason, unsealed));
+    }
+
+    /// <summary>
     /// Returns a single audit event by ID. No sensitive actor or detail fields are returned.
     /// </summary>
     [HttpGet("events/{id:guid}")]
@@ -235,3 +258,11 @@ public sealed record AuditSummaryResponse(
     DateTimeOffset From,
     DateTimeOffset To,
     IReadOnlyList<AuditActionBreakdown> Breakdown);
+
+public sealed record AuditChainVerificationResponse(
+    string ChainKey,
+    bool IsIntact,
+    long VerifiedCount,
+    long? FirstBrokenSequence,
+    string? Reason,
+    long UnsealedLegacyEvents);

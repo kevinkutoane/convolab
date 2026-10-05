@@ -562,16 +562,75 @@ public sealed class ApplicationDbContext : DbContext
         });
     }
 
+    private const int AuditChainMaxAttempts = 4;
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ApplyWorkspaceOwnership();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
+        for (var attempt = 1; ; attempt++)
+        {
+            SealPendingAuditEvents();
+            try { return base.SaveChanges(acceptAllChangesOnSuccess); }
+            catch (DbUpdateException) when (attempt < AuditChainMaxAttempts && HasPendingAuditEvents()) { }
+        }
     }
 
-    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         ApplyWorkspaceOwnership();
-        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        for (var attempt = 1; ; attempt++)
+        {
+            await SealPendingAuditEventsAsync(cancellationToken);
+            try { return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken); }
+            catch (DbUpdateException) when (attempt < AuditChainMaxAttempts && HasPendingAuditEvents()) { }
+        }
+    }
+
+    private bool HasPendingAuditEvents() =>
+        ChangeTracker.Entries<AuditEventRecord>().Any(item => item.State == EntityState.Added);
+
+    private List<IGrouping<string, AuditEventRecord>> PendingAuditGroups() =>
+        ChangeTracker.Entries<AuditEventRecord>()
+            .Where(item => item.State == EntityState.Added)
+            .Select(item => item.Entity)
+            .GroupBy(item => AuditHashChain.ChainKeyFor(item.WorkspaceId))
+            .ToList();
+
+    private void SealPendingAuditEvents()
+    {
+        foreach (var group in PendingAuditGroups())
+        {
+            var tail = WorkspaceAuditEvents.AsNoTracking()
+                .Where(item => item.ChainKey == group.Key && item.Sequence != null)
+                .OrderByDescending(item => item.Sequence)
+                .Select(item => new { item.Sequence, item.Hash })
+                .FirstOrDefault();
+            SealGroup(group, tail?.Sequence ?? 0, tail?.Hash);
+        }
+    }
+
+    private async Task SealPendingAuditEventsAsync(CancellationToken cancellationToken)
+    {
+        foreach (var group in PendingAuditGroups())
+        {
+            var tail = await WorkspaceAuditEvents.AsNoTracking()
+                .Where(item => item.ChainKey == group.Key && item.Sequence != null)
+                .OrderByDescending(item => item.Sequence)
+                .Select(item => new { item.Sequence, item.Hash })
+                .FirstOrDefaultAsync(cancellationToken);
+            SealGroup(group, tail?.Sequence ?? 0, tail?.Hash);
+        }
+    }
+
+    private static void SealGroup(IEnumerable<AuditEventRecord> events, long lastSequence, string? lastHash)
+    {
+        var previous = lastHash ?? AuditHashChain.Genesis;
+        var sequence = lastSequence;
+        foreach (var record in events)
+        {
+            AuditHashChain.Seal(record, ++sequence, previous);
+            previous = record.Hash!;
+        }
     }
 
     private void ApplyWorkspaceOwnership()
@@ -723,6 +782,10 @@ public sealed class ApplicationDbContext : DbContext
             entity.Property(item => item.CorrelationId).HasMaxLength(100).IsRequired();
             entity.HasIndex(item => new { item.WorkspaceId, item.OccurredAt });
             entity.HasIndex(item => new { item.Scope, item.OccurredAt });
+            entity.Property(item => item.ChainKey).HasMaxLength(40);
+            entity.Property(item => item.PreviousHash).HasMaxLength(64);
+            entity.Property(item => item.Hash).HasMaxLength(64);
+            entity.HasIndex(item => new { item.ChainKey, item.Sequence }).IsUnique();
         });
     }
 

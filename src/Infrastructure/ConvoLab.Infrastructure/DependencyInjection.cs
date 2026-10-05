@@ -98,6 +98,7 @@ public static class DependencyInjection
         services.AddHttpClient("Gemini");
         services.AddHttpClient("PluginHealth")
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddSingleton<ConvoLab.Domain.Privacy.IPiiRedactionEngine, ConvoLab.Domain.Privacy.RegexPiiRedactionEngine>();
         services.AddSingleton<GeminiIntelligenceExecutor>();
         services.AddSingleton<IIntelligenceExecutor, RoutingIntelligenceExecutor>();
         services.AddScoped<IIntelligenceStudioConfiguration, PersistedIntelligenceStudioConfiguration>();

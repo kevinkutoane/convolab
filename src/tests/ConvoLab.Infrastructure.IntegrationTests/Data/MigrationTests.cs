@@ -98,7 +98,8 @@ public sealed class MigrationTests
             "202608030001_OperationalFoundationV1",
             "202608030002_OperationalFoundationCorrectionsV1",
             "202608040001_EntraHybridAuthenticationV1",
-            "202608050001_EntraHybridAuthenticationCorrectionsV1"
+            "202608050001_EntraHybridAuthenticationCorrectionsV1",
+            "202610050001_AuditHashChainV1"
         ], migrations);
 
         await db.Database.MigrateAsync();
