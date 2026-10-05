@@ -30,6 +30,8 @@ using ConvoLab.Application.Operations;
 using ConvoLab.Infrastructure.Operations;
 using ConvoLab.Application.Analytics;
 using ConvoLab.Infrastructure.Analytics;
+using ConvoLab.Application.Omnichannel;
+using ConvoLab.Infrastructure.Omnichannel;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -153,6 +155,7 @@ public static class DependencyInjection
         services.AddScoped<IAnalyticsService, AnalyticsService>();
         services.AddScoped<IAnalyticsOperationalEvidenceReader, AnalyticsOperationalEvidenceReader>();
         services.AddHostedService<AnalyticsMaintenanceWorker>();
+        services.AddScoped<IInfobipOutboundAdapter, InfobipOutboundAdapter>();
 
         return services;
     }

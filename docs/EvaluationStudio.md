@@ -35,7 +35,7 @@ Thresholds accept values from 0.0 to 1.0. The default failure action is `Review`
 
 ## Automated Golden-Dataset Regression Runner (CI/CD)
 
-To ensure that prompt changes, model upgrades, or workflow modifications never degrade conversational quality in production, ConvoLab includes a native regression runner ([`EvaluationRegressionSummaryDto`](file:///c:/Users/W1022804/convolab-main/src/Application/ConvoLab.Application/EvaluationStudio/EvaluationStudioContracts.cs)):
+To ensure that prompt changes, model upgrades, or workflow modifications never degrade conversational quality in production, ConvoLab includes a native regression runner ([`EvaluationRegressionSummaryDto`](../src/Application/ConvoLab.Application/EvaluationStudio/EvaluationStudioContracts.cs)):
 
 ### Pipeline Workflow
 1. Tag benchmark customer scenarios as `"Golden"` (or custom tags like `"Production"` or `"Tier1"`).

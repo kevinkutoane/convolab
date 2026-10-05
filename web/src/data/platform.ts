@@ -1,6 +1,6 @@
 /*
  * ==============================================================================
- * # STATUS MAINTENANCE — Platform Version: 1.0.0-alpha.18
+ * # STATUS MAINTENANCE — Platform Version: 1.0.0-enterprise
  * ==============================================================================
  * The capabilities and navigationItems below contain 'status' properties 
  * (stable, active, foundation, planned). 
@@ -41,8 +41,8 @@ import type {
 export const designTimePlatformStatus: PlatformStatus = {
   platformName: "ConvoLab Platform",
   productName: "ConvoLab Studio",
-  version: "1.0.0-alpha.18",
-  workstream: "development (post-alpha.19 — next: alpha.20)",
+  version: "1.0.0-enterprise",
+  workstream: "v1.0.0-enterprise — Release Candidate",
   safeMode: false,
   environment: "Development",
   architectureHealth: "Healthy",

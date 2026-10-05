@@ -130,7 +130,7 @@ export function LoginPage() {
           </ul>
           <div className="lp-version-badge">
             <Shield size={13} />
-            <span>v1.0.0-alpha.18 · Development (Post-Alpha.19)</span>
+            <span>v1.0.0-enterprise · Release Candidate</span>
           </div>
         </aside>
 
@@ -330,7 +330,7 @@ export function LoginPage() {
           <footer className="lp-card-footer">
             <span>ConvoLab Platform · Enterprise Edition</span>
             <span>·</span>
-            <span>v1.0.0-alpha.18</span>
+            <span>v1.0.0-enterprise</span>
           </footer>
         </section>
       </div>

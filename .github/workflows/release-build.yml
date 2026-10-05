@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release Version (e.g. 1.0.0-alpha.18)'
+        description: 'Release Version (e.g. 1.0.0-enterprise)'
         required: true
-        default: '1.0.0-alpha.18'
+        default: '1.0.0-enterprise'
 
 permissions:
   contents: write
@@ -59,7 +59,7 @@ jobs:
       - name: Determine Version & Metadata
         id: meta
         run: |
-          VERSION="${{ github.event.inputs.version || (github.ref_type == 'tag' && github.ref_name || '1.0.0-alpha.18') }}"
+          VERSION="${{ github.event.inputs.version || (github.ref_type == 'tag' && github.ref_name || '1.0.0-enterprise') }}"
           VERSION="${VERSION#v}"
           COMMIT_SHA=$(git rev-parse HEAD)
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

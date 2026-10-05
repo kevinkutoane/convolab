@@ -6,9 +6,9 @@
 
 ## Current milestone & release state
 
-- **Latest formal product release:** `v1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`)
-- **Completed operational milestone:** `alpha.19 — Live Environment Validation & Load Testing` (tagged `v1.0.0-alpha.19`)
-- **Current development milestone:** `alpha.20 — Environment & Secret Management`
+- **Current release candidate:** `v1.0.0-enterprise — Release Candidate`
+- **Previous formal release:** `v1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`)
+- **Historical operational milestone:** `alpha.19 — Live Environment Validation & Load Testing` (tagged `v1.0.0-alpha.19`)
 - **Delivered workstreams:**
   - `alpha.19 — Live Environment Validation & Load Testing` (load testing harness, endurance soak runner, automated DR drill, deterministic artifact verifier)
   - `alpha.18 — Security & Compliance Hardening` (hardened security headers, transport sanitization, Serilog telemetry filtering, dedicated AuditController, SafeMode hardening)
@@ -28,7 +28,7 @@
 - **Database adapter:** PostgreSQL-ready infrastructure
 - **Architecture:** Clean Architecture and Domain-Driven Design
 
-The latest formal product release is `v1.0.0-alpha.18`. Milestone Alpha.19 establishes operational validation and endurance baselines, and is formally closed on `main`. ConvoLab remains authoritative for roles and memberships.
+The current release candidate is `v1.0.0-enterprise`. The previous formal product release was `v1.0.0-alpha.18`. Milestone Alpha.19 establishes operational validation and endurance baselines, and is formally closed on `main`. ConvoLab remains authoritative for roles and memberships.
 
 Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Live enterprise Entra tenant validation remains intentionally environment-gated (`Blocked (Environment Gate)` pending corporate tenant provisioning).
 

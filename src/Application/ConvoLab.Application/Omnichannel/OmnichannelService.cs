@@ -8,15 +8,15 @@ public sealed class OmnichannelService : IOmnichannelService
 {
     private readonly IConversationSimulationService _simulationService;
     private readonly IHumanHandoffEvaluator _handoffEvaluator;
-
-    // Maps sender phone/channel ID to ConvoLab simulation conversation ID
-    private static readonly ConcurrentDictionary<string, Guid> ActiveSessions = new();
+    private readonly IInfobipOutboundAdapter _outboundAdapter;
 
     public OmnichannelService(
         IConversationSimulationService simulationService,
+        IInfobipOutboundAdapter outboundAdapter,
         IHumanHandoffEvaluator? handoffEvaluator = null)
     {
         _simulationService = simulationService;
+        _outboundAdapter = outboundAdapter;
         _handoffEvaluator = handoffEvaluator ?? new KeywordHumanHandoffEvaluator();
     }
 
@@ -41,17 +41,24 @@ public sealed class OmnichannelService : IOmnichannelService
         }
 
         // 2. Resolve or initialize persistent simulation session
+        var title = $"WhatsApp: {envelope.SenderId}";
+        var existingSimulations = await _simulationService.ListAsync(cancellationToken);
+        var existing = existingSimulations.FirstOrDefault(s => s.Title == title);
+
         Guid simulationId;
-        if (!ActiveSessions.TryGetValue(sessionKey, out simulationId))
+        if (existing == null)
         {
             var created = await _simulationService.CreateAsync(new CreateSimulationCommand(
-                Title: $"WhatsApp: {envelope.SenderId}",
+                Title: title,
                 Workflow: "Demo Claims Intake v1.0",
                 PromptVersion: "Demo Claims Assistant v1.0",
                 KnowledgeCollection: "Demo Claims Knowledge"), cancellationToken);
 
             simulationId = created.Id;
-            ActiveSessions[sessionKey] = simulationId;
+        }
+        else
+        {
+            simulationId = existing.Id;
         }
 
         // 3. Send message through ConvoLab simulation pipeline
@@ -75,11 +82,11 @@ public sealed class OmnichannelService : IOmnichannelService
             SessionId: simulationId.ToString());
     }
 
-    public Task<bool> DispatchOutboundAsync(
+    public async Task<bool> DispatchOutboundAsync(
         OutboundMessageEnvelope message,
         CancellationToken cancellationToken = default)
     {
-        // Outbound connector interface (dispatches via Infobip WhatsApp API or provider client)
-        return Task.FromResult(true);
+        var result = await _outboundAdapter.SendWhatsAppTextMessageAsync(message, cancellationToken);
+        return result.Success;
     }
 }

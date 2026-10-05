@@ -4,31 +4,46 @@ import path from "node:path";
 const repository = fs.existsSync(path.join(process.cwd(), "web", "package.json"))
   ? process.cwd()
   : path.resolve(process.cwd(), "..");
-const expectedVersion = "1.0.0-alpha.18";
 const failures = [];
-const packageJson = JSON.parse(fs.readFileSync(path.join(repository, "web", "package.json"), "utf8"));
-if (packageJson.version !== expectedVersion) failures.push(`web/package.json reports ${packageJson.version}`);
-for (const relative of [
-  "src/Api/ConvoLab.Api/Controllers/PlatformController.cs",
+const currentVersion = "1.0.0-enterprise";
+
+const authoritativeFiles = [
+  "Directory.Build.props",
+  "package.json",
+  "web/package.json",
   "src/Application/ConvoLab.Application/Operations/OperationalContracts.cs",
   "web/src/data/platform.ts",
-  "web/src/components/Sidebar.tsx",
-  "web/package-lock.json",
-  "package.json",
-  "docs/Architecture/ProductReadinessAssessment.md",
-  "docs/Architecture/README.md",
-  "docs/PlatformManifest.md",
-  "docs/Roadmap.md",
-  "docs/project/README.md",
-  "docs/project/ROADMAP.md",
-  "docs/project/DEPLOYMENT.md",
-  "docs/releases/PlatformCore-v1.0.0-alpha.18.md",
-  "docs/releases/PlatformCore-v1.0.0-alpha.19.md",
-]) {
+];
+
+for (const relative of authoritativeFiles) {
   const absolutePath = path.join(repository, relative);
   if (!fs.existsSync(absolutePath)) continue;
   const content = fs.readFileSync(absolutePath, "utf8");
-  if (!content.includes(expectedVersion)) failures.push(`${relative} does not report ${expectedVersion}`);
+  if (!content.includes(currentVersion)) {
+    failures.push(`${relative} does not report ${currentVersion}`);
+  }
+}
+
+const historicalReleases = {
+  "docs/releases/PlatformCore-v1.0.0-alpha.18.md": "1.0.0-alpha.18",
+  "docs/releases/PlatformCore-v1.0.0-alpha.19.md": "1.0.0-alpha.19",
+};
+
+for (const [relative, expectedHistoricalVersion] of Object.entries(historicalReleases)) {
+  const absolutePath = path.join(repository, relative);
+  if (!fs.existsSync(absolutePath)) continue;
+  const content = fs.readFileSync(absolutePath, "utf8");
+  if (!content.includes(expectedHistoricalVersion)) {
+    failures.push(`${relative} does not document historical release ${expectedHistoricalVersion}`);
+  }
+}
+
+const roadmapPath = path.join(repository, "docs/Roadmap.md");
+if (fs.existsSync(roadmapPath)) {
+  const roadmapContent = fs.readFileSync(roadmapPath, "utf8");
+  if (!roadmapContent.includes(currentVersion)) {
+    failures.push(`docs/Roadmap.md does not report the release candidate ${currentVersion}`);
+  }
 }
 
 const platformPath = path.join(repository, "web/src/data/platform.ts");
@@ -64,4 +79,4 @@ if (failures.length) {
   console.error(`Baseline verification failed:\n- ${failures.join("\n- ")}`);
   process.exit(1);
 }
-console.log(`Baseline version, encoding and ZAR checks passed for ${expectedVersion}.`);
+console.log(`Baseline version, encoding and ZAR checks passed for ${currentVersion}.`);

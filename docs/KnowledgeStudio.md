@@ -32,7 +32,7 @@ Chunks carry:
 
 ## Enterprise Hybrid Retrieval Engine (RAG 2.0)
 
-ConvoLab features a state-of-the-art hybrid retriever ([`HybridKnowledgeRetriever.cs`](file:///c:/Users/W1022804/convolab-main/src/Infrastructure/ConvoLab.Infrastructure/KnowledgeStudio/HybridKnowledgeRetriever.cs)) implementing Reciprocal Rank Fusion (RRF) between lexical and dense semantic models:
+ConvoLab features a state-of-the-art hybrid retriever ([`HybridKnowledgeRetriever.cs`](../src/Infrastructure/ConvoLab.Infrastructure/KnowledgeStudio/HybridKnowledgeRetriever.cs)) implementing Reciprocal Rank Fusion (RRF) between lexical and dense semantic models:
 
 ### 1. BM25 Lexical Keyword Matching
 - Tokenizes query and document chunks, removing common stopwords.

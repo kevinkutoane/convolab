@@ -14,7 +14,7 @@ ConvoLab is an enterprise-grade conversational AI platform that provides a compl
 ConvoLab delivers tier-1 enterprise conversational AI capabilities across four foundational pillars:
 
 1. **Enterprise Governance, Security & Compliance:**
-   - **Automated PII/PHI Redaction Engine:** Real-time inline sanitization masking national IDs, credit cards, emails, phone numbers, and SSNs before LLM prompt dispatch (POPIA, GDPR, HIPAA compliant).
+   - **Automated PII/PHI Redaction Engine:** Real-time inline sanitization masking national IDs, credit cards, emails, phone numbers, and SSNs before LLM prompt dispatch (supports POPIA/GDPR-aligned data protection controls).
    - **Cryptographic Tamper-Evident Audit Trail:** SHA-256 forward-linked cryptographic hash chain (`AuditHashChain`) sealing all platform mutations and administrative actions.
    - **Pre-Execution Prompt Guardrails:** Pre-flight inspection detecting jailbreaks, prompt injection, and system prompt leakage prior to external provider dispatch.
 

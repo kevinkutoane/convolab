@@ -2,6 +2,7 @@
 
 Version: `1.0.0-enterprise`. Framework: SOC 2 Trust-Service Categories (enterprise governance & hardening pass).
 This document is a foundation for future ISO 27001 / SOC 2 / POPIA / GDPR formal control mapping. It is not a certification claim.
+*This document describes technical capabilities and does not constitute a formal legal or regulatory compliance certification.*
 
 ---
 
@@ -104,7 +105,7 @@ This document is a foundation for future ISO 27001 / SOC 2 / POPIA / GDPR formal
 
 ---
 
-## CC10 — AI Governance & Data Privacy (POPIA / GDPR / HIPAA)
+## CC10 — AI Governance & Data Privacy (Supports POPIA / GDPR-aligned controls)
 
 | Control ID | Description | Implementation | Status |
 |---|---|---|---|

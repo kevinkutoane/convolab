@@ -2,7 +2,7 @@
 
 ## Decision
 
-The functional Studio baseline is stabilized at `v1.0.0-alpha.18` formal product release, with operational validation milestone `Alpha.19` formally closed (validating deployment automation, container acceptance, and enterprise login experience). It is suitable for controlled internal evaluation and pre-production staging. It is not yet a multi-tenant public beta or production-ready enterprise platform.
+The functional Studio baseline is stabilized at `v1.0.0-enterprise — Release Candidate`, with the previous formal release being `v1.0.0-alpha.18` and operational validation milestone `Alpha.19` formally closed (validating deployment automation, container acceptance, and enterprise login experience). It is suitable for controlled internal evaluation and pre-production staging. It is not yet a multi-tenant public beta or production-ready enterprise platform.
 
 ## Ready / Implemented
 

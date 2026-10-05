@@ -19,7 +19,7 @@ Each new simulation run stores:
 
 ## Executive FinOps & AI Cost Attribution Engine
 
-ConvoLab features an executive-tier FinOps engine ([`ExecutiveFinOpsSummaryDto`](file:///c:/Users/W1022804/convolab-main/src/Application/ConvoLab.Application/Analytics/AnalyticsContracts.cs)) designed for CIOs, CFOs, and AI platform leaders to track financial ROI, unit economics, and spend burn rate:
+ConvoLab features an executive-tier FinOps engine ([`ExecutiveFinOpsSummaryDto`](../src/Application/ConvoLab.Application/Analytics/AnalyticsContracts.cs)) designed for CIOs, CFOs, and AI platform leaders to track financial ROI, unit economics, and spend burn rate:
 
 ### 1. Human Parity & ROI Economics
 - **Human Benchmark Comparison:** Evaluates AI automated resolutions against human agent contact center cost benchmarks (configurable, default: `R45.00 ZAR` per resolved conversation).

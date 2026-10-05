@@ -28,7 +28,7 @@ ConvoLab follows an enterprise Application Lifecycle Management (ALM) strategy g
 
 ## 2. Multi-Environment Promotion Pipeline
 
-The deployment service ([`DeploymentService.cs`](file:///c:/Users/W1022804/convolab-main/src/Infrastructure/ConvoLab.Infrastructure/Operations/Deployment/DeploymentService.cs)) manages candidate promotion across workspaces and runtime environments:
+The deployment service ([`DeploymentService.cs`](../../src/Infrastructure/ConvoLab.Infrastructure/Operations/Deployment/DeploymentService.cs)) manages candidate promotion across workspaces and runtime environments:
 
 ### Promotion Flow
 1. Operator or CI/CD invokes `POST /api/operations/deployments/promote` with:

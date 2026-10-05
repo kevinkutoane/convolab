@@ -1,15 +1,18 @@
 # ConvoLab Roadmap
 
-**Enterprise Release:** `v1.0.0-enterprise` ([Release Evidence](releases/PlatformCore-v1.0.0-enterprise.md)).  
-**Operational Status:** 100% test pass rate across all 5 test projects (526 tests passed, 0 failed).  
-**Delivered Strategic Enterprise Roadmap:** All 4 foundational enterprise pillars delivered, tested, and documented.
+**Current Release Candidate:** `v1.0.0-enterprise — Release Candidate` ([Release Evidence](releases/PlatformCore-v1.0.0-enterprise.md)).  
+**Previous Formal Release:** `v1.0.0-alpha.18`  
+**Historical Operational Milestone:** `v1.0.0-alpha.19`  
+
+**Scope:** Four strategic pillars delivered, tested, and documented.
+**Operational Status:** 100% test pass rate across all 5 test projects (526 tests passed, 0 failed).
 
 ---
 
 ## Strategic Enterprise Pillars (Completed)
 
 ### Pillar 1: Enterprise Governance, Security & Compliance
-- **Automated PII/PHI Redaction Engine:** Real-time inline sanitization masking national IDs, credit cards, emails, phone numbers, and SSNs prior to LLM dispatch (POPIA, GDPR, HIPAA compliance).
+- **Automated PII/PHI Redaction Engine:** Real-time inline sanitization masking national IDs, credit cards, emails, phone numbers, and SSNs prior to LLM dispatch (supports POPIA/GDPR-aligned data protection controls).
 - **Cryptographic Tamper-Evident Audit Trail:** SHA-256 forward-linked cryptographic hash chain (`AuditHashChain`) sealing all administrative and operational audit records.
 - **Pre-Execution Prompt Guardrails:** Pre-flight inspection detecting jailbreaks, prompt injection, and system prompt leakage prior to external provider dispatch.
 

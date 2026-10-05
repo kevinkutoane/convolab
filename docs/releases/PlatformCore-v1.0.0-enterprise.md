@@ -10,7 +10,7 @@
 
 - **Automated PII/PHI Redaction Engine:**
   - Real-time inline sanitization masking South African National IDs, Credit Cards, Phone Numbers, Emails, and SSNs.
-  - Zero-exposure guarantees complying with POPIA, GDPR, and HIPAA.
+  - automated pre-dispatch PII masking safeguards supporting POPIA/GDPR-aligned data protection controls.
   - Reversible masking tokens for response reconstruction.
 - **Cryptographic Tamper-Evident Audit Trail:**
   - SHA-256 forward-linked cryptographic hash chain (`AuditHashChain`) sealing all audit events.

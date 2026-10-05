@@ -12,11 +12,11 @@ The native Infobip connector allows ConvoLab conversational workflows and simula
 
 - **Route:** `POST /api/webhooks/infobip/whatsapp`
 - **Security:** HMAC-SHA256 signature verification via the `X-Infobip-Signature` header using the configured webhook secret (`Infobip:WebhookSecret`). Unsigned or forged requests are rejected with `401 Unauthorized`.
-- **Controller:** [`InfobipWebhookController`](file:///c:/Users/W1022804/convolab-main/src/Api/ConvoLab.Api/Controllers/InfobipWebhookController.cs)
+- **Controller:** [`InfobipWebhookController`](../src/Api/ConvoLab.Api/Controllers/InfobipWebhookController.cs)
 
 ### Message Formats Supported
 
-The connector normalizes inbound payloads into unified domain models ([`OmnichannelModels.cs`](file:///c:/Users/W1022804/convolab-main/src/Domain/ConvoLab.Domain/Omnichannel/OmnichannelModels.cs)):
+The connector normalizes inbound payloads into unified domain models ([`OmnichannelModels.cs`](../src/Domain/ConvoLab.Domain/Omnichannel/OmnichannelModels.cs)):
 
 1. **Text Messages:** Standard conversational messages.
 2. **Interactive Quick Replies & Buttons:** Button tap responses containing payload identifiers.
@@ -29,7 +29,7 @@ The connector normalizes inbound payloads into unified domain models ([`Omnichan
 
 Enterprises require seamless escalation paths when conversational AI encounters customer frustration, regulatory escalations, or explicit requests for live human assistance.
 
-### Escalation Detection Engine ([`HumanHandoffEvaluator.cs`](file:///c:/Users/W1022804/convolab-main/src/Domain/ConvoLab.Domain/Omnichannel/HumanHandoffEvaluator.cs))
+### Escalation Detection Engine ([`HumanHandoffEvaluator.cs`](../src/Domain/ConvoLab.Domain/Omnichannel/HumanHandoffEvaluator.cs))
 
 The evaluation engine checks incoming messages against three automated escalation criteria:
 
