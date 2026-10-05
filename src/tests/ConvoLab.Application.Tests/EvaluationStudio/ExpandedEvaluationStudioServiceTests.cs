@@ -53,6 +53,54 @@ public sealed class ExpandedEvaluationStudioServiceTests
         Assert.Contains(comparison.Metrics, item => item.Direction == "Regressed");
     }
 
+    [Fact]
+    public async Task Golden_dataset_regression_with_no_test_cases_passes_with_zero_cases()
+    {
+        var repository = new InMemoryEvaluationRepository();
+        var service = new EvaluationStudioService(repository, new TestSimulationStore([]));
+
+        var result = await service.RunGoldenDatasetRegressionAsync(new RunGoldenDatasetRegressionCommand(
+            "Golden",
+            MinPassRateThreshold: 0.90));
+
+        Assert.True(result.QualityGatePassed);
+        Assert.Equal(0, result.TotalCases);
+        Assert.Equal(0, result.PassedCases);
+        Assert.Empty(result.Regressions);
+    }
+
+    [Fact]
+    public async Task Golden_dataset_regression_evaluates_tagged_test_cases_and_checks_gate()
+    {
+        var run = CreateRun(groundedness: .95, relevance: .95, safety: 1, status: "Completed");
+        var simulation = new SimulationState(Guid.NewGuid(), "Production Benchmark", "Workflow", "Prompt", "Knowledge", DateTimeOffset.UtcNow);
+        simulation.AddRun(run);
+
+        var repository = new InMemoryEvaluationRepository();
+        var service = new EvaluationStudioService(repository, new TestSimulationStore([simulation]));
+        var scorecard = Assert.Single(await service.ListScorecardsAsync());
+
+        var tc = await service.CreateTestCaseAsync(new CreateEvaluationTestCaseCommand(
+            "Golden scenario 1",
+            "High confidence golden case",
+            simulation.Id,
+            run.Id,
+            scorecard.Id,
+            "Passed",
+            ["Golden", "Tier1"]));
+
+        var result = await service.RunGoldenDatasetRegressionAsync(new RunGoldenDatasetRegressionCommand(
+            "Golden",
+            ScorecardId: scorecard.Id,
+            MinPassRateThreshold: 0.80));
+
+        Assert.True(result.QualityGatePassed);
+        Assert.Equal(1, result.TotalCases);
+        Assert.Equal(1, result.PassedCases);
+        Assert.Equal(1.0, result.PassRate);
+        Assert.Empty(result.Regressions);
+    }
+
     private static SimulationRun CreateRun(double groundedness, double relevance, double safety, string status)
     {
         var now = DateTimeOffset.UtcNow;

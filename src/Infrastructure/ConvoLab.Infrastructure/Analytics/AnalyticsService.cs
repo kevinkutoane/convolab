@@ -88,6 +88,186 @@ public sealed class AnalyticsService(
             DateTimeOffset.UtcNow);
     }
 
+    public async Task<ExecutiveFinOpsSummaryDto> ExecutiveFinOpsAsync(
+        AnalyticsQuery query,
+        AnalyticsFieldVisibility visibility,
+        decimal humanBenchmarkCostPerResolution = 45.0m,
+        CancellationToken ct = default)
+    {
+        ValidateQuery(query, query.Granularity.Equals("hour", StringComparison.OrdinalIgnoreCase) ? 31 : 366);
+        await RequireEnvironmentAsync(query.WorkspaceId, query.EnvironmentId, ct);
+
+        var events = await LoadAsync(query, ct);
+        var terminal = events.Where(item => AnalyticsSemantics.IsExecutionTerminal(item.EventType)).ToList();
+        var provider = events.Where(item => AnalyticsSemantics.IsProviderInvocation(item.EventType)).ToList();
+
+        var actualSpend = visibility.IncludeCost
+            ? provider.Where(item => item.CostType == "Actual").Sum(item => item.CostZar ?? 0m)
+            : 0m;
+        var estimatedSpend = visibility.IncludeCost
+            ? provider.Where(item => item.CostType == "Estimated").Sum(item => item.CostZar ?? 0m)
+            : 0m;
+        var totalAiCost = actualSpend + estimatedSpend;
+        var unknownEvents = provider.LongCount(item => item.CostType == "Unavailable");
+
+        var inputTokens = visibility.IncludeTokenUsage ? provider.Sum(item => (long)(item.InputTokens ?? 0)) : 0L;
+        var outputTokens = visibility.IncludeTokenUsage ? provider.Sum(item => (long)(item.OutputTokens ?? 0)) : 0L;
+        var totalTokens = inputTokens + outputTokens;
+
+        var totalExecutions = terminal.Where(item => item.SourceExecutionId.HasValue)
+            .Select(item => item.SourceExecutionId).Distinct().LongCount();
+        if (totalExecutions == 0)
+        {
+            totalExecutions = provider.Count;
+        }
+
+        var succeededExecutions = terminal.Where(item => item.Outcome == "Succeeded")
+            .Select(item => item.SourceExecutionId).Distinct().LongCount();
+        if (succeededExecutions == 0 && totalExecutions > 0)
+        {
+            succeededExecutions = provider.LongCount(item => item.Outcome == "Succeeded");
+        }
+
+        var failedExecutions = terminal.Where(item => item.Outcome == "Failed")
+            .Select(item => item.SourceExecutionId).Distinct().LongCount();
+        if (failedExecutions == 0 && totalExecutions > 0)
+        {
+            failedExecutions = provider.LongCount(item => item.Outcome == "Failed");
+        }
+
+        var benchmark = humanBenchmarkCostPerResolution > 0m ? humanBenchmarkCostPerResolution : 45.0m;
+        var equivalentHumanCost = succeededExecutions * benchmark;
+        var estimatedSavings = Math.Max(0m, equivalentHumanCost - totalAiCost);
+        var roiPercent = totalAiCost > 0m
+            ? Math.Round((estimatedSavings / totalAiCost) * 100m, 2)
+            : (succeededExecutions > 0 ? 100m : 0m);
+
+        var costPerResolution = succeededExecutions > 0
+            ? Math.Round(totalAiCost / succeededExecutions, 4)
+            : 0m;
+
+        var costPerThousandTokens = totalTokens > 0
+            ? Math.Round((totalAiCost / totalTokens) * 1000m, 4)
+            : 0m;
+
+        var budgetMetrics = await BudgetAsync(query, ct);
+        var budgetLimit = budgetMetrics.FirstOrDefault(m => m.Key == "monthlyBudget")?.Value ?? 0m;
+        var mtdSpend = budgetMetrics.FirstOrDefault(m => m.Key == "budgetUsed")?.Value ?? 0m;
+        var projectedSpend = budgetMetrics.FirstOrDefault(m => m.Key == "projectedMonthEndSpend")?.Value ?? 0m;
+        var budgetUtil = budgetLimit > 0m ? Math.Round((mtdSpend / budgetLimit) * 100m, 2) : 0m;
+
+        string budgetHealth;
+        if (budgetLimit <= 0m)
+        {
+            budgetHealth = "Uncapped";
+        }
+        else if (projectedSpend > budgetLimit)
+        {
+            budgetHealth = "Critical";
+        }
+        else if (budgetUtil >= 80m)
+        {
+            budgetHealth = "Warning";
+        }
+        else
+        {
+            budgetHealth = "Healthy";
+        }
+
+        List<FinOpsCostAttributionDto> CostAttributions(
+            string dimension,
+            Func<AnalyticsEventRecord, string?> keySelector)
+        {
+            return provider
+                .GroupBy(item => keySelector(item) ?? "Unknown")
+                .Select(g =>
+                {
+                    var count = g.LongCount();
+                    var tokens = g.Sum(item => (long)(item.InputTokens ?? 0) + (item.OutputTokens ?? 0));
+                    var cost = g.Sum(item => item.CostZar ?? 0m);
+                    var pct = totalAiCost > 0m ? Math.Round((cost / totalAiCost) * 100m, 2) : 0m;
+                    return new FinOpsCostAttributionDto(dimension, g.Key, count, tokens, cost, pct);
+                })
+                .OrderByDescending(x => x.TotalCostZar)
+                .ToList();
+        }
+
+        var costByCapability = CostAttributions("Capability", item => item.Capability);
+        var costByProvider = CostAttributions("Provider", item => item.Provider);
+        var costByModel = CostAttributions("Model", item => item.Model);
+
+        var recommendations = new List<FinOpsRecommendationDto>();
+        if (budgetHealth == "Critical")
+        {
+            recommendations.Add(new FinOpsRecommendationDto(
+                "BUDGET_RUNAWAY",
+                "High",
+                "Projected Monthly Budget Overrun",
+                $"Projected month-end spend (R{projectedSpend:N2}) exceeds the allocated monthly budget (R{budgetLimit:N2}). Recommend enabling prompt caching, reducing model tier, or raising the budget limit.",
+                Math.Max(0m, projectedSpend - budgetLimit)));
+        }
+
+        if (unknownEvents > 0)
+        {
+            recommendations.Add(new FinOpsRecommendationDto(
+                "MISSING_RATE_CARDS",
+                "Warning",
+                "Unattributed Invocations Detected",
+                $"{unknownEvents} provider invocations occurred without price mapping. Configure rate cards to achieve 100% cost transparency.",
+                0m));
+        }
+
+        if (totalTokens >= 10000 && costPerThousandTokens > 0.05m)
+        {
+            var potentialSavings = Math.Round(totalAiCost * 0.25m, 2);
+            recommendations.Add(new FinOpsRecommendationDto(
+                "MODEL_TIER_OPTIMIZATION",
+                "Info",
+                "Model Routing & Prompt Efficiency",
+                "Average cost per 1k tokens indicates high-tier model usage. Routing standard queries to lighter models (e.g., Gemini Flash) or enabling prompt compression can yield significant savings.",
+                potentialSavings));
+        }
+
+        if (recommendations.Count == 0)
+        {
+            recommendations.Add(new FinOpsRecommendationDto(
+                "FINOPS_OPTIMIZED",
+                "Info",
+                "FinOps Health Optimal",
+                "Spending is well within budget limits and model utilization is highly cost-effective.",
+                0m));
+        }
+
+        return new ExecutiveFinOpsSummaryDto(
+            Scope(query),
+            totalAiCost,
+            actualSpend,
+            estimatedSpend,
+            unknownEvents,
+            totalExecutions,
+            succeededExecutions,
+            failedExecutions,
+            benchmark,
+            equivalentHumanCost,
+            estimatedSavings,
+            roiPercent,
+            costPerResolution,
+            costPerThousandTokens,
+            totalTokens,
+            inputTokens,
+            outputTokens,
+            budgetLimit,
+            mtdSpend,
+            projectedSpend,
+            budgetUtil,
+            budgetHealth,
+            costByCapability,
+            costByProvider,
+            costByModel,
+            recommendations,
+            DateTimeOffset.UtcNow);
+    }
+
     public async Task<AnalyticsEventPageDto> EventsAsync(
         AnalyticsQuery query,
         int take,
@@ -413,6 +593,36 @@ public sealed class AnalyticsService(
                 AddCosts(metrics, actual, estimated, rows.Sum(item => item.UnknownCostCount), visibility);
                 metrics.AddRange(await BudgetAsync(query, ct));
                 break;
+            case "finops":
+                var actualFin = rows.Sum(item => item.ActualCostZar);
+                var estimatedFin = rows.Sum(item => item.EstimatedCostZar);
+                var totalAiCostFin = actualFin + estimatedFin;
+                var succeededFin = rows.Sum(item => item.Succeeded);
+                var failedFin = rows.Sum(item => item.Failed);
+                var humanBenchmarkFin = 45.0m;
+                var equivalentHumanCostFin = succeededFin * humanBenchmarkFin;
+                var costSavingsFin = Math.Max(0m, equivalentHumanCostFin - totalAiCostFin);
+                var roiPercentFin = totalAiCostFin > 0m
+                    ? Math.Round((costSavingsFin / totalAiCostFin) * 100m, 2)
+                    : (succeededFin > 0 ? 100m : 0m);
+
+                if (visibility.IncludeCost)
+                {
+                    metrics.Add(new("totalAiCost", "Total AI cost", totalAiCostFin, "ZAR"));
+                    metrics.Add(new("estimatedCostSavings", "Estimated cost savings", costSavingsFin, "ZAR"));
+                    Percent("roiPercentage", "Estimated ROI", roiPercentFin);
+                    metrics.Add(new("costPerResolution", "Cost per resolution",
+                        succeededFin > 0 ? Math.Round(totalAiCostFin / succeededFin, 4) : 0m, "ZAR"));
+                }
+                if (visibility.IncludeTokenUsage)
+                {
+                    var tokensFin = rows.Sum(item => item.InputTokens + item.OutputTokens);
+                    metrics.Add(new("costPerThousandTokens", "Cost per 1k tokens",
+                        tokensFin > 0 && totalAiCostFin > 0 ? Math.Round((totalAiCostFin / tokensFin) * 1000m, 4) : 0m, "ZAR"));
+                }
+                AddCosts(metrics, actualFin, estimatedFin, rows.Sum(item => item.UnknownCostCount), visibility);
+                metrics.AddRange(await BudgetAsync(query, ct));
+                break;
             case "quality":
                 var qualityCount = rows.Sum(item => item.QualityCount);
                 metrics.Add(new(
@@ -552,6 +762,40 @@ public sealed class AnalyticsService(
                 AddCosts(metrics, actualCost, estimatedCost, unknownCost, visibility);
                 var budget = await BudgetAsync(query, ct);
                 metrics.AddRange(budget);
+                break;
+            case "finops":
+                var totalAiCostB = actualCost + estimatedCost;
+                var succeededB = terminal.Where(item => item.Outcome == "Succeeded").Select(item => item.SourceExecutionId).Distinct().LongCount();
+                if (succeededB == 0 && provider.Count > 0)
+                {
+                    succeededB = provider.LongCount(item => item.Outcome == "Succeeded");
+                }
+                var humanBenchmarkB = 45.0m;
+                var equivalentHumanCostB = succeededB * humanBenchmarkB;
+                var costSavingsB = Math.Max(0m, equivalentHumanCostB - totalAiCostB);
+                var roiPercentB = totalAiCostB > 0m
+                    ? Math.Round((costSavingsB / totalAiCostB) * 100m, 2)
+                    : (succeededB > 0 ? 100m : 0m);
+
+                if (visibility.IncludeCost)
+                {
+                    metrics.Add(new("totalAiCost", "Total AI cost", totalAiCostB, "ZAR"));
+                    metrics.Add(new("estimatedCostSavings", "Estimated cost savings", costSavingsB, "ZAR"));
+                    Percent("roiPercentage", "Estimated ROI", roiPercentB);
+                    metrics.Add(new("costPerResolution", "Cost per resolution",
+                        succeededB > 0 ? Math.Round(totalAiCostB / succeededB, 4) : 0m, "ZAR"));
+                }
+                if (visibility.IncludeTokenUsage)
+                {
+                    var inTok = provider.Sum(item => (long)(item.InputTokens ?? 0));
+                    var outTok = provider.Sum(item => (long)(item.OutputTokens ?? 0));
+                    var totalTok = inTok + outTok;
+                    metrics.Add(new("costPerThousandTokens", "Cost per 1k tokens",
+                        totalTok > 0 && totalAiCostB > 0 ? Math.Round((totalAiCostB / totalTok) * 1000m, 4) : 0m, "ZAR"));
+                }
+                AddCosts(metrics, actualCost, estimatedCost, unknownCost, visibility);
+                var budgetFin = await BudgetAsync(query, ct);
+                metrics.AddRange(budgetFin);
                 break;
 
             case "quality":
@@ -938,7 +1182,7 @@ public sealed class AnalyticsService(
     private static void ValidateCategory(string category)
     {
         if (category is not ("overview" or "usage" or "cost" or "budget"
-            or "quality" or "governance" or "performance" or "adoption"))
+            or "quality" or "governance" or "performance" or "adoption" or "finops"))
             throw new RequestValidationException(
                 "analytics.category_invalid",
                 $"Analytics category '{category}' is not supported.");

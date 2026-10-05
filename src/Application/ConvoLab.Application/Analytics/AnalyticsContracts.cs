@@ -168,8 +168,53 @@ public sealed record AnalyticsExportDto(
     DateTimeOffset ExpiresAt,
     DateTimeOffset? CompletedAt);
 
+public sealed record FinOpsCostAttributionDto(
+    string Dimension,
+    string Key,
+    long Invocations,
+    long Tokens,
+    decimal TotalCostZar,
+    decimal PercentageOfTotal);
+
+public sealed record FinOpsRecommendationDto(
+    string Code,
+    string Severity,
+    string Title,
+    string Description,
+    decimal PotentialMonthlySavingsZar);
+
+public sealed record ExecutiveFinOpsSummaryDto(
+    AnalyticsScopeDto Scope,
+    decimal TotalAiCostZar,
+    decimal ActualSpendZar,
+    decimal EstimatedSpendZar,
+    long UnknownSpendEvents,
+    long TotalExecutions,
+    long SucceededExecutions,
+    long FailedExecutions,
+    decimal HumanBenchmarkCostPerResolutionZar,
+    decimal EquivalentHumanCostZar,
+    decimal EstimatedCostSavingsZar,
+    decimal RoiPercentage,
+    decimal CostPerResolutionZar,
+    decimal CostPerThousandTokensZar,
+    long TotalTokens,
+    long InputTokens,
+    long OutputTokens,
+    decimal MonthlyBudgetLimitZar,
+    decimal MonthToDateSpendZar,
+    decimal ProjectedMonthEndSpendZar,
+    decimal BudgetUtilizationPercent,
+    string BudgetHealthStatus,
+    IReadOnlyList<FinOpsCostAttributionDto> CostByCapability,
+    IReadOnlyList<FinOpsCostAttributionDto> CostByProvider,
+    IReadOnlyList<FinOpsCostAttributionDto> CostByModel,
+    IReadOnlyList<FinOpsRecommendationDto> Recommendations,
+    DateTimeOffset GeneratedAt);
+
 public interface IAnalyticsService
 {
+    Task<ExecutiveFinOpsSummaryDto> ExecutiveFinOpsAsync(AnalyticsQuery query, AnalyticsFieldVisibility visibility, decimal humanBenchmarkCostPerResolution = 45.0m, CancellationToken ct = default);
     Task<AnalyticsFilterOptionsDto> FilterOptionsAsync(AnalyticsQuery query, CancellationToken ct = default);
     Task<AnalyticsDashboardDto> DashboardAsync(string category, AnalyticsQuery query, AnalyticsFieldVisibility visibility, CancellationToken ct = default);
     Task<AnalyticsEventPageDto> EventsAsync(AnalyticsQuery query, int take, string? cursor, AnalyticsFieldVisibility visibility, CancellationToken ct = default);

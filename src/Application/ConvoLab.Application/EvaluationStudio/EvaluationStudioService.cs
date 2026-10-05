@@ -338,6 +338,62 @@ public sealed class EvaluationStudioService : IEvaluationStudioService
         return Map(batch);
     }
 
+    public async Task<EvaluationRegressionSummaryDto> RunGoldenDatasetRegressionAsync(
+        RunGoldenDatasetRegressionCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureDefaultScorecardAsync(cancellationToken);
+        var targetTag = string.IsNullOrWhiteSpace(command.Tag) ? "Golden" : command.Tag.Trim();
+        var allTestCases = await _repository.ListTestCasesAsync(cancellationToken);
+        
+        var matchingCases = allTestCases
+            .Where(tc => tc.Tags.Any(t => t.Equals(targetTag, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (matchingCases.Count == 0)
+        {
+            matchingCases = allTestCases.Where(tc => tc.Status.Equals("Active", StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        var scorecard = await ResolveScorecardAsync(command.ScorecardId, cancellationToken);
+        var batchName = $"Golden Dataset Regression ({targetTag}) - {command.TriggeredBy ?? "CI/CD"}";
+
+        if (matchingCases.Count == 0)
+        {
+            return new EvaluationRegressionSummaryDto(
+                Guid.Empty,
+                batchName,
+                targetTag,
+                0,
+                0,
+                1.0,
+                command.MinPassRateThreshold,
+                true,
+                [],
+                DateTimeOffset.UtcNow);
+        }
+
+        var batchResult = await RunBatchAsync(new RunEvaluationBatchCommand(
+            batchName,
+            scorecard.Id,
+            matchingCases.Select(tc => tc.Id).ToList()), cancellationToken);
+
+        var regressions = batchResult.Items.Where(i => !i.Passed).ToList();
+        var qualityGatePassed = batchResult.PassRate >= command.MinPassRateThreshold;
+
+        return new EvaluationRegressionSummaryDto(
+            batchResult.Id,
+            batchResult.Name,
+            targetTag,
+            batchResult.TotalCases,
+            batchResult.PassedCases,
+            batchResult.PassRate,
+            command.MinPassRateThreshold,
+            qualityGatePassed,
+            regressions,
+            batchResult.CompletedAt ?? DateTimeOffset.UtcNow);
+    }
+
     private async Task SynchronizeSimulationRunsAsync(CancellationToken cancellationToken)
     {
         var scorecard = await ResolveScorecardAsync(null, cancellationToken);
