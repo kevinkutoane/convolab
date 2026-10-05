@@ -88,7 +88,9 @@ public static class DependencyInjection
         services.AddScoped<IPluginHealthProbe, HttpPluginHealthProbe>();
         services.AddScoped<ITraceEngine, PersistentTraceEngine>();
         services.AddSingleton<IKnowledgeChunker, DeterministicKnowledgeChunker>();
-        services.AddSingleton<IKeywordKnowledgeRetriever, KeywordKnowledgeRetriever>();
+        services.AddSingleton<HybridKnowledgeRetriever>();
+        services.AddSingleton<IHybridKnowledgeRetriever>(sp => sp.GetRequiredService<HybridKnowledgeRetriever>());
+        services.AddSingleton<IKeywordKnowledgeRetriever>(sp => sp.GetRequiredService<HybridKnowledgeRetriever>());
         services.AddSingleton<IKnowledgeDocumentStorage, LocalKnowledgeDocumentStorage>();
         services.AddSingleton<IDocumentTextExtractor, PlainTextExtractor>();
         services.AddSingleton<IDocumentTextExtractor, PdfTextExtractor>();
@@ -98,6 +100,7 @@ public static class DependencyInjection
         services.AddHttpClient("Gemini");
         services.AddHttpClient("PluginHealth")
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+        services.AddSingleton<ConvoLab.Domain.Privacy.IPiiRedactionEngine, ConvoLab.Domain.Privacy.RegexPiiRedactionEngine>();
         services.AddSingleton<GeminiIntelligenceExecutor>();
         services.AddSingleton<IIntelligenceExecutor, RoutingIntelligenceExecutor>();
         services.AddScoped<IIntelligenceStudioConfiguration, PersistedIntelligenceStudioConfiguration>();

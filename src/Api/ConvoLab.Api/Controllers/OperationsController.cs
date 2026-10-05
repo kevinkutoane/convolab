@@ -512,6 +512,43 @@ public sealed class OperationsController(
         return Ok(record);
     }
 
+    [HttpPost("deployments/promote")]
+    public async Task<ActionResult> PromoteDeployment(
+        [FromBody] ConvoLab.Application.Operations.Deployment.PromoteCandidateRequest request,
+        [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
+        CancellationToken ct = default)
+    {
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        try
+        {
+            var record = await deploymentService.PromoteCandidateAsync(request, ct);
+            return Ok(record);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = "Promotion failed", Detail = ex.Message });
+        }
+    }
+
+    [HttpPost("deployments/{id}/rollback")]
+    public async Task<ActionResult> RollbackDeployment(
+        Guid id,
+        [FromBody] ConvoLab.Application.Operations.Deployment.RollbackDeploymentRequest request,
+        [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
+        CancellationToken ct = default)
+    {
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        try
+        {
+            var record = await deploymentService.RollbackDeploymentAsync(id, request, ct);
+            return Ok(record);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = "Rollback failed", Detail = ex.Message });
+        }
+    }
+
     [HttpGet("telemetry")]
     public ActionResult Telemetry()
     {

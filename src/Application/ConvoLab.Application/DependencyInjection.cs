@@ -44,9 +44,12 @@ public static class DependencyInjection {
         services.AddScoped<ILegacyEvaluationStudioService, LegacyEvaluationStudioService>();
         services.AddScoped<ITraceStudioService, TraceStudioService>();
         services.AddScoped<IReplayStudioService, ReplayStudioService>();
+        services.AddSingleton<ConvoLab.Domain.Security.IPromptGuardrailEngine, ConvoLab.Domain.Security.RegexPromptGuardrailEngine>();
         services.AddScoped<PolicyStudioService>();
         services.AddScoped<IPolicyStudioService>(provider => provider.GetRequiredService<PolicyStudioService>());
         services.AddScoped<IPolicyDecisionService>(provider => provider.GetRequiredService<PolicyStudioService>());
+        services.AddSingleton<ConvoLab.Domain.Omnichannel.IHumanHandoffEvaluator, ConvoLab.Domain.Omnichannel.KeywordHumanHandoffEvaluator>();
+        services.AddScoped<ConvoLab.Application.Omnichannel.IOmnichannelService, ConvoLab.Application.Omnichannel.OmnichannelService>();
         return services;
     }
 }

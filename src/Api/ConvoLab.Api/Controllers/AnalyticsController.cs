@@ -56,6 +56,31 @@ public sealed class AnalyticsController(
         return await Dashboard("budget", workspaceId, filter, ct);
     }
 
+    [Authorize(Policy = WorkspacePermissions.ViewCostAnalytics)]
+    [HttpGet("finops")]
+    public async Task<ActionResult<ExecutiveFinOpsSummaryDto>> FinOps(
+        Guid workspaceId,
+        [FromQuery] AnalyticsFilter filter,
+        [FromQuery] decimal humanBenchmarkCost = 45.0m,
+        CancellationToken ct = default)
+    {
+        if (!await CanViewCostAsync(workspaceId, filter.EnvironmentId, ct)) return Forbid();
+        var visibility = await VisibilityAsync(workspaceId, filter.EnvironmentId, ct);
+        return Ok(await analytics.ExecutiveFinOpsAsync(
+            ToQuery(workspaceId, filter),
+            visibility,
+            humanBenchmarkCost,
+            ct));
+    }
+
+    [Authorize(Policy = WorkspacePermissions.ViewCostAnalytics)]
+    [HttpGet("finops-dashboard")]
+    public async Task<ActionResult<AnalyticsDashboardDto>> FinOpsDashboard(Guid workspaceId, [FromQuery] AnalyticsFilter filter, CancellationToken ct)
+    {
+        if (!await CanViewCostAsync(workspaceId, filter.EnvironmentId, ct)) return Forbid();
+        return await Dashboard("finops", workspaceId, filter, ct);
+    }
+
     [Authorize(Policy = WorkspacePermissions.ViewQualityAnalytics)]
     [HttpGet("quality")]
     public Task<ActionResult<AnalyticsDashboardDto>> Quality(Guid workspaceId, [FromQuery] AnalyticsFilter filter, CancellationToken ct) =>

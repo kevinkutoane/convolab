@@ -314,7 +314,8 @@ public sealed class ConversationSimulationService : IConversationSimulationServi
                     SimulationId: state.Id,
                     RunId: runId,
                     ConfigurationRevision: governed.Snapshot.ConfigurationRevision,
-                    CorrelationId: _runtime.CorrelationId), cancellationToken)
+                    CorrelationId: _runtime.CorrelationId,
+                    PromptText: userMessage.Content), cancellationToken)
                 : new PolicyExecutionGuardrails(
                     true,
                     "Policy enforcement is disabled by the effective environment configuration.",

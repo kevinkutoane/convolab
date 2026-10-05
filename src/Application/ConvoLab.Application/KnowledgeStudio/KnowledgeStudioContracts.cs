@@ -118,7 +118,8 @@ public sealed record KnowledgeQueryCommand(
     string Query,
     int MaxResults = 5,
     double MinimumConfidence = 0.05,
-    int TokenBudget = 2000);
+    int TokenBudget = 2000,
+    RetrievalStrategyType Strategy = RetrievalStrategyType.Hybrid);
 
 public sealed record KnowledgeUpload(
     Guid CollectionId,

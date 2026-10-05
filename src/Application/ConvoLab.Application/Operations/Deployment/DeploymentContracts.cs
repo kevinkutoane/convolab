@@ -46,12 +46,25 @@ public sealed record EnvironmentDeploymentState(
     DateTimeOffset? LastDeployedAt,
     string? LastBackupId);
 
+public sealed record RollbackDeploymentRequest(
+    string OperatorId,
+    string Reason);
+
+public sealed record PromoteCandidateRequest(
+    string ReleaseManifestId,
+    string SourceEnvironment,
+    string TargetEnvironment,
+    string OperatorId,
+    string? Reason = null);
+
 public interface IDeploymentService
 {
     Task<DeploymentRecord> RegisterCandidateAsync(RegisterCandidateRequest request, CancellationToken cancellationToken = default);
     Task<DeploymentRecord> ApproveDeploymentAsync(Guid deploymentId, ApprovePromotionRequest request, CancellationToken cancellationToken = default);
     Task<DeploymentRecord> StartDeploymentAsync(Guid deploymentId, string? backupIdBeforeMigration = null, CancellationToken cancellationToken = default);
     Task<DeploymentRecord> CompleteDeploymentAsync(Guid deploymentId, CompleteDeploymentRequest request, CancellationToken cancellationToken = default);
+    Task<DeploymentRecord> RollbackDeploymentAsync(Guid deploymentId, RollbackDeploymentRequest request, CancellationToken cancellationToken = default);
+    Task<DeploymentRecord> PromoteCandidateAsync(PromoteCandidateRequest request, CancellationToken cancellationToken = default);
     Task<DeploymentRecord?> GetDeploymentAsync(Guid deploymentId, CancellationToken cancellationToken = default);
     Task<DeploymentRecord?> GetByManifestIdAsync(string releaseManifestId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DeploymentRecord>> ListDeploymentsAsync(string? environment = null, int limit = 50, CancellationToken cancellationToken = default);

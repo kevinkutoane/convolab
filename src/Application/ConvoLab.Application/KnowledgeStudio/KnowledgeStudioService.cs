@@ -350,12 +350,20 @@ public sealed class KnowledgeStudioService(
             .Where(document => KnowledgeDocumentStagePolicy.IsRetrievable(document.Stage))
             .ToDictionary(document => document.Id, document => document.Title);
         var chunks = await repository.ListCollectionChunksAsync(collectionId, true, ct);
-        var ranked = retriever.Rank(
-            command.Query,
-            documents,
-            chunks,
-            Math.Clamp(command.MaxResults, 1, 20),
-            Math.Clamp(command.MinimumConfidence, 0, 1));
+        var ranked = retriever is IHybridKnowledgeRetriever hybridRetriever
+            ? hybridRetriever.RankHybrid(
+                command.Query,
+                documents,
+                chunks,
+                Math.Clamp(command.MaxResults, 1, 20),
+                Math.Clamp(command.MinimumConfidence, 0, 1),
+                command.Strategy)
+            : retriever.Rank(
+                command.Query,
+                documents,
+                chunks,
+                Math.Clamp(command.MaxResults, 1, 20),
+                Math.Clamp(command.MinimumConfidence, 0, 1));
 
         var results = new List<KnowledgeSearchResultDto>();
         var budget = 0;

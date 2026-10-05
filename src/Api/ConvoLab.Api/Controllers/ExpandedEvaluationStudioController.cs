@@ -95,4 +95,14 @@ public sealed class EvaluationStudioController(IEvaluationStudioService evaluati
         [FromBody] RunEvaluationBatchCommand command,
         CancellationToken cancellationToken)
         => Ok(await evaluations.RunBatchAsync(command, cancellationToken));
+
+    [HttpPost("regression/golden")]
+    [ProducesResponseType<EvaluationRegressionSummaryDto>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<EvaluationRegressionSummaryDto>> RunGoldenDatasetRegression(
+        [FromBody] RunGoldenDatasetRegressionCommand command,
+        CancellationToken cancellationToken)
+    {
+        using var activity = ConvoLabTelemetry.ActivitySource.StartActivity("evaluation.regression.golden");
+        return Ok(await evaluations.RunGoldenDatasetRegressionAsync(command, cancellationToken));
+    }
 }

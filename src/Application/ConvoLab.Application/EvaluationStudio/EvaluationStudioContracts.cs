@@ -289,6 +289,24 @@ public interface IAttributedEvaluationStudioRepository
         CancellationToken cancellationToken = default);
 }
 
+public sealed record RunGoldenDatasetRegressionCommand(
+    string Tag = "Golden",
+    Guid? ScorecardId = null,
+    double MinPassRateThreshold = 0.90,
+    string? TriggeredBy = "CI/CD Pipeline");
+
+public sealed record EvaluationRegressionSummaryDto(
+    Guid BatchId,
+    string BatchName,
+    string TargetTag,
+    int TotalCases,
+    int PassedCases,
+    double PassRate,
+    double MinPassRateThreshold,
+    bool QualityGatePassed,
+    IReadOnlyList<EvaluationBatchItemDto> Regressions,
+    DateTimeOffset EvaluatedAt);
+
 public interface IEvaluationStudioService
 {
     Task<EvaluationOverviewDto> GetOverviewAsync(CancellationToken cancellationToken = default);
@@ -304,4 +322,6 @@ public interface IEvaluationStudioService
     Task<IReadOnlyList<EvaluationTestCaseDto>> ListTestCasesAsync(CancellationToken cancellationToken = default);
     Task<EvaluationTestCaseDto> CreateTestCaseAsync(CreateEvaluationTestCaseCommand command, CancellationToken cancellationToken = default);
     Task<EvaluationBatchDto> RunBatchAsync(RunEvaluationBatchCommand command, CancellationToken cancellationToken = default);
+    Task<EvaluationRegressionSummaryDto> RunGoldenDatasetRegressionAsync(RunGoldenDatasetRegressionCommand command, CancellationToken cancellationToken = default);
+
 }

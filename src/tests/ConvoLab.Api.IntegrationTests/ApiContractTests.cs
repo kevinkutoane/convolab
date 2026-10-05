@@ -269,6 +269,19 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         Assert.Equal(HttpStatusCode.OK, analytics.StatusCode);
         Assert.Contains("\"category\":\"overview\"", await analytics.Content.ReadAsStringAsync());
 
+        var finops = await _client.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/finops?environmentId={resolvedId}");
+        Assert.Equal(HttpStatusCode.OK, finops.StatusCode);
+        var finopsPayload = await finops.Content.ReadAsStringAsync();
+        Assert.Contains("\"totalAiCostZar\"", finopsPayload);
+        Assert.Contains("\"roiPercentage\"", finopsPayload);
+        Assert.Contains("\"budgetHealthStatus\"", finopsPayload);
+
+        var finopsDashboard = await _client.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/finops-dashboard?environmentId={resolvedId}");
+        Assert.Equal(HttpStatusCode.OK, finopsDashboard.StatusCode);
+        Assert.Contains("\"category\":\"finops\"", await finopsDashboard.Content.ReadAsStringAsync());
+
         var filterOptions = await _client.GetAsync(
             $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/filter-options?environmentId={resolvedId}");
         var filterOptionsPayload = await filterOptions.Content.ReadAsStringAsync();
@@ -527,6 +540,16 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         var duplicate = await _client.PostAsJsonAsync("/api/evaluations/scorecards", request);
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
         Assert.Contains("evaluation.scorecard.version_conflict", await duplicate.Content.ReadAsStringAsync());
+
+        var goldenRegression = await _client.PostAsJsonAsync("/api/evaluations/regression/golden", new
+        {
+            tag = "Golden",
+            minPassRateThreshold = 0.80,
+            triggeredBy = "CI/CD Gate"
+        });
+        Assert.Equal(HttpStatusCode.OK, goldenRegression.StatusCode);
+        var goldenPayload = await goldenRegression.Content.ReadAsStringAsync();
+        Assert.Contains("\"qualityGatePassed\":true", goldenPayload);
     }
 
     [Fact]
@@ -1070,6 +1093,9 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         var engineerCost = await engineer.GetAsync(
             $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/cost?environmentId={environmentId}");
         Assert.Equal(HttpStatusCode.Forbidden, engineerCost.StatusCode);
+        var engineerFinops = await engineer.GetAsync(
+            $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/finops?environmentId={environmentId}");
+        Assert.Equal(HttpStatusCode.Forbidden, engineerFinops.StatusCode);
         await AssertProtectedAnalyticsFieldsAsync(
             await engineer.GetAsync(
                 $"/api/workspaces/{WorkspaceIdentityDefaults.WorkspaceId}/analytics/events?environmentId={environmentId}&eventType=ProviderInvocationCompleted"),
