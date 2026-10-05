@@ -11,6 +11,7 @@ allowed_paths=(
   "src/Infrastructure/ConvoLab.Infrastructure/Intelligence/GeminiIntelligenceExecutor.cs"
   "src/Infrastructure/ConvoLab.Infrastructure/Operations/Backups/BackupKeyProvider.cs"
   "src/tests/ConvoLab.Infrastructure.IntegrationTests/Settings/OperationalSecretStoreTests.cs"
+  "src/Infrastructure/ConvoLab.Infrastructure/Omnichannel/InfobipOutboundAdapter.cs"
 )
 
 scan_path() {
