@@ -52,8 +52,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         if (Request.Path.StartsWithSegments("/api/connectors/infobip/webhook"))
         {
             var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
-                ?? _config["Infobip:WebhookSecret"]
-                ?? InfobipWebhookSecurity.DefaultSecret;
+                ?? _config["Infobip:WebhookSecret"];
 
             Request.EnableBuffering();
             Request.Body.Position = 0;
@@ -61,7 +60,8 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
             var rawBody = await reader.ReadToEndAsync();
             Request.Body.Position = 0;
 
-            if (InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret))
+            if (!string.IsNullOrWhiteSpace(expectedSecret)
+                && InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret))
             {
                 var claims = new List<Claim>
                 {
