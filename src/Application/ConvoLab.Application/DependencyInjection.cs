@@ -48,6 +48,8 @@ public static class DependencyInjection {
         services.AddScoped<PolicyStudioService>();
         services.AddScoped<IPolicyStudioService>(provider => provider.GetRequiredService<PolicyStudioService>());
         services.AddScoped<IPolicyDecisionService>(provider => provider.GetRequiredService<PolicyStudioService>());
+        services.AddSingleton<ConvoLab.Domain.Omnichannel.IHumanHandoffEvaluator, ConvoLab.Domain.Omnichannel.KeywordHumanHandoffEvaluator>();
+        services.AddScoped<ConvoLab.Application.Omnichannel.IOmnichannelService, ConvoLab.Application.Omnichannel.OmnichannelService>();
         return services;
     }
 }
