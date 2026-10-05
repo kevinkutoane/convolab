@@ -1,11 +1,13 @@
 using System;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace ConvoLab.Infrastructure.Data.Migrations
 {
-    [Migration("202608200002_DeploymentPromotionV1")]
+    [DbContext(typeof(ApplicationDbContext))]
+    [Migration("202610050002_DeploymentPromotionV1")]
     public partial class DeploymentPromotionV1 : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

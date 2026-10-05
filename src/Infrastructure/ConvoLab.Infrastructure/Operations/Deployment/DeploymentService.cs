@@ -109,6 +109,90 @@ internal sealed class DeploymentService : IDeploymentService
         return record;
     }
 
+    public async Task<DeploymentRecord> RollbackDeploymentAsync(Guid deploymentId, RollbackDeploymentRequest request, CancellationToken cancellationToken = default)
+    {
+        var record = await _dbContext.DeploymentRecords.FirstOrDefaultAsync(d => d.Id == deploymentId, cancellationToken)
+                     ?? throw new InvalidOperationException($"Deployment record {deploymentId} not found.");
+
+        record.MarkRolledBack(request.Reason);
+
+        if (!string.IsNullOrWhiteSpace(record.PreviousReleaseManifestId))
+        {
+            var previousCandidates = await _dbContext.DeploymentRecords
+                .Where(d => d.ReleaseManifestId == record.PreviousReleaseManifestId && d.Environment == record.Environment && d.Status == DeploymentStatus.Healthy)
+                .ToListAsync(cancellationToken);
+
+            var previous = previousCandidates
+                .OrderByDescending(d => d.CompletedAt ?? d.CreatedAt)
+                .FirstOrDefault();
+
+            if (previous != null)
+            {
+                var rollbackRecovery = DeploymentRecord.Create(
+                    releaseManifestId: previous.ReleaseManifestId,
+                    releaseVersion: previous.ReleaseVersion,
+                    sourceCommitSha: previous.SourceCommitSha,
+                    apiImageDigest: previous.ApiImageDigest,
+                    studioImageDigest: previous.StudioImageDigest,
+                    migrationVersion: previous.MigrationVersion,
+                    apiSbomSha256: previous.ApiSbomSha256,
+                    studioSbomSha256: previous.StudioSbomSha256,
+                    provenanceReference: previous.ProvenanceReference,
+                    environment: record.Environment,
+                    previousReleaseManifestId: record.ReleaseManifestId);
+
+                rollbackRecovery.Approve(request.OperatorId, $"Automated rollback from manifest {record.ReleaseManifestId}: {request.Reason}");
+                rollbackRecovery.MarkDeploying();
+                rollbackRecovery.MarkHealthy($"Rolled back successfully to {previous.ReleaseManifestId}. Reason: {request.Reason}");
+
+                _dbContext.DeploymentRecords.Add(rollbackRecovery);
+                _logger.LogInformation("Initiated and completed rollback deployment {RecoveryId} restoring manifest {ManifestId} on {Environment}",
+                    rollbackRecovery.Id, previous.ReleaseManifestId, record.Environment);
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        _logger.LogWarning("Deployment {DeploymentId} rolled back by {Operator}: {Reason}", deploymentId, request.OperatorId, request.Reason);
+        return record;
+    }
+
+    public async Task<DeploymentRecord> PromoteCandidateAsync(PromoteCandidateRequest request, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.ReleaseManifestId)) throw new ArgumentException("ReleaseManifestId is required.");
+        if (string.IsNullOrWhiteSpace(request.SourceEnvironment)) throw new ArgumentException("SourceEnvironment is required.");
+        if (string.IsNullOrWhiteSpace(request.TargetEnvironment)) throw new ArgumentException("TargetEnvironment is required.");
+        if (string.IsNullOrWhiteSpace(request.OperatorId)) throw new ArgumentException("OperatorId is required.");
+
+        var matchingCandidates = await _dbContext.DeploymentRecords
+            .Where(d => d.ReleaseManifestId == request.ReleaseManifestId && d.Environment == request.SourceEnvironment && d.Status == DeploymentStatus.Healthy)
+            .ToListAsync(cancellationToken);
+
+        var sourceCandidate = matchingCandidates
+            .OrderByDescending(d => d.CompletedAt ?? d.CreatedAt)
+            .FirstOrDefault()
+            ?? throw new InvalidOperationException($"Release manifest '{request.ReleaseManifestId}' is not verified as Healthy in source environment '{request.SourceEnvironment}'.");
+
+        var manifest = new ReleaseManifest(
+            ReleaseManifestId: sourceCandidate.ReleaseManifestId,
+            ReleaseVersion: sourceCandidate.ReleaseVersion,
+            SourceCommitSha: sourceCandidate.SourceCommitSha,
+            ApiImageDigest: sourceCandidate.ApiImageDigest,
+            StudioImageDigest: sourceCandidate.StudioImageDigest,
+            MigrationVersion: sourceCandidate.MigrationVersion,
+            ApiSbomSha256: sourceCandidate.ApiSbomSha256,
+            StudioSbomSha256: sourceCandidate.StudioSbomSha256,
+            ProvenanceReference: sourceCandidate.ProvenanceReference,
+            BuildWorkflowId: $"promoted-from-{request.SourceEnvironment.ToLowerInvariant()}",
+            BuildTimestamp: DateTimeOffset.UtcNow);
+
+        var targetRecord = await RegisterCandidateAsync(new RegisterCandidateRequest(manifest, request.TargetEnvironment), cancellationToken);
+
+        _logger.LogInformation("Promoted manifest {ManifestId} from {SourceEnv} to {TargetEnv} by {Operator}",
+            request.ReleaseManifestId, request.SourceEnvironment, request.TargetEnvironment, request.OperatorId);
+
+        return targetRecord;
+    }
+
     public async Task<DeploymentRecord?> GetDeploymentAsync(Guid deploymentId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.DeploymentRecords.FirstOrDefaultAsync(d => d.Id == deploymentId, cancellationToken);
