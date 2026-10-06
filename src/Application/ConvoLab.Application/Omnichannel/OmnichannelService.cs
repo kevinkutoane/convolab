@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using ConvoLab.Application.Simulation;
 using ConvoLab.Domain.Omnichannel;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ConvoLab.Application.Omnichannel;
 
@@ -38,7 +39,11 @@ public sealed class OmnichannelService : IOmnichannelService
                 SessionId: $"{envelope.Channel}:{envelope.SenderId}");
         }
 
-        _memoryCache.Set(cacheKey, true, TimeSpan.FromMinutes(30));
+        _memoryCache.Set(cacheKey, true, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30),
+            Size = 1
+        });
 
         var sessionKey = $"{envelope.Channel}:{envelope.SenderId}";
 

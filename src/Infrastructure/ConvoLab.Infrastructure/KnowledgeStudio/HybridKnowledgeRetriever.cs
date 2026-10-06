@@ -13,7 +13,7 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
     private const double MaxRrfScore = (1.0 / (RrfConstantK + 1)) * 2.0;
     private const int VectorDimensions = 1024;
 
-    public static IReadOnlyList<RankedKnowledgeChunk> Rank(
+    public IReadOnlyList<RankedKnowledgeChunk> Rank(
         string query,
         IReadOnlyDictionary<Guid, string> documentTitles,
         IReadOnlyList<KnowledgeChunkState> chunks,
@@ -29,7 +29,7 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
             RetrievalStrategyType.Keyword);
     }
 
-    public static IReadOnlyList<RankedKnowledgeChunk> RankHybrid(
+    public IReadOnlyList<RankedKnowledgeChunk> RankHybrid(
         string query,
         IReadOnlyDictionary<Guid, string> documentTitles,
         IReadOnlyList<KnowledgeChunkState> chunks,
