@@ -20,7 +20,7 @@ const suspiciousPatterns = [
   { name: "HTTP response exposure", pattern: /\b(?:response|httpResponse|body|headers?|content)\b[^;=]*(?:=|Add|Append|Write)[^;]*RevealValue\s*\(/i },
   { name: "telemetry exposure", pattern: /\b(?:activity|telemetry|tag|tags|meter|metric|span)\b[^;=]*(?:=|Add|SetTag|SetBaggage|TagObject)[^;]*RevealValue\s*\(/i },
   { name: "exception message", pattern: /\bthrow\s+new\b[^;]*(?:RevealValue\s*\(|\$"|"\s*\+|string\.Format)/i },
-  { name: "interpolation or concatenation", pattern: /(?:\$"[^"]*RevealValue\s*\(|["'][^"']*["']\s*\+[^;]*RevealValue\s*\(|RevealValue\s*\([^;]*\+\s*["'])/i },
+  { name: "interpolation or concatenation", pattern: /(?:\$"|["']\s*\+)[^;]*RevealValue|RevealValue[^;]*\+\s*["']/i },
 ];
 
 function relative(root, file) {

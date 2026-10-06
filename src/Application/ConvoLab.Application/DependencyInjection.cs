@@ -23,6 +23,7 @@ public static class DependencyInjection {
             cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
             cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         });
+        services.AddMemoryCache();
         // Capability 5 — Knowledge Engine: repositories, retriever, governance policy, and the engine.
         // Capability 6 — Intelligence Engine: catalogue, executions, budgets, planner, executor port, and the engine.
         services.AddSingleton<ConvoLab.Domain.Intelligence.Interfaces.IIntelligenceProviderRepository, RuntimeIntelligenceProviderRepository>();

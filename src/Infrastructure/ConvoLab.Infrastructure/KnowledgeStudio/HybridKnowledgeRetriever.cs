@@ -13,7 +13,7 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
     private const double MaxRrfScore = (1.0 / (RrfConstantK + 1)) * 2.0;
     private const int VectorDimensions = 1024;
 
-    public IReadOnlyList<RankedKnowledgeChunk> Rank(
+    public static IReadOnlyList<RankedKnowledgeChunk> Rank(
         string query,
         IReadOnlyDictionary<Guid, string> documentTitles,
         IReadOnlyList<KnowledgeChunkState> chunks,
@@ -29,7 +29,7 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
             RetrievalStrategyType.Keyword);
     }
 
-    public IReadOnlyList<RankedKnowledgeChunk> RankHybrid(
+    public static IReadOnlyList<RankedKnowledgeChunk> RankHybrid(
         string query,
         IReadOnlyDictionary<Guid, string> documentTitles,
         IReadOnlyList<KnowledgeChunkState> chunks,
@@ -50,7 +50,7 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
         };
     }
 
-    private IReadOnlyList<RankedKnowledgeChunk> RankKeywordOnly(
+    private static IReadOnlyList<RankedKnowledgeChunk> RankKeywordOnly(
         string query,
         IReadOnlyDictionary<Guid, string> documentTitles,
         IReadOnlyList<KnowledgeChunkState> chunks,
@@ -85,7 +85,7 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
             .ToList();
     }
 
-    private IReadOnlyList<RankedKnowledgeChunk> RankSemanticOnly(
+    private static IReadOnlyList<RankedKnowledgeChunk> RankSemanticOnly(
         string query,
         IReadOnlyDictionary<Guid, string> documentTitles,
         IReadOnlyList<KnowledgeChunkState> chunks,
@@ -116,7 +116,7 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
             .ToList();
     }
 
-    private IReadOnlyList<RankedKnowledgeChunk> RankWithRrf(
+    private static IReadOnlyList<RankedKnowledgeChunk> RankWithRrf(
         string query,
         IReadOnlyDictionary<Guid, string> documentTitles,
         IReadOnlyList<KnowledgeChunkState> chunks,
@@ -188,56 +188,62 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
+    private const string ConceptVehicle = "concept_vehicle";
+    private const string ConceptIncident = "concept_incident";
+    private const string ConceptClaim = "concept_claim";
+    private const string ConceptCoverage = "concept_coverage";
+    private const string ConceptCancellation = "concept_cancellation";
+
     private static readonly Dictionary<string, string> ConceptClusters = new(StringComparer.OrdinalIgnoreCase)
     {
         // Vehicle & Transportation
-        ["car"] = "concept_vehicle",
-        ["cars"] = "concept_vehicle",
-        ["automobile"] = "concept_vehicle",
-        ["automobiles"] = "concept_vehicle",
-        ["vehicle"] = "concept_vehicle",
-        ["vehicles"] = "concept_vehicle",
-        ["motor"] = "concept_vehicle",
-        ["motorcycle"] = "concept_vehicle",
-        ["truck"] = "concept_vehicle",
+        ["car"] = ConceptVehicle,
+        ["cars"] = ConceptVehicle,
+        ["automobile"] = ConceptVehicle,
+        ["automobiles"] = ConceptVehicle,
+        ["vehicle"] = ConceptVehicle,
+        ["vehicles"] = ConceptVehicle,
+        ["motor"] = ConceptVehicle,
+        ["motorcycle"] = ConceptVehicle,
+        ["truck"] = ConceptVehicle,
 
         // Accident & Collision
-        ["accident"] = "concept_incident",
-        ["accidents"] = "concept_incident",
-        ["collision"] = "concept_incident",
-        ["collisions"] = "concept_incident",
-        ["crash"] = "concept_incident",
-        ["crashes"] = "concept_incident",
-        ["damage"] = "concept_incident",
-        ["impact"] = "concept_incident",
+        ["accident"] = ConceptIncident,
+        ["accidents"] = ConceptIncident,
+        ["collision"] = ConceptIncident,
+        ["collisions"] = ConceptIncident,
+        ["crash"] = ConceptIncident,
+        ["crashes"] = ConceptIncident,
+        ["damage"] = ConceptIncident,
+        ["impact"] = ConceptIncident,
 
         // Claim & Compensation
-        ["claim"] = "concept_claim",
-        ["claims"] = "concept_claim",
-        ["compensation"] = "concept_claim",
-        ["compensate"] = "concept_claim",
-        ["liability"] = "concept_claim",
-        ["liable"] = "concept_claim",
-        ["reimburse"] = "concept_claim",
-        ["reimbursement"] = "concept_claim",
-        ["payout"] = "concept_claim",
-        ["excess"] = "concept_claim",
+        ["claim"] = ConceptClaim,
+        ["claims"] = ConceptClaim,
+        ["compensation"] = ConceptClaim,
+        ["compensate"] = ConceptClaim,
+        ["liability"] = ConceptClaim,
+        ["liable"] = ConceptClaim,
+        ["reimburse"] = ConceptClaim,
+        ["reimbursement"] = ConceptClaim,
+        ["payout"] = ConceptClaim,
+        ["excess"] = ConceptClaim,
 
         // Policy & Insurance Coverage
-        ["policy"] = "concept_coverage",
-        ["policies"] = "concept_coverage",
-        ["cover"] = "concept_coverage",
-        ["covers"] = "concept_coverage",
-        ["coverage"] = "concept_coverage",
-        ["comprehensive"] = "concept_coverage",
-        ["premium"] = "concept_coverage",
-        ["premiums"] = "concept_coverage",
+        ["policy"] = ConceptCoverage,
+        ["policies"] = ConceptCoverage,
+        ["cover"] = ConceptCoverage,
+        ["covers"] = ConceptCoverage,
+        ["coverage"] = ConceptCoverage,
+        ["comprehensive"] = ConceptCoverage,
+        ["premium"] = ConceptCoverage,
+        ["premiums"] = ConceptCoverage,
 
         // Cancellation & Refund
-        ["cancel"] = "concept_cancellation",
-        ["cancellation"] = "concept_cancellation",
-        ["terminate"] = "concept_cancellation",
-        ["refund"] = "concept_cancellation"
+        ["cancel"] = ConceptCancellation,
+        ["cancellation"] = ConceptCancellation,
+        ["terminate"] = ConceptCancellation,
+        ["refund"] = ConceptCancellation
     };
 
     private static float[] GenerateDenseVector(string text)

@@ -9,14 +9,17 @@ public sealed class OmnichannelService : IOmnichannelService
     private readonly IConversationSimulationService _simulationService;
     private readonly IHumanHandoffEvaluator _handoffEvaluator;
     private readonly IInfobipOutboundAdapter _outboundAdapter;
+    private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _memoryCache;
 
     public OmnichannelService(
         IConversationSimulationService simulationService,
         IInfobipOutboundAdapter outboundAdapter,
+        Microsoft.Extensions.Caching.Memory.IMemoryCache memoryCache,
         IHumanHandoffEvaluator? handoffEvaluator = null)
     {
         _simulationService = simulationService;
         _outboundAdapter = outboundAdapter;
+        _memoryCache = memoryCache;
         _handoffEvaluator = handoffEvaluator ?? new KeywordHumanHandoffEvaluator();
     }
 
@@ -24,6 +27,19 @@ public sealed class OmnichannelService : IOmnichannelService
         InboundMessageEnvelope envelope,
         CancellationToken cancellationToken = default)
     {
+        var cacheKey = $"omnichannel_processed_msg_{envelope.MessageId}";
+        if (_memoryCache.TryGetValue(cacheKey, out _))
+        {
+            return new ProcessInboundMessageResult(
+                Handled: true,
+                ReplyText: string.Empty, // Idempotent silent drop
+                EscalatedToHuman: false,
+                EscalationReason: null,
+                SessionId: $"{envelope.Channel}:{envelope.SenderId}");
+        }
+
+        _memoryCache.Set(cacheKey, true, TimeSpan.FromMinutes(30));
+
         var sessionKey = $"{envelope.Channel}:{envelope.SenderId}";
 
         // 1. Evaluate for immediate human handoff / escalation
