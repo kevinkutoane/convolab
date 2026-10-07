@@ -105,13 +105,13 @@ public sealed class GlobalExceptionMiddleware(RequestDelegate next, ILogger<Glob
                 "The requested resource was not found.",
                 "resource.not_found",
                 EmptyErrors()),
-            ArgumentException argument => (
+            ArgumentException => (
                 StatusCodes.Status400BadRequest,
                 "Invalid request",
                 "One or more request values are invalid.",
                 "request.invalid",
                 EmptyErrors()),
-            InvalidOperationException operation => (
+            InvalidOperationException => (
                 StatusCodes.Status422UnprocessableEntity,
                 "Operation rejected",
                 "The requested operation is not valid in the current state.",

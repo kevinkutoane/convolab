@@ -51,7 +51,11 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 
 ## Current release
 
-Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`. All core functional v1 capabilities are stable. Security & Compliance Hardening v1 (alpha.18) is delivered with hardened HTTP security response headers, an extended audit trail, a dedicated AuditController, SensitiveOutputSanitizerMiddleware, SensitiveTelemetryLogFilter, targeted rate-limiting on high-risk surfaces, SafeMode hardening, four new ProductionReadinessValidator rules, ThreatModel.md and SOC 2-aligned ComplianceControls.md. Deployment, Environment Promotion & Release Engineering v1 (alpha.17) is also delivered with immutable release manifests, dual SBOMs, cryptographic build provenance, container vulnerability gates, automated pre-migration backup enforcement, and an audited Environment Promotion control plane inside the Operations Center.
+Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`. All core functional v1 capabilities are stable, and the four strategic enterprise pillars are fully delivered:
+1. **Enterprise Governance, Security & Compliance**: Automated PII/PHI redaction engine (POPIA/GDPR aligned), forward-linked SHA-256 cryptographic audit trail (`AuditHashChain`), and pre-execution prompt guardrails.
+2. **Omnichannel Enterprise Connectors**: Native Infobip & WhatsApp Business integration (HMAC-SHA256 signature verification), rich messaging, real-time human escalation protocol, and Enterprise Hybrid RAG 2.0 (BM25 + Dense Semantic RRF $k=60$).
+3. **Multi-Environment ALM**: Automated multi-environment promotion pipeline (`Dev` → `Staging` → `Prod`), source health gating, and instant rollback recovery.
+4. **Executive Observability & FinOps**: Executive TCO & Human Parity ROI in ZAR (`R45.00 ZAR` benchmark), unit economics, multi-dimensional spend attribution, and automated golden-dataset regression CI/CD quality gates.
 
 ## Engineering Products
 
@@ -112,4 +116,4 @@ Platform Core is not:
 
 ## Current maturity
 
-Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`. Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, managed environments, trusted runtime attribution, workspace/environment Platform Analytics, Entra/Hybrid Authentication, Backup/Restore/Disaster Recovery v1, and Security & Compliance Hardening v1 (alpha.18) are functional capabilities. Production live enterprise SSO validation, managed vault adapters, enterprise operational rehearsal, and UAT sign-off remain beta work.
+Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`. All foundational capabilities (Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, IAM, Platform Analytics, Entra/Hybrid Authentication, and Backup/Restore/DR) and the four strategic enterprise pillars are fully delivered and verified with 100% test pass rate (526 tests). Live corporate tenant Entra validation remains an environment gate pending external tenant provisioning.

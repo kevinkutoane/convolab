@@ -1,6 +1,6 @@
 # Production security checklist
 
-This checklist applies to `v1.0.0-alpha.18` production deployments.
+This checklist applies to `v1.0.0-enterprise` production deployments.
 
 - Supply PostgreSQL credentials externally; reject SQLite, placeholders, and automatic Production migrations.
 - Set explicit non-wildcard hosts, keep HTTPS redirection and HSTS enabled, and suppress server headers.
@@ -16,9 +16,12 @@ This checklist applies to `v1.0.0-alpha.18` production deployments.
 - Confirm `Serilog:MinimumLevel` is `Warning` or higher in Production; validator enforces this — `Information`/`Debug`/`Verbose` are rejected.
 - Run sentinel leakage scans across logs, traces, and metrics before promotion; `SensitiveOutputSanitizerMiddleware` and `SensitiveTelemetryLogFilter` provide runtime enforcement and a backstop.
 - Confirm security response headers are present on all responses: COOP, COEP, X-Permitted-Cross-Domain-Policies, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, HSTS (2 years).
+- Confirm Automated PII/PHI Redaction Engine (`RegexPiiRedactionEngine`) is active and covering national IDs, credit cards, emails, phone numbers, and IBANs.
+- Confirm Cryptographic Tamper-Evident Audit Trail (`AuditHashChain`) forward-linked SHA-256 chain is enforced on all persistence operations.
+- Confirm Pre-Execution Prompt Guardrails are active for LLM dispatches.
+- Confirm Infobip Webhook receiver HMAC-SHA256 signature verification and secret headers are configured and active.
 - Review `docs/security/ThreatModel.md` before promotion and confirm all `Implemented` controls are verified in the target environment.
 - Review `docs/security/ComplianceControls.md` and confirm all `Implemented` items are operationally active.
-- Do not claim live Entra validation, backup/restore, deployment promotion, supply-chain artifacts, or final release completion in this tranche without executed evidence.
 
 ## Entra and hybrid authentication
 

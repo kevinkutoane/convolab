@@ -20,6 +20,8 @@ namespace ConvoLab.Api.Controllers;
 [ApiController]
 [Authorize(Policy = "PlatformAdministrator")]
 [Route("api/operations")]
+#pragma warning disable S107 // Operations controller requires operational dashboard dependencies via DI
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S107:Methods should not have too many parameters", Justification = "Operations controller requires operational dashboard dependencies via DI")]
 public sealed class OperationsController(
     ApplicationDbContext db,
     IPlatformOperationalState operationalState,
@@ -38,7 +40,11 @@ public sealed class OperationsController(
     IHostEnvironment environment,
     ILogger<OperationsController> logger,
     IServiceProvider serviceProvider) : ControllerBase
+#pragma warning restore S107
 {
+    private const string DegradedStatus = "Degraded";
+    private const string DeploymentNotConfiguredMessage = "Deployment management not configured.";
+
     [HttpGet("status")]
     public async Task<ActionResult> Status(CancellationToken ct)
     {
@@ -53,21 +59,29 @@ public sealed class OperationsController(
         var pipelineStatus = AnalyticsPipelineStatusEvaluator.Evaluate(
             pipeline,
             thresholdOptions.Value,
-            worker?.CurrentStatus == "Degraded");
+            worker?.CurrentStatus == DegradedStatus);
         var readiness = readinessSummary.Snapshot();
         var workerAge = worker is null ? (double?)null : (DateTimeOffset.UtcNow - worker.LastHeartbeatAt).TotalSeconds;
-        var overall = readiness.Status == "Unhealthy"
-                      || workerAge >= thresholdOptions.Value.WorkerUnhealthySeconds
-                      || worker?.CurrentStatus is "Failed" or "LeaseLost"
-                      || pipelineStatus == OperationalStatusLevel.Unhealthy
-            ? "Unhealthy"
-            : readiness.Status is "Degraded" or "Unknown"
-              || worker is null
-              || workerAge >= thresholdOptions.Value.WorkerWarningSeconds
-              || worker.CurrentStatus == "Degraded"
-              || pipelineStatus == OperationalStatusLevel.Degraded
-                ? "Degraded"
-                : "Healthy";
+        string overall;
+        if (readiness.Status == "Unhealthy"
+            || workerAge >= thresholdOptions.Value.WorkerUnhealthySeconds
+            || worker?.CurrentStatus is "Failed" or "LeaseLost"
+            || pipelineStatus == OperationalStatusLevel.Unhealthy)
+        {
+            overall = "Unhealthy";
+        }
+        else if (readiness.Status is DegradedStatus or "Unknown"
+                 || worker is null
+                 || workerAge >= thresholdOptions.Value.WorkerWarningSeconds
+                 || worker.CurrentStatus == DegradedStatus
+                 || pipelineStatus == OperationalStatusLevel.Degraded)
+        {
+            overall = DegradedStatus;
+        }
+        else
+        {
+            overall = "Healthy";
+        }
         logger.LogInformation("Operational summary read {EventName} {Outcome}", "Operations.StatusRead", overall);
         return Ok(new
         {
@@ -103,7 +117,7 @@ public sealed class OperationsController(
             registration => registration.Tags.Contains("ready"), ct);
         readinessSummary.Record(report.Status);
         var audit = AuthController.Audit(
-            "Platform", null, null, User.FindFirstValue("actor_type") ?? "User", ActorId(),
+            "Platform", null, null, User.FindFirstValue("actor_type") ?? "User", ActorId(User),
             User.Identity?.Name ?? "Platform administrator", "Operations.ReadinessEvidenceViewed",
             "OperationalReadiness", null, "Succeeded", HttpContext.TraceIdentifier);
         db.WorkspaceAuditEvents.Add(audit);
@@ -172,7 +186,7 @@ public sealed class OperationsController(
         var evidence = await analyticsEvidence.ReadAsync(ct);
         var partialWorkerFailure = await db.OperationalWorkerHeartbeats.AsNoTracking()
             .AnyAsync(item => item.WorkerName == "analytics-maintenance"
-                && item.CurrentStatus == "Degraded", ct);
+                && item.CurrentStatus == DegradedStatus, ct);
         return Ok(new
         {
             evidence.PendingCount,
@@ -211,10 +225,23 @@ public sealed class OperationsController(
 
         var aggregates = await ReadAuthenticationAggregatesAsync(since, now, ct);
         var breakGlassEnabled = configured.Local.BreakGlassEnabled;
-        var breakGlassState = !breakGlassEnabled ? "Disabled"
-            : aggregates.AuthorisedCredentialCount == 0 ? "Unavailable"
-            : aggregates.AvailableCredentialCount > 0 ? "Available"
-            : "Locked";
+        string breakGlassState;
+        if (!breakGlassEnabled)
+        {
+            breakGlassState = "Disabled";
+        }
+        else if (aggregates.AuthorisedCredentialCount == 0)
+        {
+            breakGlassState = "Unavailable";
+        }
+        else if (aggregates.AvailableCredentialCount > 0)
+        {
+            breakGlassState = "Available";
+        }
+        else
+        {
+            breakGlassState = "Locked";
+        }
         var dependency = entraEvidence.Snapshot();
         return Ok(new
         {
@@ -445,7 +472,7 @@ public sealed class OperationsController(
         [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
         CancellationToken ct = default)
     {
-        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, DeploymentNotConfiguredMessage);
         var history = await deploymentService.ListDeploymentsAsync(environment, 50, ct);
         var states = await deploymentService.GetEnvironmentStatesAsync(ct);
         return Ok(new { environments = states, history });
@@ -457,7 +484,7 @@ public sealed class OperationsController(
         [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
         CancellationToken ct = default)
     {
-        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, DeploymentNotConfiguredMessage);
         var record = await deploymentService.GetByManifestIdAsync(releaseManifestId, ct);
         if (record == null) return NotFound(new ProblemDetails { Title = "Release manifest not found", Detail = $"Release manifest '{releaseManifestId}' has not been registered." });
 
@@ -483,7 +510,7 @@ public sealed class OperationsController(
         [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
         CancellationToken ct = default)
     {
-        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, DeploymentNotConfiguredMessage);
         var record = await deploymentService.RegisterCandidateAsync(request, ct);
         return Ok(record);
     }
@@ -495,7 +522,7 @@ public sealed class OperationsController(
         [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
         CancellationToken ct = default)
     {
-        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, DeploymentNotConfiguredMessage);
         var record = await deploymentService.ApproveDeploymentAsync(id, request, ct);
         return Ok(record);
     }
@@ -507,7 +534,7 @@ public sealed class OperationsController(
         [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
         CancellationToken ct = default)
     {
-        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, DeploymentNotConfiguredMessage);
         var record = await deploymentService.CompleteDeploymentAsync(id, request, ct);
         return Ok(record);
     }
@@ -518,7 +545,7 @@ public sealed class OperationsController(
         [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
         CancellationToken ct = default)
     {
-        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, DeploymentNotConfiguredMessage);
         try
         {
             var record = await deploymentService.PromoteCandidateAsync(request, ct);
@@ -537,7 +564,7 @@ public sealed class OperationsController(
         [FromServices] ConvoLab.Application.Operations.Deployment.IDeploymentService? deploymentService = null,
         CancellationToken ct = default)
     {
-        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, "Deployment management not configured.");
+        if (deploymentService == null) return StatusCode(StatusCodes.Status501NotImplemented, DeploymentNotConfiguredMessage);
         try
         {
             var record = await deploymentService.RollbackDeploymentAsync(id, request, ct);
@@ -589,9 +616,9 @@ public sealed class OperationsController(
     {
         var result = await administration.UpdateSafeModeAsync(new(
             request.Enabled, request.ExpectedRevision, request.Reason ?? string.Empty,
-            request.Confirmation ?? string.Empty, ActorId() ?? Guid.Empty,
+            request.Confirmation ?? string.Empty, ActorId(User) ?? Guid.Empty,
             User.Identity?.Name ?? "Platform administrator",
-            ClaimGuid("organisation_id"), ClaimGuid("workspace_id"),
+            ClaimGuid(User, "organisation_id"), ClaimGuid(User, "workspace_id"),
             HttpContext.TraceIdentifier), ct);
         return Ok(result);
     }
@@ -599,11 +626,25 @@ public sealed class OperationsController(
     private static OperationalDependencyState WorkerState(
         object? worker,
         double? age,
-        OperationsThresholdOptions thresholds) =>
-        worker is null ? OperationalDependencyState.Configured
-        : age >= thresholds.WorkerUnhealthySeconds ? OperationalDependencyState.Unavailable
-        : age >= thresholds.WorkerWarningSeconds ? OperationalDependencyState.Degraded
-        : OperationalDependencyState.LiveValidated;
+        OperationsThresholdOptions thresholds)
+    {
+        if (worker is null)
+        {
+            return OperationalDependencyState.Configured;
+        }
+
+        if (age >= thresholds.WorkerUnhealthySeconds)
+        {
+            return OperationalDependencyState.Unavailable;
+        }
+
+        if (age >= thresholds.WorkerWarningSeconds)
+        {
+            return OperationalDependencyState.Degraded;
+        }
+
+        return OperationalDependencyState.LiveValidated;
+    }
 
     private static OperationalDependencyState State(string component, HealthReportEntry entry)
     {
@@ -624,11 +665,11 @@ public sealed class OperationsController(
         return OperationalDependencyState.LiveValidated;
     }
 
-    private Guid? ActorId() =>
-        Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+    private static Guid? ActorId(ClaimsPrincipal user) =>
+        Guid.TryParse(user.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
 
-    private Guid? ClaimGuid(string claimType) =>
-        Guid.TryParse(User.FindFirstValue(claimType), out var id) ? id : null;
+    private static Guid? ClaimGuid(ClaimsPrincipal user, string claimType) =>
+        Guid.TryParse(user.FindFirstValue(claimType), out var id) ? id : null;
 
     private static string Version() =>
         (typeof(OperationsController).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion

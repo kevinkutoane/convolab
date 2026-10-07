@@ -1,6 +1,6 @@
 # Deployment Guide
 
-Platform baseline: `v1.0.0-alpha.18`.
+Platform baseline: `v1.0.0-enterprise — Release Candidate`.
 
 This document provides comprehensive instructions for deploying the ConvoLab application to various environments.
 
@@ -26,8 +26,9 @@ Apply migrations `202608040001_EntraHybridAuthenticationV1` and `202608050001_En
 ### Prerequisites
 
 - .NET 8 SDK
-- Node.js 18+
+- Node.js 22.22.0+
 - Docker & Docker Compose (optional)
+- PostgreSQL 16 (via Docker or local instance)
 
 ### Setup
 
@@ -35,7 +36,7 @@ Apply migrations `202608040001_EntraHybridAuthenticationV1` and `202608050001_En
 
 ```bash
 # Navigate to project root
-cd /home/ubuntu/convolab
+cd convolab
 
 # Restore dependencies
 dotnet restore
@@ -585,12 +586,13 @@ gzip_min_length 1000;
 
 ## Related Documentation
 
-- See `README.md` for quick start
-- See `ARCHITECTURE.md` for architecture overview
-- See `.github/workflows/ci.yml` for CI/CD workflow
+- See [Developer README](README.md) for quick start
+- See [Architecture Overview](ARCHITECTURE.md) for architecture overview
+- See [CI Workflow](../../.github/workflows/ci.yml) for CI/CD workflow
+
 # Deployment, Environment Promotion & Release Engineering notes
 
-Latest formal product release is `1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`). Milestone Alpha.19 (Live Environment Validation & Load Testing) is formally closed on `main` (tagged `v1.0.0-alpha.19`). Active runtime package metadata is `1.0.0-alpha.18`; next planned milestone is Alpha.20.
+Current release candidate is `v1.0.0-enterprise — Release Candidate`. Previous formal product release was `1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`). Milestone Alpha.19 (Live Environment Validation & Load Testing) is formally closed on `main` (tagged `v1.0.0-alpha.19`). All four strategic enterprise pillars are delivered and validated with a 100% test pass rate across 5 test projects (526 tests passed).
 
 `alpha.17 — Deployment, Environment Promotion & Release Engineering` is completed and verified:
 - Build-once, promote-many container publishing to GitHub Container Registry (GHCR) using workload identity / OIDC authentication.
@@ -601,3 +603,4 @@ Latest formal product release is `1.0.0-alpha.18` (commit `073152a40fe81cb3ea366
 - Automated Pre-Migration Backup Gate for Production deployments executing verified snapshots before database migrations.
 - Real-time environment topology, candidate promotion pipelines, and interactive approval gates in Operations Center (`/operations`).
 - Rehearsed and verified live UAT container rollback in 15.75–23.56 seconds with zero data corruption.
+- Automated multi-environment manifest promotion (`Development` → `Staging` → `Production`) and source health gating delivered in `v1.0.0-enterprise`.

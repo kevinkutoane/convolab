@@ -30,7 +30,9 @@ public sealed class DeploymentAlmTests : IClassFixture<ConvoLabApiFactory>
         var antiforgeryBody = await antiforgeryResponse.Content.ReadFromJsonAsync<JsonElement>();
         var antiforgeryToken = antiforgeryBody.GetProperty("token").GetString();
         var antiforgeryHeaderName = antiforgeryBody.GetProperty("headerName").GetString();
-        client.DefaultRequestHeaders.Add(antiforgeryHeaderName!, antiforgeryToken!);
+        Assert.NotNull(antiforgeryHeaderName);
+        Assert.NotNull(antiforgeryToken);
+        client.DefaultRequestHeaders.Add(antiforgeryHeaderName, antiforgeryToken);
 
         return client;
     }

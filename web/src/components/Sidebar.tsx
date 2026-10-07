@@ -5,11 +5,11 @@ import { StatusPill } from "./StatusPill";
 import { useAuth } from "../contexts/useAuth";
 
 interface SidebarProps {
-  collapsed: boolean;
-  mobileOpen: boolean;
-  version?: string;
-  onToggle: () => void;
-  onCloseMobile: () => void;
+  readonly collapsed: boolean;
+  readonly mobileOpen: boolean;
+  readonly version?: string;
+  readonly onToggle: () => void;
+  readonly onCloseMobile: () => void;
 }
 
 export function Sidebar({
@@ -18,7 +18,7 @@ export function Sidebar({
   version,
   onToggle,
   onCloseMobile,
-}: SidebarProps) {
+}: Readonly<SidebarProps>) {
   const { session } = useAuth();
   const visibleItems = navigationItems.filter(item =>
     item.path !== "/operations" || session?.isPlatformAdministrator);

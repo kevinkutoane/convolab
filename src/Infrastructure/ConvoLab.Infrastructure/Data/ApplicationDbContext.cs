@@ -564,26 +564,58 @@ public sealed class ApplicationDbContext : DbContext
 
     private const int AuditChainMaxAttempts = 4;
 
+    private static readonly HashSet<Type> WorkspaceScopedEntityTypes =
+    [
+        typeof(KnowledgeCollectionRecord),
+        typeof(PromptRecord),
+        typeof(WorkflowRecord),
+        typeof(SimulationRecord),
+        typeof(EvaluationScorecardRecord),
+        typeof(EvaluationRunRecord),
+        typeof(EvaluationTestCaseRecord),
+        typeof(EvaluationBatchRecord),
+        typeof(TraceRecord),
+        typeof(ReplayExperimentRecord),
+        typeof(PolicyDefinitionRecord),
+        typeof(PolicyDecisionRecord)
+    ];
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         ApplyWorkspaceOwnership();
-        for (var attempt = 1; ; attempt++)
+        for (var attempt = 1; attempt <= AuditChainMaxAttempts; attempt++)
         {
             SealPendingAuditEvents();
-            try { return base.SaveChanges(acceptAllChangesOnSuccess); }
-            catch (DbUpdateException) when (attempt < AuditChainMaxAttempts && HasPendingAuditEvents()) { }
+            try
+            {
+                return base.SaveChanges(acceptAllChangesOnSuccess);
+            }
+            catch (DbUpdateException) when (attempt < AuditChainMaxAttempts && HasPendingAuditEvents())
+            {
+                // Concurrency retry: another writer advanced the chain, retry sealing with updated tail
+            }
         }
+
+        throw new InvalidOperationException("Failed to save changes after maximum audit chain retry attempts.");
     }
 
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
     {
         ApplyWorkspaceOwnership();
-        for (var attempt = 1; ; attempt++)
+        for (var attempt = 1; attempt <= AuditChainMaxAttempts; attempt++)
         {
             await SealPendingAuditEventsAsync(cancellationToken);
-            try { return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken); }
-            catch (DbUpdateException) when (attempt < AuditChainMaxAttempts && HasPendingAuditEvents()) { }
+            try
+            {
+                return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+            }
+            catch (DbUpdateException) when (attempt < AuditChainMaxAttempts && HasPendingAuditEvents())
+            {
+                // Concurrency retry: another writer advanced the chain, retry sealing with updated tail
+            }
         }
+
+        throw new InvalidOperationException("Failed to save changes after maximum audit chain retry attempts.");
     }
 
     private bool HasPendingAuditEvents() =>
@@ -629,34 +661,43 @@ public sealed class ApplicationDbContext : DbContext
         foreach (var record in events)
         {
             AuditHashChain.Seal(record, ++sequence, previous);
-            previous = record.Hash!;
+            previous = record.Hash ?? previous;
         }
     }
 
     private void ApplyWorkspaceOwnership()
     {
+        ValidateAppendOnlyEntries();
+        var workspaceId = CurrentWorkspaceId ?? WorkspaceIdentityDefaults.WorkspaceId;
+        foreach (var entry in ChangeTracker.Entries().Where(item => item.State == EntityState.Added))
+        {
+            ApplyOwnershipToEntry(entry, workspaceId);
+        }
+    }
+
+    private void ValidateAppendOnlyEntries()
+    {
         if (ChangeTracker.Entries<AuditEventRecord>().Any(item => item.State is EntityState.Modified or EntityState.Deleted))
             throw new InvalidOperationException("Audit events are append-only and cannot be changed or removed.");
         if (ChangeTracker.Entries<AnalyticsEventRecord>().Any(item => item.State is EntityState.Modified or EntityState.Deleted))
             throw new InvalidOperationException("Analytics events are append-only and cannot be changed or removed.");
-        var workspaceId = CurrentWorkspaceId ?? WorkspaceIdentityDefaults.WorkspaceId;
-        foreach (var entry in ChangeTracker.Entries().Where(item => item.State == EntityState.Added))
+    }
+
+    private static void ApplyOwnershipToEntry(Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry entry, Guid workspaceId)
+    {
+        if (entry.Entity is PluginRecord plugin)
         {
-            switch (entry.Entity)
+            if (plugin.OwnershipScope == "Workspace" && !plugin.WorkspaceId.HasValue)
             {
-                case KnowledgeCollectionRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case PromptRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case WorkflowRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case SimulationRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case EvaluationScorecardRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case EvaluationRunRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case EvaluationTestCaseRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case EvaluationBatchRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case TraceRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case ReplayExperimentRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case PolicyDefinitionRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case PolicyDecisionRecord item when item.WorkspaceId == Guid.Empty: item.WorkspaceId = workspaceId; break;
-                case PluginRecord item when item.OwnershipScope == "Workspace" && !item.WorkspaceId.HasValue: item.WorkspaceId = workspaceId; break;
+                plugin.WorkspaceId = workspaceId;
+            }
+        }
+        else if (WorkspaceScopedEntityTypes.Contains(entry.Entity.GetType()))
+        {
+            var workspaceProperty = entry.Property("WorkspaceId");
+            if (workspaceProperty.CurrentValue is Guid id && id == Guid.Empty)
+            {
+                workspaceProperty.CurrentValue = workspaceId;
             }
         }
     }

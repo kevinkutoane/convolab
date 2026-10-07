@@ -1,5 +1,5 @@
 import { useHelp } from "../contexts/HelpContext";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
 import {
   Hexagon,
   LockKeyhole,
@@ -18,6 +18,203 @@ import { Navigate, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../contexts/useAuth";
 import { getApiErrorMessage } from "../services/apiClient";
 import { getAuthenticationOptions, type AuthenticationOptions } from "../services/authApi";
+
+function BrandPanel() {
+  return (
+    <aside className="lp-brand-panel" aria-hidden="true">
+      <div className="lp-brand-logo">
+        <Hexagon size={32} strokeWidth={1.5} />
+        <span>ConvoLab Studio</span>
+      </div>
+      <div className="lp-brand-headline">
+        <h2>Enterprise AI Conversation Studio</h2>
+        <p>Design, test, govern, and orchestrate intelligent conversations — across every channel, model, and policy boundary.</p>
+      </div>
+      <ul className="lp-features">
+        <li><CheckCircle2 size={15} /><span>Clean Architecture · 13 governed capabilities</span></li>
+        <li><CheckCircle2 size={15} /><span>Multi-tenant workspace isolation and RBAC</span></li>
+        <li><CheckCircle2 size={15} /><span>SOC 2-aligned audit trail and compliance</span></li>
+        <li><CheckCircle2 size={15} /><span>Immutable supply-chain and provenance</span></li>
+      </ul>
+      <div className="lp-version-badge">
+        <Shield size={13} />
+        <span>v1.0.0-enterprise · Release Candidate</span>
+      </div>
+    </aside>
+  );
+}
+
+interface StatusStripProps {
+  readonly loading: boolean;
+  readonly error?: string;
+  readonly busy: boolean;
+  readonly options?: AuthenticationOptions;
+}
+
+function StatusStrip({
+  loading,
+  error,
+  busy,
+  options,
+}: Readonly<StatusStripProps>) {
+  if (loading) {
+    return (
+      <div className="lp-status-strip" role="status" aria-live="polite">
+        <Loader2 size={13} className="lp-spin" />
+        <span>Connecting to platform…</span>
+      </div>
+    );
+  }
+
+  if (error && !busy) {
+    return (
+      <div className="lp-status-strip" role="status" aria-live="polite">
+        <AlertCircle size={13} className="lp-status-icon--error" />
+        <span className="lp-status-text--error">{error}</span>
+      </div>
+    );
+  }
+
+  const ssoStatus = options?.entraLoginAvailable ? "· SSO active" : "· SSO unconfigured";
+  return (
+    <div className="lp-status-strip" role="status" aria-live="polite">
+      <CheckCircle2 size={13} className="lp-status-icon--ok" />
+      <span>
+        Platform reachable · {options?.mode ?? "Local"} authentication {ssoStatus}
+      </span>
+    </div>
+  );
+}
+
+interface SsoSectionProps {
+  readonly options?: AuthenticationOptions;
+  readonly busy: boolean;
+  readonly onLogin: () => void;
+  readonly showSsoInfo: boolean;
+  readonly onToggleInfo: () => void;
+}
+
+function SsoSection({
+  options,
+  busy,
+  onLogin,
+  showSsoInfo,
+  onToggleInfo,
+}: Readonly<SsoSectionProps>) {
+  if (options?.entraLoginAvailable) {
+    return (
+      <div className="lp-sso-section">
+        <button
+          id="lp-sso-btn"
+          className="lp-sso-btn"
+          onClick={onLogin}
+          disabled={busy}
+          type="button"
+          aria-label="Sign in with Microsoft corporate identity"
+        >
+          <Building2 size={17} />
+          <span>Sign in with Microsoft</span>
+          <ChevronRight size={15} className="lp-sso-arrow" />
+        </button>
+        <p className="lp-hint">
+          Corporate sign-in requires a linked identity or a valid invitation.
+          Contact your platform administrator if access is denied.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="lp-sso-section">
+      <button
+        id="lp-sso-btn"
+        className="lp-sso-btn lp-sso-btn--unconfigured"
+        onClick={onToggleInfo}
+        type="button"
+        aria-label="Microsoft single sign-on (unconfigured)"
+        aria-expanded={showSsoInfo}
+      >
+        <Building2 size={17} />
+        <span>Sign in with Microsoft</span>
+        <span className="lp-sso-badge">Not configured</span>
+      </button>
+      {showSsoInfo ? (
+        <section className="lp-sso-info-callout" aria-label="Single Sign-On configuration info">
+          <div className="lp-sso-info-header">
+            <Info size={15} />
+            <span>Microsoft Entra ID (SSO) Support</span>
+          </div>
+          <p>
+            Corporate single sign-on via Microsoft 365 / Entra ID is supported by ConvoLab Platform. In this deployment, the authentication mode is currently <code>{options?.mode ?? "Local"}</code>.
+          </p>
+          <div className="lp-sso-info-guide">
+            <span className="lp-sso-step-badge">Platform Administrator Setup:</span>
+            <code>Authentication__Mode=Hybrid</code>
+            <span className="lp-hint">Configure tenant credentials in <code>appsettings.json</code> or container environment.</span>
+          </div>
+        </section>
+      ) : (
+        <p className="lp-hint">
+          Microsoft Entra ID single sign-on is supported. Click to view configuration guidance.
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface SubmitButtonProps {
+  readonly busy: boolean;
+  readonly emergency: boolean;
+  readonly disabled: boolean;
+}
+
+function SubmitButton({
+  busy,
+  emergency,
+  disabled,
+}: Readonly<SubmitButtonProps>) {
+  let content = (
+    <>
+      <LockKeyhole size={16} />
+      <span>Sign in</span>
+    </>
+  );
+
+  if (busy) {
+    content = (
+      <>
+        <Loader2 size={16} className="lp-spin" />
+        <span>Signing in…</span>
+      </>
+    );
+  } else if (emergency) {
+    content = (
+      <>
+        <ShieldAlert size={16} />
+        <span>Authenticate &amp; Enter</span>
+      </>
+    );
+  }
+
+  return (
+    <button
+      id="lp-submit-btn"
+      className="lp-submit-btn"
+      type="submit"
+      disabled={disabled}
+      aria-busy={busy}
+    >
+      {content}
+    </button>
+  );
+}
+
+function getDividerLabel(options?: AuthenticationOptions, isHybrid?: boolean): string {
+  if (!options?.entraLoginAvailable) {
+    return "Local credentials";
+  }
+  return isHybrid ? "Local development access" : "or sign in locally";
+}
 
 export function LoginPage() {
   useHelp({
@@ -66,14 +263,14 @@ export function LoginPage() {
   const from = (location.state as { from?: string } | null)?.from;
   const safeReturn = from?.startsWith("/") && !from.startsWith("//") ? from : "/";
 
-  async function submit(event: FormEvent) {
+  async function submit(event: SyntheticEvent) {
     event.preventDefault();
     setBusy(true);
     setError(undefined);
     try {
       if (emergency) await auth.breakGlassLogin(email, password);
       else await auth.login(email, password);
-      navigate(safeReturn, { replace: true });
+      await navigate(safeReturn, { replace: true });
     } catch (reason) {
       setError(getApiErrorMessage(reason));
     } finally {
@@ -112,27 +309,7 @@ export function LoginPage() {
       </div>
 
       <div className="lp-layout">
-        {/* ── Left panel: brand + platform info ─────────────────────────── */}
-        <aside className="lp-brand-panel" aria-hidden="true">
-          <div className="lp-brand-logo">
-            <Hexagon size={32} strokeWidth={1.5} />
-            <span>ConvoLab</span>
-          </div>
-          <div className="lp-brand-headline">
-            <h2>Enterprise AI Conversation Studio</h2>
-            <p>Design, test, govern, and understand intelligent conversations — across every channel, model, and policy boundary.</p>
-          </div>
-          <ul className="lp-features" role="list">
-            <li><CheckCircle2 size={15} /><span>Clean Architecture · 13 governed capabilities</span></li>
-            <li><CheckCircle2 size={15} /><span>Multi-tenant workspace isolation and RBAC</span></li>
-            <li><CheckCircle2 size={15} /><span>SOC 2-aligned audit trail and compliance</span></li>
-            <li><CheckCircle2 size={15} /><span>Immutable supply-chain and provenance</span></li>
-          </ul>
-          <div className="lp-version-badge">
-            <Shield size={13} />
-            <span>v1.0.0-enterprise · Release Candidate</span>
-          </div>
-        </aside>
+        <BrandPanel />
 
         {/* ── Right panel: auth card ─────────────────────────────────────── */}
         <section className="lp-card" aria-labelledby="lp-card-heading">
@@ -149,82 +326,28 @@ export function LoginPage() {
             </div>
           </header>
 
-          {/* System status strip */}
-          <div className="lp-status-strip" role="status" aria-live="polite">
-            {optionsLoading ? (
-              <><Loader2 size={13} className="lp-spin" /><span>Connecting to platform…</span></>
-            ) : error && !busy ? (
-              <><AlertCircle size={13} className="lp-status-icon--error" /><span className="lp-status-text--error">{error}</span></>
-            ) : (
-              <><CheckCircle2 size={13} className="lp-status-icon--ok" /><span>Platform reachable · {options?.mode ?? "Local"} authentication {options?.entraLoginAvailable ? "· SSO active" : "· SSO unconfigured"}</span></>
-            )}
-          </div>
+          <StatusStrip
+            loading={optionsLoading}
+            error={error}
+            busy={busy}
+            options={options}
+          />
 
           {/* Entra SSO */}
           {!emergency && (
-            <div className="lp-sso-section">
-              {options?.entraLoginAvailable ? (
-                <>
-                  <button
-                    id="lp-sso-btn"
-                    className="lp-sso-btn"
-                    onClick={entraLogin}
-                    disabled={busy}
-                    type="button"
-                    aria-label="Sign in with Microsoft corporate identity"
-                  >
-                    <Building2 size={17} />
-                    <span>Sign in with Microsoft</span>
-                    <ChevronRight size={15} className="lp-sso-arrow" />
-                  </button>
-                  <p className="lp-hint">
-                    Corporate sign-in requires a linked identity or a valid invitation.
-                    Contact your platform administrator if access is denied.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <button
-                    id="lp-sso-btn"
-                    className="lp-sso-btn lp-sso-btn--unconfigured"
-                    onClick={() => setShowSsoInfo((v) => !v)}
-                    type="button"
-                    aria-label="Microsoft single sign-on (unconfigured)"
-                    aria-expanded={showSsoInfo}
-                  >
-                    <Building2 size={17} />
-                    <span>Sign in with Microsoft</span>
-                    <span className="lp-sso-badge">Not configured</span>
-                  </button>
-                  {showSsoInfo ? (
-                    <div className="lp-sso-info-callout" role="region" aria-label="Single Sign-On configuration info">
-                      <div className="lp-sso-info-header">
-                        <Info size={15} />
-                        <span>Microsoft Entra ID (SSO) Support</span>
-                      </div>
-                      <p>
-                        Corporate single sign-on via Microsoft 365 / Entra ID is supported by ConvoLab Platform. In this deployment, the authentication mode is currently <code>{options?.mode ?? "Local"}</code>.
-                      </p>
-                      <div className="lp-sso-info-guide">
-                        <span className="lp-sso-step-badge">Platform Administrator Setup:</span>
-                        <code>Authentication__Mode=Hybrid</code>
-                        <span className="lp-hint">Configure tenant credentials in <code>appsettings.json</code> or container environment.</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="lp-hint">
-                      Microsoft Entra ID single sign-on is supported. Click to view configuration guidance.
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
+            <SsoSection
+              options={options}
+              busy={busy}
+              onLogin={entraLogin}
+              showSsoInfo={showSsoInfo}
+              onToggleInfo={() => setShowSsoInfo((v) => !v)}
+            />
           )}
 
           {/* Divider */}
           {showLocalForm && !emergency && (
             <div className="lp-divider" role="separator">
-              <span>{options?.entraLoginAvailable ? (isHybrid ? "Local development access" : "or sign in locally") : "Local credentials"}</span>
+              <span>{getDividerLabel(options, isHybrid)}</span>
             </div>
           )}
 
@@ -288,21 +411,11 @@ export function LoginPage() {
                 </div>
               )}
 
-              <button
-                id="lp-submit-btn"
-                className="lp-submit-btn"
-                type="submit"
+              <SubmitButton
+                busy={busy}
+                emergency={emergency}
                 disabled={busy || !email || !password}
-                aria-busy={busy}
-              >
-                {busy ? (
-                  <><Loader2 size={16} className="lp-spin" /><span>Signing in…</span></>
-                ) : emergency ? (
-                  <><ShieldAlert size={16} /><span>Authenticate &amp; Enter</span></>
-                ) : (
-                  <><LockKeyhole size={16} /><span>Sign in</span></>
-                )}
-              </button>
+              />
             </form>
           )}
 

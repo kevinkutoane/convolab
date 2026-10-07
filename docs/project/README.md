@@ -30,7 +30,7 @@
 
 The current release candidate is `v1.0.0-enterprise`. The previous formal product release was `v1.0.0-alpha.18`. Milestone Alpha.19 establishes operational validation and endurance baselines, and is formally closed on `main`. ConvoLab remains authoritative for roles and memberships.
 
-Authentication configuration and operating procedures are documented in [Authentication](docs/operations/Authentication.md), [Microsoft Entra ID](docs/operations/EntraId.md), and [Break glass](docs/operations/BreakGlass.md). Live enterprise Entra tenant validation remains intentionally environment-gated (`Blocked (Environment Gate)` pending corporate tenant provisioning).
+Authentication configuration and operating procedures are documented in [Authentication](../operations/Authentication.md), [Microsoft Entra ID](../operations/EntraId.md), and [Break glass](../operations/BreakGlass.md). Live enterprise Entra tenant validation remains intentionally environment-gated (`Blocked (Environment Gate)` pending corporate tenant provisioning).
 
 ## Platform capabilities
 
@@ -163,11 +163,11 @@ The browser smoke suite requires the Studio to be running on `http://localhost:3
 
 Open `/analytics` to inspect trusted workspace/environment usage, ZAR cost and budget, quality, governance, performance, adoption, safe events, correlations, and asynchronous exports. Analytics is produced from the same effective Settings snapshot used by execution. Events and executions are distinct measures, and prompts, customer messages, credentials, secret values, provider payloads, and trace content are excluded.
 
-Start with [Platform Analytics](docs/PlatformAnalytics.md), [permissions](docs/AnalyticsPermissions.md), and the [functional evidence report](FUNCTIONAL_PLATFORM_ANALYTICS_V1_REPORT.md).
+Start with [Platform Analytics](../PlatformAnalytics.md), [permissions](../AnalyticsPermissions.md), and the [functional evidence report](../reports/FUNCTIONAL_PLATFORM_ANALYTICS_V1_REPORT.md).
 
 ## Platform Hardening Sprint 1
 
-The functional Simulator, Knowledge Studio, and Prompt Studio now use application-layer use cases, domain-owned lifecycle policies, EF-isolated repositories, optimistic revisions, RFC 7807 errors, liveness/readiness checks, and CI quality gates. See [`PLATFORM_HARDENING_SPRINT_1_REPORT.md`](docs/reports/PLATFORM_HARDENING_SPRINT_1_REPORT.md).
+The functional Simulator, Knowledge Studio, and Prompt Studio now use application-layer use cases, domain-owned lifecycle policies, EF-isolated repositories, optimistic revisions, RFC 7807 errors, liveness/readiness checks, and CI quality gates. See [`PLATFORM_HARDENING_SPRINT_1_REPORT.md`](../reports/PLATFORM_HARDENING_SPRINT_1_REPORT.md).
 
 
 ## Functional Workflow Designer
@@ -193,13 +193,13 @@ A published workflow definition is separated from its runtime simulation snapsho
 
 Open `/intelligence` in ConvoLab Studio to inspect provider and model readiness, test provider connections, review persisted execution history, monitor tokens, cost, latency, retries and fallbacks, inspect individual runs, and preview provider/model admission decisions before execution.
 
-The monthly AI budget is configured natively in South African rand through `CONVOLAB_MONTHLY_AI_BUDGET_ZAR`. Gemini pricing is optional and can be supplied through `GEMINI_INPUT_PRICE_ZAR_PER_1K` and `GEMINI_OUTPUT_PRICE_ZAR_PER_1K`; ConvoLab does not invent provider pricing or exchange rates when they have not been configured. See [`docs/IntelligenceCenter.md`](docs/IntelligenceCenter.md).
+The monthly AI budget is configured natively in South African rand through `CONVOLAB_MONTHLY_AI_BUDGET_ZAR`. Gemini pricing is optional and can be supplied through `GEMINI_INPUT_PRICE_ZAR_PER_1K` and `GEMINI_OUTPUT_PRICE_ZAR_PER_1K`; ConvoLab does not invent provider pricing or exchange rates when they have not been configured. See [Intelligence Center](../IntelligenceCenter.md).
 
 ## Functional Evaluation Studio
 
 Open `/evaluation` or its compatible alias `/evaluations` to create and publish versioned scorecards; inspect persisted simulator and replay results; perform human reviews; preserve runs as regression test cases; execute batches; and compare deterministic metric deltas. The original singular `/api/evaluation/*` contract remains available while new consumers can use `/api/evaluations/*`.
 
-Quality thresholds can be configured through the `Evaluation` appsettings section or the `CONVOLAB_EVALUATION_*` environment variables documented in [`docs/EvaluationStudio.md`](docs/EvaluationStudio.md).
+Quality thresholds can be configured through the `Evaluation` appsettings section or the `CONVOLAB_EVALUATION_*` environment variables documented in [Evaluation Studio](../EvaluationStudio.md).
 
 ## Functional Trace Explorer
 
@@ -219,7 +219,7 @@ Fresh databases receive permissive provider, model, and safety policies plus a `
 
 Open `/plugins` to register and govern providers, tools, knowledge connectors, channels, evaluators, trace exporters, workflow nodes, and enterprise connectors. Plugin Center preserves immutable versions, enforces Platform API compatibility, records capability and permission contracts, and persists health evidence. Activating a successor version deactivates the previous active version in the same transaction.
 
-Plugin Center is deliberately a governance registry: it does not upload or execute arbitrary assemblies, grant permissions, or store plugin secrets. Fresh databases receive four healthy built-in registrations describing adapters already compiled into ConvoLab. See [`docs/PluginCenter.md`](docs/PluginCenter.md).
+Plugin Center is deliberately a governance registry: it does not upload or execute arbitrary assemblies, grant permissions, or store plugin secrets. Fresh databases receive four healthy built-in registrations describing adapters already compiled into ConvoLab. See [Plugin Center](../PluginCenter.md).
 
 The additive capability migrations are:
 
@@ -251,16 +251,17 @@ The signature **Conversation Replay** experience is available at `/replay`: re-r
 
 Start with:
 
-- [`docs/PlatformManifest.md`](docs/PlatformManifest.md)
-- [`docs/CapabilityMap.md`](docs/CapabilityMap.md)
-- [`docs/ContextMap.md`](docs/ContextMap.md)
-- [`docs/EventCatalog.md`](docs/EventCatalog.md)
-- [`docs/Architecture/README.md`](docs/Architecture/README.md)
-- [`docs/Roadmap.md`](docs/Roadmap.md)
+- [Platform Manifest](../PlatformManifest.md)
+- [Capability Map](../CapabilityMap.md)
+- [Context Map](../ContextMap.md)
+- [Event Catalog](../EventCatalog.md)
+- [Architecture Handbook](../Architecture/README.md)
+- [Platform Roadmap](../Roadmap.md)
+- [Documentation Index](../README.md)
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT — see [LICENSE](../../LICENSE).
 
 ## Functional Conversation Simulator
 
@@ -288,8 +289,8 @@ The inspector displays the governed knowledge package, rendered prompt, executio
 
 ## Functional Knowledge Studio
 
-Open `/knowledge` in ConvoLab Studio to create a collection, upload PDF/DOCX/TXT/Markdown documents, process and publish them, inspect chunks, and test retrieval. Published collections automatically appear in Conversation Simulator and replace hardcoded knowledge packages.
+Open `/knowledge` in ConvoLab Studio to create a collection, upload PDF/DOCX/TXT/Markdown documents, process and publish them, inspect chunks, and test retrieval. Published collections automatically appear in Conversation Simulator and replace hardcoded knowledge packages. See [Knowledge Studio](../KnowledgeStudio.md).
 
 ## Functional Prompt Studio
 
-ConvoLab Studio now supports persistent, governed prompt authoring at `/prompts`. Prompt versions are immutable, move through an approval lifecycle, render with runtime variables, and become selectable in Conversation Simulator only after publication. See `docs/PromptStudio.md`.
+ConvoLab Studio now supports persistent, governed prompt authoring at `/prompts`. Prompt versions are immutable, move through an approval lifecycle, render with runtime variables, and become selectable in Conversation Simulator only after publication. See [Prompt Studio](../PromptStudio.md).

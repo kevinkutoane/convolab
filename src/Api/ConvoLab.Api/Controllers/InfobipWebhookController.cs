@@ -89,147 +89,16 @@ public sealed class InfobipWebhookController : ControllerBase
 
             foreach (var item in results.EnumerateArray())
             {
-                var sender = item.TryGetProperty("from", out var fromEl) ? fromEl.GetString() : "unknown-sender";
-                var receiver = item.TryGetProperty("to", out var toEl) ? toEl.GetString() : null;
-                var rawMessageId = item.TryGetProperty("messageId", out var msgIdEl) ? msgIdEl.GetString() : null;
-                var messageId = !string.IsNullOrWhiteSpace(rawMessageId) ? rawMessageId : Guid.NewGuid().ToString("N");
-
-                // 2. Strict Tenant Isolation: Resolve target workspace strictly from verified recipient address mapping
-                var tenantContext = await ResolveTenantContextAsync(receiver, cancellationToken);
-                if (tenantContext is null)
+                var (response, tenantError) = await ProcessWebhookItemAsync(item, cancellationToken);
+                if (tenantError is not null)
                 {
-                    _logger.LogWarning("Rejecting Infobip webhook: recipient address '{Receiver}' is not mapped to any configured workspace connector.", receiver);
-                    return BadRequest(new
-                    {
-                        error = $"Tenant resolution failed: recipient address '{receiver ?? "null"}' is not mapped to any active workspace connector."
-                    });
+                    return BadRequest(new { error = tenantError });
                 }
 
-                // Prime the ambient runtime context strictly from the resolved tenant
-                _runtime.OrganisationId = tenantContext.OrganisationId;
-                _runtime.WorkspaceId = tenantContext.WorkspaceId;
-                _runtime.EnvironmentId = tenantContext.EnvironmentId;
-                _runtime.EnvironmentName = tenantContext.EnvironmentName;
-                _runtime.EnvironmentType = tenantContext.EnvironmentType;
-
-                // 3. Webhook Delivery Deduplication
-                var deduplicationKey = $"webhook:infobip:{messageId}";
-
-                if (ProcessedMessagesCache.TryGetValue(deduplicationKey, out _))
+                if (response is not null)
                 {
-                    _logger.LogInformation("Duplicate webhook delivery detected (in-memory) for messageId '{MessageId}'. Ignoring retry.", messageId);
-                    responses.Add(new
-                    {
-                        messageId,
-                        sender,
-                        handled = true,
-                        duplicate = true,
-                        status = "DUPLICATE_IGNORED",
-                        escalatedToHuman = false,
-                        reply = (string?)null,
-                        quickReplies = Array.Empty<string>()
-                    });
-                    continue;
+                    responses.Add(response);
                 }
-
-                var alreadyProcessed = await _db.AnalyticsEvents.AsNoTracking()
-                    .AnyAsync(e => e.EventKey == deduplicationKey, cancellationToken);
-
-                if (alreadyProcessed)
-                {
-                    ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
-                    _logger.LogInformation("Duplicate webhook delivery detected (database) for messageId '{MessageId}'. Ignoring retry.", messageId);
-                    responses.Add(new
-                    {
-                        messageId,
-                        sender,
-                        handled = true,
-                        duplicate = true,
-                        status = "DUPLICATE_IGNORED",
-                        escalatedToHuman = false,
-                        reply = (string?)null,
-                        quickReplies = Array.Empty<string>()
-                    });
-                    continue;
-                }
-
-                // Persist processed messageId using unique constraint on EventKey
-                var deduplicationEvent = new AnalyticsEventRecord
-                {
-                    Id = Guid.NewGuid(),
-                    EventKey = deduplicationKey,
-                    OrganisationId = tenantContext.OrganisationId,
-                    WorkspaceId = tenantContext.WorkspaceId,
-                    EnvironmentId = tenantContext.EnvironmentId,
-                    Capability = "Omnichannel",
-                    EventType = "WebhookDeliveryProcessed",
-                    Outcome = "Success",
-                    CostType = "Unavailable",
-                    SourceType = "InfobipWebhook",
-                    SourceId = Guid.Empty,
-                    ConfigurationRevision = "v1",
-                    CorrelationId = HttpContext.TraceIdentifier,
-                    OccurredAt = DateTimeOffset.UtcNow
-                };
-
-                _db.AnalyticsEvents.Add(deduplicationEvent);
-
-                try
-                {
-                    await _db.SaveChangesAsync(cancellationToken);
-                    ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
-                }
-                catch (DbUpdateException)
-                {
-                    _logger.LogWarning("Concurrent duplicate delivery caught by unique constraint for messageId '{MessageId}'.", messageId);
-                    ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
-                    responses.Add(new
-                    {
-                        messageId,
-                        sender,
-                        handled = true,
-                        duplicate = true,
-                        status = "DUPLICATE_IGNORED",
-                        escalatedToHuman = false,
-                        reply = (string?)null,
-                        quickReplies = Array.Empty<string>()
-                    });
-                    continue;
-                }
-
-                string text = string.Empty;
-                if (item.TryGetProperty("message", out var msgObj))
-                {
-                    if (msgObj.TryGetProperty("text", out var textEl))
-                        text = textEl.GetString() ?? string.Empty;
-                }
-
-                var envelope = new InboundMessageEnvelope(
-                    MessageId: messageId,
-                    Channel: "WhatsApp",
-                    SenderId: sender ?? "unknown",
-                    ReceiverId: receiver ?? "unknown",
-                    Text: text,
-                    MessageType: OmnichannelMessageType.Text,
-                    ChannelMetadata: new Dictionary<string, string>
-                    {
-                        ["provider"] = "Infobip",
-                        ["rawSender"] = sender ?? ""
-                    },
-                    ReceivedAt: DateTimeOffset.UtcNow);
-
-                var processResult = await _omnichannelService.ProcessInboundAsync(envelope, cancellationToken);
-                responses.Add(new
-                {
-                    messageId,
-                    sender,
-                    handled = processResult.Handled,
-                    duplicate = false,
-                    status = "PROCESSED",
-                    escalatedToHuman = processResult.EscalatedToHuman,
-                    reply = processResult.ReplyText,
-                    quickReplies = processResult.QuickReplies
-                });
             }
 
             return Ok(new
@@ -240,6 +109,140 @@ public sealed class InfobipWebhookController : ControllerBase
             });
         }
     }
+
+    private async Task<(object? Response, string? TenantError)> ProcessWebhookItemAsync(
+        JsonElement item,
+        CancellationToken cancellationToken)
+    {
+        var sender = item.TryGetProperty("from", out var fromEl) ? fromEl.GetString() : "unknown-sender";
+        var receiver = item.TryGetProperty("to", out var toEl) ? toEl.GetString() : null;
+        var rawMessageId = item.TryGetProperty("messageId", out var msgIdEl) ? msgIdEl.GetString() : null;
+        var messageId = !string.IsNullOrWhiteSpace(rawMessageId) ? rawMessageId : Guid.NewGuid().ToString("N");
+
+        var tenantContext = await ResolveTenantContextAsync(receiver, cancellationToken);
+        if (tenantContext is null)
+        {
+            _logger.LogWarning("Rejecting Infobip webhook: recipient address '{Receiver}' is not mapped to any configured workspace connector.", receiver);
+            return (null, $"Tenant resolution failed: recipient address '{receiver ?? "null"}' is not mapped to any active workspace connector.");
+        }
+
+        _runtime.OrganisationId = tenantContext.OrganisationId;
+        _runtime.WorkspaceId = tenantContext.WorkspaceId;
+        _runtime.EnvironmentId = tenantContext.EnvironmentId;
+        _runtime.EnvironmentName = tenantContext.EnvironmentName;
+        _runtime.EnvironmentType = tenantContext.EnvironmentType;
+
+        var deduplicationKey = $"webhook:infobip:{messageId}";
+        if (await IsDuplicateDeliveryAsync(deduplicationKey, tenantContext, cancellationToken))
+        {
+            return (CreateDuplicateResponse(messageId, sender), null);
+        }
+
+        var text = ExtractMessageText(item);
+        var envelope = new InboundMessageEnvelope(
+            MessageId: messageId,
+            Channel: "WhatsApp",
+            SenderId: sender ?? "unknown",
+            ReceiverId: receiver ?? "unknown",
+            Text: text,
+            MessageType: OmnichannelMessageType.Text,
+            ChannelMetadata: new Dictionary<string, string>
+            {
+                ["provider"] = "Infobip",
+                ["rawSender"] = sender ?? ""
+            },
+            ReceivedAt: DateTimeOffset.UtcNow);
+
+        var processResult = await _omnichannelService.ProcessInboundAsync(envelope, cancellationToken);
+        return (new
+        {
+            messageId,
+            sender,
+            handled = processResult.Handled,
+            duplicate = false,
+            status = "PROCESSED",
+            escalatedToHuman = processResult.EscalatedToHuman,
+            reply = processResult.ReplyText,
+            quickReplies = processResult.QuickReplies
+        }, null);
+    }
+
+    private static string ExtractMessageText(JsonElement item)
+    {
+        if (item.TryGetProperty("message", out var msgObj) && msgObj.TryGetProperty("text", out var textEl))
+        {
+            return textEl.GetString() ?? string.Empty;
+        }
+
+        return string.Empty;
+    }
+
+    private async Task<bool> IsDuplicateDeliveryAsync(
+        string deduplicationKey,
+        TenantResolutionResult tenantContext,
+        CancellationToken cancellationToken)
+    {
+        if (ProcessedMessagesCache.TryGetValue(deduplicationKey, out _))
+        {
+            _logger.LogInformation("Duplicate webhook delivery detected (in-memory) for messageId '{Key}'. Ignoring retry.", deduplicationKey);
+            return true;
+        }
+
+        var alreadyProcessed = await _db.AnalyticsEvents.AsNoTracking()
+            .AnyAsync(e => e.EventKey == deduplicationKey, cancellationToken);
+
+        if (alreadyProcessed)
+        {
+            ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
+            _logger.LogInformation("Duplicate webhook delivery detected (database) for messageId '{Key}'. Ignoring retry.", deduplicationKey);
+            return true;
+        }
+
+        var deduplicationEvent = new AnalyticsEventRecord
+        {
+            Id = Guid.NewGuid(),
+            EventKey = deduplicationKey,
+            OrganisationId = tenantContext.OrganisationId,
+            WorkspaceId = tenantContext.WorkspaceId,
+            EnvironmentId = tenantContext.EnvironmentId,
+            Capability = "Omnichannel",
+            EventType = "WebhookDeliveryProcessed",
+            Outcome = "Success",
+            CostType = "Unavailable",
+            SourceType = "InfobipWebhook",
+            SourceId = Guid.Empty,
+            ConfigurationRevision = "v1",
+            CorrelationId = HttpContext.TraceIdentifier,
+            OccurredAt = DateTimeOffset.UtcNow
+        };
+
+        _db.AnalyticsEvents.Add(deduplicationEvent);
+
+        try
+        {
+            await _db.SaveChangesAsync(cancellationToken);
+            ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
+            return false;
+        }
+        catch (DbUpdateException)
+        {
+            _logger.LogWarning("Concurrent duplicate delivery caught by unique constraint for key '{Key}'.", deduplicationKey);
+            ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
+            return true;
+        }
+    }
+
+    private static object CreateDuplicateResponse(string messageId, string? sender) => new
+    {
+        messageId,
+        sender,
+        handled = true,
+        duplicate = true,
+        status = "DUPLICATE_IGNORED",
+        escalatedToHuman = false,
+        reply = (string?)null,
+        quickReplies = Array.Empty<string>()
+    };
 
     /// <summary>
     /// Health probe for the Infobip connector.
@@ -258,7 +261,17 @@ public sealed class InfobipWebhookController : ControllerBase
 
         var normalizedTo = NormalizeRecipient(recipientAddress);
 
-        // 1. Resolve from SettingValues (explicit phone number connector configuration)
+        var fromSettings = await ResolveFromSettingValuesAsync(normalizedTo, ct);
+        if (fromSettings is not null) return fromSettings;
+
+        var fromMappings = await ResolveFromConfigMappingsAsync(normalizedTo, ct);
+        if (fromMappings is not null) return fromMappings;
+
+        return await ResolveFromConfiguredRecipientAsync(normalizedTo, ct);
+    }
+
+    private async Task<TenantResolutionResult?> ResolveFromSettingValuesAsync(string normalizedTo, CancellationToken ct)
+    {
         var setting = await _db.SettingValues.AsNoTracking()
             .Where(s => s.WorkspaceId.HasValue &&
                 (s.DefinitionKey == "connector.infobip.phone_number" ||
@@ -267,51 +280,46 @@ public sealed class InfobipWebhookController : ControllerBase
                  s.DefinitionKey == "channel.whatsapp.recipient_number"))
             .FirstOrDefaultAsync(s => s.ValueJson.Contains(normalizedTo), ct);
 
-        if (setting?.WorkspaceId != null)
-        {
-            var env = await _db.RuntimeEnvironments.AsNoTracking()
-                .FirstOrDefaultAsync(e => e.WorkspaceId == setting.WorkspaceId.Value &&
-                                          e.Status == "Active" &&
-                                          (setting.EnvironmentId.HasValue && e.Id == setting.EnvironmentId.Value || e.IsDefault), ct);
+        if (setting?.WorkspaceId == null) return null;
 
-            if (env != null)
-            {
-                return new TenantResolutionResult(setting.WorkspaceId.Value, env.OrganisationId, env.Id, env.Name, env.EnvironmentType);
-            }
-        }
+        var env = await _db.RuntimeEnvironments.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.WorkspaceId == setting.WorkspaceId.Value &&
+                                      e.Status == "Active" &&
+                                      (setting.EnvironmentId.HasValue && e.Id == setting.EnvironmentId.Value || e.IsDefault), ct);
 
-        // 2. Resolve from configuration mappings (Connectors:Infobip:Mappings:<to>:WorkspaceId)
+        return env != null
+            ? new TenantResolutionResult(setting.WorkspaceId.Value, env.OrganisationId, env.Id, env.Name, env.EnvironmentType)
+            : null;
+    }
+
+    private async Task<TenantResolutionResult?> ResolveFromConfigMappingsAsync(string normalizedTo, CancellationToken ct)
+    {
         var mappedWorkspaceIdStr = _config[$"Connectors:Infobip:Mappings:{normalizedTo}:WorkspaceId"];
-        if (Guid.TryParse(mappedWorkspaceIdStr, out var mappedWorkspaceId))
-        {
-            var env = await _db.RuntimeEnvironments.AsNoTracking()
-                .FirstOrDefaultAsync(e => e.WorkspaceId == mappedWorkspaceId && e.Status == "Active" && e.IsDefault, ct);
+        if (!Guid.TryParse(mappedWorkspaceIdStr, out var mappedWorkspaceId)) return null;
 
-            if (env != null)
-            {
-                return new TenantResolutionResult(mappedWorkspaceId, env.OrganisationId, env.Id, env.Name, env.EnvironmentType);
-            }
-        }
+        var env = await _db.RuntimeEnvironments.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.WorkspaceId == mappedWorkspaceId && e.Status == "Active" && e.IsDefault, ct);
 
-        // 3. Resolve from configured recipient number matching normalized recipient
+        return env != null
+            ? new TenantResolutionResult(mappedWorkspaceId, env.OrganisationId, env.Id, env.Name, env.EnvironmentType)
+            : null;
+    }
+
+    private async Task<TenantResolutionResult?> ResolveFromConfiguredRecipientAsync(string normalizedTo, CancellationToken ct)
+    {
         var configuredRecipient = _config["Connectors:Infobip:RecipientNumber"] ?? _config["Infobip:RecipientNumber"];
-        if (!string.IsNullOrWhiteSpace(configuredRecipient) &&
-            NormalizeRecipient(configuredRecipient) == normalizedTo)
-        {
-            var configuredWsStr = _config["Connectors:Infobip:WorkspaceId"];
-            var wsId = Guid.TryParse(configuredWsStr, out var parsedWsId) ? parsedWsId : WorkspaceIdentityDefaults.WorkspaceId;
+        if (string.IsNullOrWhiteSpace(configuredRecipient) || NormalizeRecipient(configuredRecipient) != normalizedTo)
+            return null;
 
-            var env = await _db.RuntimeEnvironments.AsNoTracking()
-                .FirstOrDefaultAsync(e => e.WorkspaceId == wsId && e.Status == "Active" && e.IsDefault, ct);
+        var configuredWsStr = _config["Connectors:Infobip:WorkspaceId"];
+        var wsId = Guid.TryParse(configuredWsStr, out var parsedWsId) ? parsedWsId : WorkspaceIdentityDefaults.WorkspaceId;
 
-            if (env != null)
-            {
-                return new TenantResolutionResult(wsId, env.OrganisationId, env.Id, env.Name, env.EnvironmentType);
-            }
-        }
+        var env = await _db.RuntimeEnvironments.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.WorkspaceId == wsId && e.Status == "Active" && e.IsDefault, ct);
 
-        // Strict tenant isolation: never fall back to global default environment across tenants
-        return null;
+        return env != null
+            ? new TenantResolutionResult(wsId, env.OrganisationId, env.Id, env.Name, env.EnvironmentType)
+            : null;
     }
 
     private static string NormalizeRecipient(string recipient)

@@ -18,12 +18,39 @@ public sealed class CapabilityPermissionMiddleware(RequestDelegate next)
     private static string? RequiredPermission(string method, string path)
     {
         if (HttpMethods.IsGet(method)) return WorkspacePermissions.WorkspaceMember;
-        if (path.StartsWith("/api/simulations") || path.StartsWith("/api/intelligence")) return WorkspacePermissions.RunSimulation;
-        if (path.StartsWith("/api/replay")) return path.EndsWith("/complete") ? WorkspacePermissions.CompleteReplay : WorkspacePermissions.RunReplay;
-        if (path.StartsWith("/api/evaluation")) return path.Contains("/review") || path.Contains("/publish") ? WorkspacePermissions.ReviewEvaluations : WorkspacePermissions.CreateEvaluations;
-        if (path.StartsWith("/api/policies")) return path.Contains("/activate") || path.Contains("/suspend") || path.Contains("/retire") ? WorkspacePermissions.ManagePolicies : WorkspacePermissions.DraftPolicies;
-        if (path.StartsWith("/api/plugins")) return path.Contains("/activate") || path.Contains("/deprecate") ? WorkspacePermissions.ManagePlugins : WorkspacePermissions.DraftPlugins;
-        if (path.Contains("/publish") || path.Contains("/approve") || path.Contains("/reject")) return WorkspacePermissions.PublishAssets;
+        if (path.StartsWith("/api/simulations", StringComparison.Ordinal) || path.StartsWith("/api/intelligence", StringComparison.Ordinal))
+            return WorkspacePermissions.RunSimulation;
+        if (path.StartsWith("/api/replay", StringComparison.Ordinal))
+            return ResolveReplayPermission(path);
+        if (path.StartsWith("/api/evaluation", StringComparison.Ordinal))
+            return ResolveEvaluationPermission(path);
+        if (path.StartsWith("/api/policies", StringComparison.Ordinal))
+            return ResolvePolicyPermission(path);
+        if (path.StartsWith("/api/plugins", StringComparison.Ordinal))
+            return ResolvePluginPermission(path);
+        if (IsPublishOrApprovalPath(path))
+            return WorkspacePermissions.PublishAssets;
         return WorkspacePermissions.EditAssets;
     }
+
+    private static string ResolveReplayPermission(string path) =>
+        path.EndsWith("/complete", StringComparison.Ordinal) ? WorkspacePermissions.CompleteReplay : WorkspacePermissions.RunReplay;
+
+    private static string ResolveEvaluationPermission(string path) =>
+        path.Contains("/review", StringComparison.Ordinal) || path.Contains("/publish", StringComparison.Ordinal)
+            ? WorkspacePermissions.ReviewEvaluations
+            : WorkspacePermissions.CreateEvaluations;
+
+    private static string ResolvePolicyPermission(string path) =>
+        path.Contains("/activate", StringComparison.Ordinal) || path.Contains("/suspend", StringComparison.Ordinal) || path.Contains("/retire", StringComparison.Ordinal)
+            ? WorkspacePermissions.ManagePolicies
+            : WorkspacePermissions.DraftPolicies;
+
+    private static string ResolvePluginPermission(string path) =>
+        path.Contains("/activate", StringComparison.Ordinal) || path.Contains("/deprecate", StringComparison.Ordinal)
+            ? WorkspacePermissions.ManagePlugins
+            : WorkspacePermissions.DraftPlugins;
+
+    private static bool IsPublishOrApprovalPath(string path) =>
+        path.Contains("/publish", StringComparison.Ordinal) || path.Contains("/approve", StringComparison.Ordinal) || path.Contains("/reject", StringComparison.Ordinal);
 }

@@ -71,15 +71,15 @@ public sealed class ExecutiveFinOpsTests
 
         // Execution 1: Succeeded, 500 input + 200 output tokens, R0.08 actual cost
         db.AnalyticsEvents.Add(CreateEvent(organisationId, workspaceId, environmentId, "SimulationCompleted", "Succeeded", exec1, now.AddMinutes(-30)));
-        db.AnalyticsEvents.Add(CreateProviderEvent(organisationId, workspaceId, environmentId, exec1, "Gemini", "gemini-2.5-flash", "Chat", 500, 200, 0.08m, "Actual", now.AddMinutes(-30)));
+        db.AnalyticsEvents.Add(CreateProviderEvent(organisationId, workspaceId, environmentId, exec1, new("Gemini", "gemini-2.5-flash", "Chat", 500, 200, 0.08m, "Actual"), now.AddMinutes(-30)));
 
         // Execution 2: Succeeded, 1000 input + 500 output tokens, R0.25 estimated cost
         db.AnalyticsEvents.Add(CreateEvent(organisationId, workspaceId, environmentId, "SimulationCompleted", "Succeeded", exec2, now.AddMinutes(-20)));
-        db.AnalyticsEvents.Add(CreateProviderEvent(organisationId, workspaceId, environmentId, exec2, "AzureOpenAI", "gpt-4o-mini", "Support", 1000, 500, 0.25m, "Estimated", now.AddMinutes(-20)));
+        db.AnalyticsEvents.Add(CreateProviderEvent(organisationId, workspaceId, environmentId, exec2, new("AzureOpenAI", "gpt-4o-mini", "Support", 1000, 500, 0.25m, "Estimated"), now.AddMinutes(-20)));
 
         // Execution 3: Failed, 200 input + 50 output tokens, R0.02 actual cost
         db.AnalyticsEvents.Add(CreateEvent(organisationId, workspaceId, environmentId, "SimulationFailed", "Failed", exec3, now.AddMinutes(-10)));
-        db.AnalyticsEvents.Add(CreateProviderEvent(organisationId, workspaceId, environmentId, exec3, "Gemini", "gemini-2.5-flash", "Chat", 200, 50, 0.02m, "Actual", now.AddMinutes(-10)));
+        db.AnalyticsEvents.Add(CreateProviderEvent(organisationId, workspaceId, environmentId, exec3, new("Gemini", "gemini-2.5-flash", "Chat", 200, 50, 0.02m, "Actual"), now.AddMinutes(-10)));
 
         await db.SaveChangesAsync();
 
@@ -186,7 +186,7 @@ public sealed class ExecutiveFinOpsTests
         var now = DateTimeOffset.UtcNow;
         var execId = Guid.NewGuid();
         db.AnalyticsEvents.Add(CreateEvent(organisationId, workspaceId, environmentId, "SimulationCompleted", "Succeeded", execId, now.AddMinutes(-10)));
-        db.AnalyticsEvents.Add(CreateProviderEvent(organisationId, workspaceId, environmentId, execId, "Gemini", "gemini-2.5-flash", "Chat", 200, 100, 0.05m, "Actual", now.AddMinutes(-10)));
+        db.AnalyticsEvents.Add(CreateProviderEvent(organisationId, workspaceId, environmentId, execId, new("Gemini", "gemini-2.5-flash", "Chat", 200, 100, 0.05m, "Actual"), now.AddMinutes(-10)));
         await db.SaveChangesAsync();
 
         var resolver = new FakeConfigurationResolver();
@@ -229,9 +229,13 @@ public sealed class ExecutiveFinOpsTests
         OccurredAt = occurredAt
     };
 
+    private sealed record ProviderInvocationDetails(
+        string Provider, string Model, string Capability,
+        int InputTokens, int OutputTokens, decimal CostZar, string CostType);
+
     private static AnalyticsEventRecord CreateProviderEvent(
-        Guid orgId, Guid wsId, Guid envId, Guid execId, string provider, string model, string capability,
-        int inputTokens, int outputTokens, decimal costZar, string costType, DateTimeOffset occurredAt) => new()
+        Guid orgId, Guid wsId, Guid envId, Guid execId,
+        ProviderInvocationDetails details, DateTimeOffset occurredAt) => new()
     {
         Id = Guid.NewGuid(),
         EventKey = Guid.NewGuid().ToString("N"),
@@ -239,15 +243,15 @@ public sealed class ExecutiveFinOpsTests
         WorkspaceId = wsId,
         EnvironmentId = envId,
         ActorType = "System",
-        Capability = capability,
+        Capability = details.Capability,
         EventType = "ProviderInvocationCompleted",
         Outcome = "Succeeded",
-        Provider = provider,
-        Model = model,
-        InputTokens = inputTokens,
-        OutputTokens = outputTokens,
-        CostZar = costZar,
-        CostType = costType,
+        Provider = details.Provider,
+        Model = details.Model,
+        InputTokens = details.InputTokens,
+        OutputTokens = details.OutputTokens,
+        CostZar = details.CostZar,
+        CostType = details.CostType,
         SourceExecutionId = execId,
         SourceType = "Execution",
         SourceId = execId,
@@ -256,15 +260,19 @@ public sealed class ExecutiveFinOpsTests
         OccurredAt = occurredAt
     };
 
+#pragma warning disable S1172, S2325 // Test fake implementing IEffectiveConfigurationResolver
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1172:Unused method parameters should be removed", Justification = "Test fake implementing IEffectiveConfigurationResolver")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods that don't access instance data should be static", Justification = "Test fake implementing IEffectiveConfigurationResolver")]
     private sealed class FakeConfigurationResolver : IEffectiveConfigurationResolver
     {
-        public Task<IReadOnlyList<EffectiveSettingResult>> ResolveAsync(Guid organisationId, Guid workspaceId, Guid? environmentId, CancellationToken ct = default)
+        Task<IReadOnlyList<EffectiveSettingResult>> IEffectiveConfigurationResolver.ResolveAsync(Guid organisationId, Guid workspaceId, Guid? environmentId, CancellationToken ct)
             => Task.FromResult<IReadOnlyList<EffectiveSettingResult>>([]);
 
-        public Task<EffectiveSettingResult?> ResolveOneAsync(Guid organisationId, Guid workspaceId, Guid? environmentId, string key, CancellationToken ct = default)
+        Task<EffectiveSettingResult?> IEffectiveConfigurationResolver.ResolveOneAsync(Guid organisationId, Guid workspaceId, Guid? environmentId, string key, CancellationToken ct)
             => Task.FromResult<EffectiveSettingResult?>(null);
 
-        public Task<ConfigurationSnapshot> CreateSnapshotAsync(Guid organisationId, Guid workspaceId, Guid environmentId, CancellationToken ct = default, IReadOnlyDictionary<string, string?>? executionOverrides = null)
+        Task<ConfigurationSnapshot> IEffectiveConfigurationResolver.CreateSnapshotAsync(Guid organisationId, Guid workspaceId, Guid environmentId, CancellationToken ct, IReadOnlyDictionary<string, string?>? executionOverrides)
             => throw new NotImplementedException();
     }
+#pragma warning restore S1172, S2325
 }

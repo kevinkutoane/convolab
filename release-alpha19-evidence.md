@@ -1,4 +1,4 @@
-﻿# ConvoLab Alpha.19 Operational Milestone Evidence
+# ConvoLab Alpha.19 Operational Milestone Evidence
 
 ## Release Identity
 
@@ -12,7 +12,7 @@
 | Release-build workflow | GitHub Actions run `36931388866` |
 | Release artifact | `release-artifacts` (artifact SHA256 `7a9f7cfc812d089c8050b4bfaa97d0bf5055ffb4284c26de2a4f4b7ca7f0c84d`) |
 
-The `v1.0.0-alpha.19` tag and release-build artifact bind the operational milestone to an immutable source commit and reproducible build evidence. Alpha.19 is **not a formal product release** and no formal GitHub Release was published for it. The latest formal product release remains `v1.0.0-alpha.18`.
+The `v1.0.0-alpha.19` tag and release-build artifact bind the operational milestone to an immutable source commit and reproducible build evidence. Alpha.19 is an operational validation milestone; subsequent feature development culminated in the `v1.0.0-enterprise` Release Candidate delivering the four strategic enterprise pillars.
 
 ## 1. Delivered Scope
 

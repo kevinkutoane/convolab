@@ -71,7 +71,7 @@ public static class AuditHashChain
                 return Broken(chainKey, expectedSequence - 1, expectedSequence, "Previous-hash link does not match.");
             if (!string.Equals(record.Hash, Compute(record), StringComparison.Ordinal))
                 return Broken(chainKey, expectedSequence - 1, expectedSequence, "Event content does not match its hash.");
-            previousHash = record.Hash!;
+            previousHash = record.Hash;
             expectedSequence++;
         }
         return new AuditChainVerification(chainKey, true, expectedSequence - 1, null, null);

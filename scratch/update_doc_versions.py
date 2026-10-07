@@ -37,28 +37,27 @@ for file in files_to_update:
             "- **Previous formal release:** `v1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`)\n"
             "- **Historical operational milestone:** `alpha.19 — Live Environment Validation & Load Testing` (tagged `v1.0.0-alpha.19`)",
             content, count=1)
-        content = re.sub(
-            r"The latest formal product release is `v1\.0\.0-alpha\.18`\. Milestone Alpha\.19 establishes operational validation and endurance baselines, and is formally closed on `main`\.",
+        content = content.replace(
+            "The latest formal product release is `v1.0.0-alpha.18`. Milestone Alpha.19 establishes operational validation and endurance baselines, and is formally closed on `main`.",
             "The current release candidate is `v1.0.0-enterprise`. The previous formal product release was `v1.0.0-alpha.18`. Milestone Alpha.19 establishes operational validation and endurance baselines, and is formally closed on `main`.",
-            content, count=1)
+            1)
 
     elif file == "docs/Architecture/ProductReadinessAssessment.md":
-        content = re.sub(
-            r"The functional Studio baseline is stabilized at `v1\.0\.0-alpha\.18` formal product release, with operational validation milestone `Alpha\.19` formally closed",
+        content = content.replace(
+            "The functional Studio baseline is stabilized at `v1.0.0-alpha.18` formal product release, with operational validation milestone `Alpha.19` formally closed",
             "The functional Studio baseline is stabilized at `v1.0.0-enterprise — Release Candidate`, with the previous formal release being `v1.0.0-alpha.18` and operational validation milestone `Alpha.19` formally closed",
-            content, count=1)
+            1)
 
     elif file == "docs/Architecture/README.md":
-        content = re.sub(
-            r"Platform Core and ConvoLab Studio `v1\.0\.0-alpha\.18` \(formal release baseline, with operational validation milestone `Alpha\.19` formally closed and next planned milestone `Alpha\.20 — Environment & Secret Management`\)",
+        content = content.replace(
+            "Platform Core and ConvoLab Studio `v1.0.0-alpha.18` (formal release baseline, with operational validation milestone `Alpha.19` formally closed and next planned milestone `Alpha.20 — Environment & Secret Management`)",
             "Platform Core and ConvoLab Studio `v1.0.0-enterprise — Release Candidate` (with previous formal release baseline `v1.0.0-alpha.18` and historical operational milestone `Alpha.19` formally closed)",
-            content, count=1)
+            1)
             
     elif file == "docs/PlatformManifest.md":
-        content = re.sub(
-            r"Platform Core and Studio are at `v1\.0\.0-alpha\.18`\.",
-            "Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`.",
-            content)
+        content = content.replace(
+            "Platform Core and Studio are at `v1.0.0-alpha.18`.",
+            "Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`.")
     
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(content)

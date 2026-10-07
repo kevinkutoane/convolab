@@ -2,7 +2,7 @@
 
 This directory contains the primary Mermaid architecture, context, dependency, and sequence diagrams for the ConvoLab platform.
 
-All diagrams are updated to reflect the platform's current state as of **`v1.0.0-alpha.18`** and the active **`alpha.19`** operational-validation baseline.
+All diagrams reflect the platform's architecture as of **`v1.0.0-enterprise — Release Candidate`**, incorporating the foundational Clean Architecture layers, strategic enterprise pillars, and operational validation baselines.
 
 ---
 

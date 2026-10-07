@@ -116,7 +116,7 @@ public sealed class MigrationTests
             parameter.Value = table;
             command.Parameters.Add(parameter);
 
-            Assert.Equal(1L, (long)(await command.ExecuteScalarAsync())!);
+            Assert.Equal(1L, Convert.ToInt64(await command.ExecuteScalarAsync()));
         }
     }
 

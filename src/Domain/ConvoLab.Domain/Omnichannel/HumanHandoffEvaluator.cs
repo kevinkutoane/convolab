@@ -16,32 +16,33 @@ public sealed class KeywordHumanHandoffEvaluator : IHumanHandoffEvaluator
     private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(250);
 
     private static readonly (string Reason, string Department, Regex Pattern)[] EscalationRules =
-    [
-        (
-            "Explicit human agent request",
-            "CustomerService",
-            new Regex(@"\b(?:talk to|speak to|connect me to|transfer(?: me)? to|need a|want to speak to|want a)\s+(?:(?:a|an)\s+)?(?:human|person|agent|representative|consultant|operator|manager)\b",
-                RegexOptions.Compiled | RegexOptions.IgnoreCase, MatchTimeout)
-        ),
-        (
-            "Frustration or dissatisfaction escalation",
-            "Escalations",
-            new Regex(@"\b(?:this is ridiculous|useless bot|stupid bot|speak to someone|stop repeating|give me someone real)\b",
-                RegexOptions.Compiled | RegexOptions.IgnoreCase, MatchTimeout)
-        ),
-        (
-            "Legal or Ombudsman threat",
-            "Compliance",
-            new Regex(@"\b(?:ombudsman|lawyer|attorney|sue you|legal action|regulator|fscca|popia complaint)\b",
-                RegexOptions.Compiled | RegexOptions.IgnoreCase, MatchTimeout)
-        ),
-        (
-            "Urgent fraud or security report",
-            "Fraud",
-            new Regex(@"\b(?:stolen vehicle|card compromised|fraud alert|report fraud|unauthorized transaction)\b",
-                RegexOptions.Compiled | RegexOptions.IgnoreCase, MatchTimeout)
-        )
-    ];
+        new (string Reason, string Department, Regex Pattern)[]
+        {
+            (
+                "Explicit human agent request",
+                "CustomerService",
+                new Regex(@"\b(?:talk to|speak to|connect me to|transfer(?: me)? to|need a|want to speak to|want a)\s+(?:(?:a|an)\s+)?(?:human|person|agent|representative|consultant|operator|manager)\b",
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase, MatchTimeout)
+            ),
+            (
+                "Frustration or dissatisfaction escalation",
+                "Escalations",
+                new Regex(@"\b(?:this is ridiculous|useless bot|stupid bot|speak to someone|stop repeating|give me someone real)\b",
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase, MatchTimeout)
+            ),
+            (
+                "Legal or Ombudsman threat",
+                "Compliance",
+                new Regex(@"\b(?:ombudsman|lawyer|attorney|sue you|legal action|regulator|fscca|popia complaint)\b",
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase, MatchTimeout)
+            ),
+            (
+                "Urgent fraud or security report",
+                "Fraud",
+                new Regex(@"\b(?:stolen vehicle|card compromised|fraud alert|report fraud|unauthorized transaction)\b",
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase, MatchTimeout)
+            )
+        };
 
     public HandoffEvaluationResult Evaluate(string userText, int consecutiveFrustrations = 0)
     {

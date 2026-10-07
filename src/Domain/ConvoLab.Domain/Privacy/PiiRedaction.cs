@@ -55,21 +55,23 @@ public sealed class RegexPiiRedactionEngine : IPiiRedactionEngine
 {
     private static readonly TimeSpan MatchTimeout = TimeSpan.FromMilliseconds(250);
 
-    private static readonly (PiiEntityType Type, Regex Pattern, Func<string, bool>? Validator)[] Detectors =
+    private sealed record DetectorDefinition(PiiEntityType Type, Regex Pattern, Func<string, bool>? Validator);
+
+    private static readonly DetectorDefinition[] Detectors =
     [
-        (PiiEntityType.Email,
+        new(PiiEntityType.Email,
             new Regex(@"\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b", RegexOptions.Compiled, MatchTimeout), null),
-        (PiiEntityType.Iban,
+        new(PiiEntityType.Iban,
             new Regex(@"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b", RegexOptions.Compiled, MatchTimeout),
             v => v.Replace(" ", "").Length is >= 15 and <= 34),
         // More specific than the generic card pattern, so it must claim 13-digit matches first.
-        (PiiEntityType.SouthAfricanIdNumber,
+        new(PiiEntityType.SouthAfricanIdNumber,
             new Regex(@"\b\d{13}\b", RegexOptions.Compiled, MatchTimeout), IsPlausibleSouthAfricanId),
-        (PiiEntityType.CreditCardNumber,
+        new(PiiEntityType.CreditCardNumber,
             new Regex(@"\b(?:\d[ \-]?){13,19}\b", RegexOptions.Compiled, MatchTimeout), PassesLuhn),
-        (PiiEntityType.IpAddress,
+        new(PiiEntityType.IpAddress,
             new Regex(@"\b(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)\b", RegexOptions.Compiled, MatchTimeout), null),
-        (PiiEntityType.PhoneNumber,
+        new(PiiEntityType.PhoneNumber,
             new Regex(@"(?<![\w])(?:\+\d{1,3}[ \-]?)?(?:\(?0?\d{2,3}\)?[ \-]?)\d{3}[ \-]?\d{3,4}(?![\w])", RegexOptions.Compiled, MatchTimeout),
             v => v.Count(char.IsDigit) is >= 9 and <= 15)
     ];
@@ -79,15 +81,15 @@ public sealed class RegexPiiRedactionEngine : IPiiRedactionEngine
         if (string.IsNullOrEmpty(text)) return new RedactionResult(text ?? string.Empty, []);
 
         var claimed = new List<(int Start, int End, PiiEntityType Type, string Value)>();
-        foreach (var (type, pattern, validator) in Detectors)
+        foreach (var detector in Detectors)
         {
-            foreach (Match match in pattern.Matches(text))
+            foreach (Match match in detector.Pattern.Matches(text))
             {
-                if (validator is not null && !validator(match.Value)) continue;
+                if (detector.Validator is not null && !detector.Validator(match.Value)) continue;
                 var start = match.Index;
                 var end = match.Index + match.Length;
                 if (claimed.Any(c => start < c.End && end > c.Start)) continue;
-                claimed.Add((start, end, type, match.Value));
+                claimed.Add((start, end, detector.Type, match.Value));
             }
         }
 

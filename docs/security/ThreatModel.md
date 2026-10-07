@@ -1,6 +1,6 @@
-# ConvoLab Alpha.18 — Threat Model
+# ConvoLab Threat Model
 
-Version: `1.0.0-alpha.18`. Scope: runtime threats against the running platform and CI/supply-chain.
+Version: `1.0.0-enterprise`. Scope: runtime threats against the running platform, CI/supply-chain, AI safety, and enterprise connectors.
 This document maps each identified threat to the existing or new control and its validation status.
 
 ---
@@ -124,11 +124,42 @@ Validation status:
 | **Controls** | `Cross-Origin-Opener-Policy: same-origin` (Alpha.18) isolates the browsing context; `Cross-Origin-Embedder-Policy: require-corp` (Alpha.18) prevents cross-origin sub-resource loading without explicit opt-in |
 | **Status** | Implemented |
 
+## 14. PII / PHI Data Exfiltration to External Providers
+
+| STRIDE | I |
+|---|---|
+| **Threat** | Sensitive user data (national IDs, credit cards, emails, phone numbers, IBANs) is forwarded to third-party model providers in prompt payloads |
+| **Controls** | In-process regex redaction engine (`RegexPiiRedactionEngine`) intercepts user text pre-dispatch, replaces sensitive entities with surrogate tokens (`[SA_ID_1]`, `[CARD_1]`, etc.), and restores originals only when presenting back to client in-process; compliant with POPIA and GDPR requirements |
+| **Status** | Implemented |
+
+## 15. Audit Log Tampering / Repudiation
+
+| STRIDE | R, T |
+|---|---|
+| **Threat** | An adversary or compromised administrator alters historical audit records or deletes event traces to hide unauthorized actions |
+| **Controls** | Forward-linked SHA-256 cryptographic hash chain (`AuditHashChain`) enforced on all database mutations in `ApplicationDbContext`; any alteration or deletion invalidates the chain; immutable database sequences |
+| **Status** | Implemented |
+
+## 16. Prompt Injection / Jailbreaking / System Prompt Leakage
+
+| STRIDE | T, E |
+|---|---|
+| **Threat** | An adversary crafts adversarial user input to bypass model guardrails, extract internal instructions, or manipulate workflow state |
+| **Controls** | Pre-execution heuristic and pattern guardrails inspect prompt candidates prior to external dispatch; Policy Center rule enforcement; prompt templates versioned immutably with approved states |
+| **Status** | Implemented |
+
+## 17. Inbound Webhook Forgery / Replay
+
+| STRIDE | S, T |
+|---|---|
+| **Threat** | An attacker injects fake messages or impersonates provider callbacks on omnichannel connector endpoints |
+| **Controls** | `InfobipWebhookSecurity` verifies HMAC-SHA256 signatures (`X-Infobip-Signature`, `X-Hub-Signature-256`) and timing-safe secret comparisons (`X-Callback-Secret`, `X-Webhook-Secret`, `X-Infobip-Secret`); requests with invalid signatures are rejected with 401 Unauthorized |
+| **Status** | Implemented |
+
 ---
 
-## Deferred / Out-of-Scope for Alpha.18
+## Operational Validation & Post-GA Scope
 
 - Multi-tenant Entra (SCIM, automatic onboarding) — deferred to Phase 5.
-- Live Entra organisational validation — environment gate (StubValidated).
-- Load/endurance testing and formal DDoS envelope — deferred (Alpha.18 baseline closure item).
-- SOC 2 / ISO 27001 formal audit — Post-GA.
+- Live Entra corporate tenant validation — environment-gated (`Blocked (Environment Gate)` pending corporate tenant provisioning).
+- Formal third-party SOC 2 Type II / ISO 27001 audit — Scheduled post-GA.

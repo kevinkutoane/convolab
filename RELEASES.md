@@ -24,3 +24,15 @@ Before cutting a new release (or pushing major updates), the development team mu
 3. **Verify Dashboard**: Ensure the capability map on the Dashboard accurately represents the new status.
 
 Failure to maintain these statuses will result in an inaccurate dashboard and confusing navigation for users.
+
+---
+
+## Release Notes Index
+
+- **Current Release Candidate:** [`v1.0.0-enterprise`](docs/releases/PlatformCore-v1.0.0-enterprise.md) — Four strategic enterprise pillars delivered (PII redaction, tamper-evident audit trail, omnichannel Infobip/WhatsApp connector, ALM environment promotion & rollback, Executive FinOps in ZAR).
+- **Historical Milestones & Release Notes:** [docs/releases/](docs/releases/)
+  - `v1.0.0-alpha.19`: [PlatformCore-v1.0.0-alpha.19.md](docs/releases/PlatformCore-v1.0.0-alpha.19.md) (Live environment validation, load testing, automated DR drill)
+  - `v1.0.0-alpha.18`: [PlatformCore-v1.0.0-alpha.18.md](docs/releases/PlatformCore-v1.0.0-alpha.18.md) (Security & compliance hardening)
+  - `v1.0.0-alpha.17`: [PlatformCore-v1.0.0-alpha.17.md](docs/releases/PlatformCore-v1.0.0-alpha.17.md) (Deployment, environment promotion, release engineering)
+  - `v1.0.0-alpha.16`: [PlatformCore-v1.0.0-alpha.16.md](docs/releases/PlatformCore-v1.0.0-alpha.16.md) (Backup, restore & disaster recovery)
+  - `v1.0.0-alpha.15`: [PlatformCore-v1.0.0-alpha.15.md](docs/releases/PlatformCore-v1.0.0-alpha.15.md) (Microsoft Entra ID & hybrid auth)

@@ -76,9 +76,22 @@ public sealed class GeminiIntelligenceExecutor : IIntelligenceExecutor
         using var document = JsonDocument.Parse(body);
         var text = document.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString() ?? string.Empty;
         text = _redaction.Restore(text, redaction.Mappings);
-        var usage = document.RootElement.TryGetProperty("usageMetadata", out var metadata)
-            ? ExecutionUsage.Create(metadata.TryGetProperty("promptTokenCount", out var input) ? input.GetInt32() : Math.Max(1, providerPrompt.Length / 4), metadata.TryGetProperty("candidatesTokenCount", out var output) ? output.GetInt32() : Math.Max(1, text.Length / 4))
-            : ExecutionUsage.Create(Math.Max(1, providerPrompt.Length / 4), Math.Max(1, text.Length / 4));
+        var inputTokens = Math.Max(1, providerPrompt.Length / 4);
+        var outputTokens = Math.Max(1, text.Length / 4);
+        if (document.RootElement.TryGetProperty("usageMetadata", out var metadata))
+        {
+            if (metadata.TryGetProperty("promptTokenCount", out var input))
+            {
+                inputTokens = input.GetInt32();
+            }
+
+            if (metadata.TryGetProperty("candidatesTokenCount", out var output))
+            {
+                outputTokens = output.GetInt32();
+            }
+        }
+
+        var usage = ExecutionUsage.Create(inputTokens, outputTokens);
         stopwatch.Stop();
         ConvoLabTelemetry.ProviderDuration.Record(stopwatch.Elapsed.TotalMilliseconds, metricTags);
         ConvoLabTelemetry.ProviderInputTokens.Add(usage.InputTokens, metricTags);

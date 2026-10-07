@@ -27,6 +27,10 @@ public static class ConvoLabAuthentication
 
 public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
+    private const string ActorTypeClaim = "actor_type";
+    private const string StatusActive = "Active";
+    private const string ActorTypeServiceAccount = "ServiceAccount";
+
     private readonly ApplicationDbContext _db;
     private readonly WorkspaceRequestContext _workspace;
     private readonly IWebHostEnvironment _environment;
@@ -50,35 +54,9 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (Request.Path.StartsWithSegments("/api/connectors/infobip/webhook"))
-        {
-            var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
-                ?? _config["Infobip:WebhookSecret"]
-                ?? InfobipWebhookSecurity.DefaultSecret;
+            return await AuthenticateInfobipWebhookAsync();
 
-            Request.EnableBuffering();
-            Request.Body.Position = 0;
-            using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
-            var rawBody = await reader.ReadToEndAsync();
-            Request.Body.Position = 0;
-
-            if (InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret))
-            {
-                var claims = new List<Claim>
-                {
-                    new(ClaimTypes.NameIdentifier, "webhook:infobip"),
-                    new(ClaimTypes.Name, "Infobip Webhook"),
-                    new("actor_type", "Webhook"),
-                    new("provider", "Infobip")
-                };
-                return Success(claims);
-            }
-
-            return AuthenticateResult.Fail("Unauthorized: Invalid or missing Infobip webhook signature or secret.");
-        }
-
-        if (_environment.IsEnvironment("Testing")
-            && !Request.Headers.ContainsKey("Authorization")
-            && !Request.Cookies.ContainsKey(ConvoLabAuthentication.SessionCookie))
+        if (IsTestingBypass())
             return BuildTestingPrincipal();
 
         var authorization = Request.Headers.Authorization.ToString();
@@ -88,6 +66,43 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         if (!Request.Cookies.TryGetValue(ConvoLabAuthentication.SessionCookie, out var token) || string.IsNullOrWhiteSpace(token))
             return AuthenticateResult.NoResult();
 
+        return await AuthenticateUserSessionAsync(token);
+    }
+
+    private async Task<AuthenticateResult> AuthenticateInfobipWebhookAsync()
+    {
+        var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
+            ?? _config["Infobip:WebhookSecret"]
+            ?? InfobipWebhookSecurity.DefaultSecret;
+
+        Request.EnableBuffering();
+        Request.Body.Position = 0;
+        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
+        var rawBody = await reader.ReadToEndAsync();
+        Request.Body.Position = 0;
+
+        if (InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret))
+        {
+            var claims = new List<Claim>
+            {
+                new(ClaimTypes.NameIdentifier, "webhook:infobip"),
+                new(ClaimTypes.Name, "Infobip Webhook"),
+                new(ActorTypeClaim, "Webhook"),
+                new("provider", "Infobip")
+            };
+            return Success(claims);
+        }
+
+        return AuthenticateResult.Fail("Unauthorized: Invalid or missing Infobip webhook signature or secret.");
+    }
+
+    private bool IsTestingBypass() =>
+        _environment.IsEnvironment("Testing")
+        && !Request.Headers.ContainsKey("Authorization")
+        && !Request.Cookies.ContainsKey(ConvoLabAuthentication.SessionCookie);
+
+    private async Task<AuthenticateResult> AuthenticateUserSessionAsync(string token)
+    {
         var now = _timeProvider.GetUtcNow();
         var hash = ConvoLabAuthentication.HashSecret(token);
         var session = await _db.AuthenticationSessions.AsTracking().SingleOrDefaultAsync(item => item.TokenHash == hash);
@@ -95,7 +110,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
             || session.AbsoluteExpiresAt != default && session.AbsoluteExpiresAt <= now)
             return AuthenticateResult.Fail("The session is invalid or expired.");
 
-        var user = await _db.IdentityUsers.AsNoTracking().SingleOrDefaultAsync(item => item.Id == session.UserId && item.Status == "Active");
+        var user = await _db.IdentityUsers.AsNoTracking().SingleOrDefaultAsync(item => item.Id == session.UserId && item.Status == StatusActive);
         if (user is null) return AuthenticateResult.Fail("The session user is unavailable.");
 
         WorkspaceMembershipRecord? membership = null;
@@ -103,8 +118,8 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         if (session.ActiveWorkspaceId.HasValue)
         {
             membership = await _db.WorkspaceMemberships.AsNoTracking().SingleOrDefaultAsync(item =>
-                item.UserId == user.Id && item.WorkspaceId == session.ActiveWorkspaceId && item.Status == "Active");
-            workspace = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(item => item.Id == session.ActiveWorkspaceId && item.Status == "Active");
+                item.UserId == user.Id && item.WorkspaceId == session.ActiveWorkspaceId && item.Status == StatusActive);
+            workspace = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(item => item.Id == session.ActiveWorkspaceId && item.Status == StatusActive);
             if (membership is null || workspace is null) return AuthenticateResult.Fail("The active workspace is unavailable.");
         }
 
@@ -124,16 +139,16 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
             return AuthenticateResult.Fail("The service credential is invalid.");
         var now = _timeProvider.GetUtcNow();
         var account = await _db.ServiceAccounts.AsTracking().SingleOrDefaultAsync(item => item.Id == id);
-        if (account is null || account.Status != "Active" || account.ExpiresAt <= now || !CryptographicOperations.FixedTimeEquals(
+        if (account is null || account.Status != StatusActive || account.ExpiresAt <= now || !CryptographicOperations.FixedTimeEquals(
                 Convert.FromHexString(account.SecretHash), Convert.FromHexString(ConvoLabAuthentication.HashSecret(parts[2]))))
             return AuthenticateResult.Fail("The service credential is invalid.");
-        var workspace = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(item => item.Id == account.WorkspaceId && item.Status == "Active");
+        var workspace = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(item => item.Id == account.WorkspaceId && item.Status == StatusActive);
         if (workspace is null) return AuthenticateResult.Fail("The service workspace is unavailable.");
         account.LastUsedAt = now;
         var environmentId = await _db.RuntimeEnvironments.AsNoTracking()
             .Where(item => item.WorkspaceId == workspace.Id
                 && item.IsDefault
-                && item.Status == "Active")
+                && item.Status == StatusActive)
             .Select(item => (Guid?)item.Id)
             .SingleOrDefaultAsync(Context.RequestAborted);
         if (environmentId.HasValue)
@@ -149,12 +164,12 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
                 WorkspaceId = workspace.Id,
                 EnvironmentId = environmentId.Value,
                 ActorId = account.Id,
-                ActorType = "ServiceAccount",
+                ActorType = ActorTypeServiceAccount,
                 Capability = "Authentication",
                 EventType = "ServiceAccountAuthenticated",
                 Outcome = "Succeeded",
                 CostType = "Unavailable",
-                SourceType = "ServiceAccount",
+                SourceType = ActorTypeServiceAccount,
                 SourceId = account.Id,
                 ConfigurationRevision = "not-applicable",
                 CorrelationId = Context.TraceIdentifier,
@@ -163,11 +178,11 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         }
         await _db.SaveChangesAsync(Context.RequestAborted);
         _workspace.WorkspaceId = workspace.Id; _workspace.OrganisationId = workspace.OrganisationId;
-        _workspace.ActorType = "ServiceAccount";
+        _workspace.ActorType = ActorTypeServiceAccount;
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, account.Id.ToString()), new(ClaimTypes.Name, account.Name),
-            new("actor_type", "ServiceAccount"), new("workspace_id", workspace.Id.ToString()),
+            new(ActorTypeClaim, ActorTypeServiceAccount), new("workspace_id", workspace.Id.ToString()),
             new("organisation_id", workspace.OrganisationId.ToString())
         };
         foreach (var scope in JsonSerializer.Deserialize<string[]>(account.ScopesJson) ?? []) claims.Add(new("permission", scope));
@@ -181,7 +196,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()), new(ClaimTypes.Name, user.DisplayName),
-            new(ClaimTypes.Email, user.Email), new("actor_type", "User"), new("session_id", session.Id.ToString()),
+            new(ClaimTypes.Email, user.Email), new(ActorTypeClaim, "User"), new("session_id", session.Id.ToString()),
             new("authentication_provider", session.AuthenticationProvider)
         };
         if (user.IsPlatformAdministrator) claims.Add(new("platform_administrator", "true"));
@@ -203,7 +218,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, WorkspaceIdentityDefaults.BootstrapUserId.ToString()), new(ClaimTypes.Name, "Test Administrator"),
-            new("actor_type", "User"), new("workspace_id", WorkspaceIdentityDefaults.WorkspaceId.ToString()),
+            new(ActorTypeClaim, "User"), new("workspace_id", WorkspaceIdentityDefaults.WorkspaceId.ToString()),
             new("organisation_id", WorkspaceIdentityDefaults.OrganisationId.ToString()), new(ClaimTypes.Role, "Administrator"), new("platform_administrator", "true")
         };
         claims.AddRange(WorkspacePermissions.For(WorkspaceRole.Administrator).Select(permission => new Claim("permission", permission)));

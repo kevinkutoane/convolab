@@ -13,14 +13,16 @@ public sealed class KnowledgeStudioService(
     IKeywordKnowledgeRetriever retriever,
     IUnitOfWork unitOfWork) : IKnowledgeStudioService
 {
+    private const string OctetStreamContentType = "application/octet-stream";
+
     private static readonly IReadOnlyDictionary<string, string[]> AllowedContentTypes =
         new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            [".pdf"] = ["application/pdf", "application/octet-stream"],
-            [".docx"] = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"],
-            [".txt"] = ["text/plain", "application/octet-stream"],
-            [".md"] = ["text/markdown", "text/plain", "application/octet-stream"],
-            [".markdown"] = ["text/markdown", "text/plain", "application/octet-stream"]
+            [".pdf"] = ["application/pdf", OctetStreamContentType],
+            [".docx"] = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", OctetStreamContentType],
+            [".txt"] = ["text/plain", OctetStreamContentType],
+            [".md"] = ["text/markdown", "text/plain", OctetStreamContentType],
+            [".markdown"] = ["text/markdown", "text/plain", OctetStreamContentType]
         };
 
     private const long MaxBytes = 20 * 1024 * 1024;
@@ -103,10 +105,10 @@ public sealed class KnowledgeStudioService(
         => SetCollectionStatusAsync(id, KnowledgeCollectionStatus.Active, ct);
 
     public async Task<IReadOnlyList<KnowledgeDocumentDto>> ListDocumentsAsync(Guid collectionId, CancellationToken ct = default)
-        => (await repository.ListDocumentsAsync(collectionId, ct)).Select(item => MapDocument(item)!).ToList();
+        => (await repository.ListDocumentsAsync(collectionId, ct)).Select(MapDocument).ToList();
 
     public async Task<KnowledgeDocumentDto?> GetDocumentAsync(Guid id, CancellationToken ct = default)
-        => MapDocument(await repository.GetDocumentAsync(id, ct));
+        => MapNullableDocument(await repository.GetDocumentAsync(id, ct));
 
     public async Task<KnowledgeDocumentDto> UploadAsync(KnowledgeUpload upload, CancellationToken ct = default)
     {
@@ -161,7 +163,7 @@ public sealed class KnowledgeStudioService(
             KnowledgeDocumentStage.Uploaded,
             now), ct);
         await unitOfWork.SaveChangesAsync(ct);
-        return MapDocument(document)!;
+        return MapDocument(document);
     }
 
     public async Task<KnowledgeDocumentDto?> UpdateDocumentAsync(
@@ -527,27 +529,28 @@ public sealed class KnowledgeStudioService(
             state.UpdatedAt,
             state.Revision);
 
-    private static KnowledgeDocumentDto? MapDocument(KnowledgeDocumentState? state)
-        => state is null
-            ? null
-            : new KnowledgeDocumentDto(
-                state.Id,
-                state.CollectionId,
-                state.Title,
-                state.OriginalFileName,
-                state.ContentType,
-                state.SizeBytes,
-                state.Stage,
-                state.Classification,
-                state.Owner,
-                state.Category,
-                state.Tags,
-                state.Version,
-                state.Error,
-                state.CreatedAt,
-                state.UpdatedAt,
-                state.PublishedAt,
-                state.Revision);
+    private static KnowledgeDocumentDto MapDocument(KnowledgeDocumentState state)
+        => new(
+            state.Id,
+            state.CollectionId,
+            state.Title,
+            state.OriginalFileName,
+            state.ContentType,
+            state.SizeBytes,
+            state.Stage,
+            state.Classification,
+            state.Owner,
+            state.Category,
+            state.Tags,
+            state.Version,
+            state.Error,
+            state.CreatedAt,
+            state.UpdatedAt,
+            state.PublishedAt,
+            state.Revision);
+
+    private static KnowledgeDocumentDto? MapNullableDocument(KnowledgeDocumentState? state)
+        => state is null ? null : MapDocument(state);
 
     private static KnowledgeChunkDto MapChunk(KnowledgeChunkState state)
         => new(

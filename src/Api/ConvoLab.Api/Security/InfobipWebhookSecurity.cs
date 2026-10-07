@@ -32,8 +32,13 @@ public static class InfobipWebhookSecurity
             return false;
 
         var expectedSecretBytes = Encoding.UTF8.GetBytes(expectedSecret.Trim());
+        return HasValidSecretHeader(request, expectedSecretBytes)
+            || HasValidAuthorizationHeader(request, expectedSecretBytes)
+            || HasValidSignature(request, rawBody, expectedSecretBytes);
+    }
 
-        // 1. Validate shared provider secret headers
+    private static bool HasValidSecretHeader(HttpRequest request, byte[] expectedSecretBytes)
+    {
         string[] secretHeaders = [CallbackSecretHeader, WebhookSecretHeader, InfobipSecretHeader];
         foreach (var headerName in secretHeaders)
         {
@@ -45,18 +50,24 @@ public static class InfobipWebhookSecurity
             }
         }
 
-        if (request.Headers.TryGetValue("Authorization", out var authVal) && !string.IsNullOrWhiteSpace(authVal))
-        {
-            var authStr = authVal.ToString().Trim();
-            if (authStr.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                authStr = authStr["Bearer ".Length..].Trim();
+        return false;
+    }
 
-            var authBytes = Encoding.UTF8.GetBytes(authStr);
-            if (CryptographicOperations.FixedTimeEquals(authBytes, expectedSecretBytes))
-                return true;
-        }
+    private static bool HasValidAuthorizationHeader(HttpRequest request, byte[] expectedSecretBytes)
+    {
+        if (!request.Headers.TryGetValue("Authorization", out var authVal) || string.IsNullOrWhiteSpace(authVal))
+            return false;
 
-        // 2. Validate cryptographic signature (HMAC-SHA256)
+        var authStr = authVal.ToString().Trim();
+        if (authStr.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            authStr = authStr["Bearer ".Length..].Trim();
+
+        var authBytes = Encoding.UTF8.GetBytes(authStr);
+        return CryptographicOperations.FixedTimeEquals(authBytes, expectedSecretBytes);
+    }
+
+    private static bool HasValidSignature(HttpRequest request, string rawBody, byte[] expectedSecretBytes)
+    {
         string[] signatureHeaders = [SignatureHeader, "X-Signature", "X-Hub-Signature-256"];
         foreach (var sigHeader in signatureHeaders)
         {

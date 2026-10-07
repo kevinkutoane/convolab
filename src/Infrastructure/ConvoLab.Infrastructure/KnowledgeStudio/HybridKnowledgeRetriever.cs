@@ -29,6 +29,8 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
             RetrievalStrategyType.Keyword);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S2325:Methods that don't access instance data should be static", Justification = "Implements IHybridKnowledgeRetriever interface method")]
+#pragma warning disable S2325
     public IReadOnlyList<RankedKnowledgeChunk> RankHybrid(
         string query,
         IReadOnlyDictionary<Guid, string> documentTitles,
@@ -49,6 +51,7 @@ public sealed class HybridKnowledgeRetriever : IHybridKnowledgeRetriever
             _ => RankWithRrf(query, documentTitles, chunks, maxResults, minimumConfidence)
         };
     }
+#pragma warning restore S2325
 
     private static IReadOnlyList<RankedKnowledgeChunk> RankKeywordOnly(
         string query,

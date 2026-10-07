@@ -51,7 +51,6 @@ public sealed class OmnichannelService : IOmnichannelService
         var handoff = _handoffEvaluator.Evaluate(envelope.Text);
         if (handoff.ShouldEscalate)
         {
-            var escalationNotice = $"[ESCALATION] A transfer to a human specialist ({handoff.TargetDepartment ?? "Support"}) has been initiated. Reason: {handoff.Reason}";
             return new ProcessInboundMessageResult(
                 Handled: true,
                 ReplyText: "I understand this requires personal attention. I have routed your conversation to a live consultant who will join shortly.",

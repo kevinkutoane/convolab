@@ -672,7 +672,7 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
             var deniedRun = deniedConversation.RootElement.GetProperty("runs").EnumerateArray().Last();
             var deniedRunId = deniedRun.GetProperty("id").GetGuid();
             Assert.Equal("Failed", deniedRun.GetProperty("status").GetString());
-            Assert.Contains("deny", deniedRun.GetProperty("failureReason").GetString()!, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("deny", deniedRun.GetProperty("failureReason").GetString(), StringComparison.OrdinalIgnoreCase);
             Assert.Equal(executionsBeforeDenial, await CountArrayAsync("/api/intelligence/executions?limit=500"));
 
             var decisions = await _client.GetAsync("/api/policies/decisions?limit=500");
@@ -869,8 +869,8 @@ public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
         var componentStates = readiness.RootElement.GetProperty("components")
             .EnumerateArray()
             .ToDictionary(
-                item => item.GetProperty("component").GetString()!,
-                item => item.GetProperty("state").GetString()!);
+                item => item.GetProperty("component").GetString() ?? string.Empty,
+                item => item.GetProperty("state").GetString() ?? string.Empty);
         Assert.Equal("Configured", componentStates["production-configuration"]);
         Assert.Equal("StubValidated", componentStates["providers"]);
         Assert.Equal("LiveValidated", componentStates["database"]);
