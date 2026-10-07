@@ -1,18 +1,21 @@
 import {
+  Activity,
+  AlertTriangle,
   Bell,
+  Building2,
   CheckCheck,
-  ClipboardCheck,
+  CheckCircle2,
   CloudOff,
   Command,
   LoaderCircle,
+  LogOut,
   Menu,
   Moon,
   Search,
   Server,
   ShieldAlert,
+  Sparkles,
   Sun,
-  LogOut,
-  Building2,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
@@ -20,16 +23,17 @@ import { navigationItems } from "../data/platform";
 import type { PlatformStatus } from "../types/platform";
 import { useAuth } from "../contexts/useAuth";
 import { useEnvironment } from "../contexts/EnvironmentContext";
+import { useLiveNotifications } from "../hooks/useLiveNotifications";
 import { StatusPill } from "./StatusPill";
 
 interface TopbarProps {
-  theme: "dark" | "light";
-  onToggleTheme: () => void;
-  onOpenPalette: () => void;
-  onOpenMobile: () => void;
-  status?: PlatformStatus;
-  isFetchingStatus: boolean;
-  statusStale: boolean;
+  readonly theme: "dark" | "light";
+  readonly onToggleTheme: () => void;
+  readonly onOpenPalette: () => void;
+  readonly onOpenMobile: () => void;
+  readonly status?: PlatformStatus;
+  readonly isFetchingStatus: boolean;
+  readonly statusStale: boolean;
 }
 
 export function Topbar({
@@ -40,7 +44,7 @@ export function Topbar({
   status,
   isFetchingStatus,
   statusStale,
-}: TopbarProps) {
+}: Readonly<TopbarProps>) {
   const location = useLocation();
   const navigationPath = location.pathname === "/evaluations"
     ? "/evaluation"
@@ -51,7 +55,6 @@ export function Topbar({
       : navigationPath === item.path || navigationPath.startsWith(`${item.path}/`),
   );
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(true);
   const [userOpen, setUserOpen] = useState(false);
   const auth = useAuth();
   const environment = useEnvironment();
@@ -61,6 +64,20 @@ export function Topbar({
   const apiOnline = !statusStale
     && (status?.apiHealth === "Healthy" || status?.apiHealth === "Responding");
   const apiState = isFetchingStatus ? "checking" : apiOnline ? "online" : "offline";
+
+  const {
+    notifications,
+    hasUnread,
+    unreadCount,
+    markAllAsRead,
+    markAsRead,
+    clearAll,
+  } = useLiveNotifications({
+    status,
+    apiOnline,
+    environment,
+    isAuthenticated: !!auth.session,
+  });
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -146,15 +163,75 @@ export function Topbar({
           </span>
         )}
         <div className="notification-control">
-          <button className="icon-button" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen(value => !value)}>
+          <button
+            className="icon-button"
+            aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
+            aria-expanded={notificationsOpen}
+            onClick={() => setNotificationsOpen(value => !value)}
+          >
             <Bell size={18} />
             {hasUnread && <span className="notification-dot" />}
           </button>
-          {notificationsOpen && <section className="notification-popover panel" role="dialog" aria-label="Platform notifications">
-            <div className="notification-heading"><div><span className="panel-eyebrow">Platform updates</span><h3>Notifications</h3></div><button className="text-button" onClick={() => setHasUnread(false)}><CheckCheck size={14} /> Mark read</button></div>
-            <Link className="notification-item" to="/evaluation" onClick={() => { setNotificationsOpen(false); setHasUnread(false); }}><ClipboardCheck size={17} /><span><strong>Evaluation Studio is stable</strong><small>Versioned scorecards, reviews, batches, and comparisons are ready.</small></span></Link>
-            <Link className="notification-item" to="/policies" onClick={() => { setNotificationsOpen(false); setHasUnread(false); }}><ShieldAlert size={17} /><span><strong>Governed execution is active</strong><small>Policy, Trace, and Replay workspaces are available.</small></span></Link>
-          </section>}
+          {notificationsOpen && (
+            <section className="notification-popover panel" role="dialog" aria-label="Platform notifications">
+              <div className="notification-heading">
+                <div>
+                  <span className="panel-eyebrow">Live platform updates</span>
+                  <h3>Notifications {unreadCount > 0 ? `(${unreadCount})` : ""}</h3>
+                </div>
+                <div className="notification-heading-actions">
+                  {hasUnread && (
+                    <button className="text-button" onClick={markAllAsRead} title="Mark all as read">
+                      <CheckCheck size={14} /> Mark read
+                    </button>
+                  )}
+                  {notifications.length > 0 && (
+                    <button className="text-button" onClick={clearAll} title="Clear all notifications">
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="notification-list">
+                {notifications.length === 0 ? (
+                  <div className="notification-empty">
+                    <CheckCircle2 size={24} />
+                    <strong>All caught up</strong>
+                    <small>No unread notifications. All systems operational.</small>
+                  </div>
+                ) : (
+                  notifications.map(item => (
+                    <Link
+                      key={item.id}
+                      className={`notification-item severity-${item.severity}${item.read ? "" : " unread"}`}
+                      to={item.link}
+                      onClick={() => {
+                        markAsRead(item.id);
+                        setNotificationsOpen(false);
+                      }}
+                    >
+                      {item.severity === "error" ? (
+                        <AlertTriangle size={17} />
+                      ) : item.severity === "warning" ? (
+                        <ShieldAlert size={17} />
+                      ) : item.severity === "success" ? (
+                        <Sparkles size={17} />
+                      ) : item.category === "environment" ? (
+                        <Activity size={17} />
+                      ) : (
+                        <Bell size={17} />
+                      )}
+                      <span>
+                        <strong>{item.title}</strong>
+                        <small>{item.description}</small>
+                        <span className="notification-time">{item.timeLabel}</span>
+                      </span>
+                    </Link>
+                  ))
+                )}
+              </div>
+            </section>
+          )}
         </div>
         <button
           className="icon-button"

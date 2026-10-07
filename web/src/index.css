@@ -590,6 +590,63 @@ kbd {
   line-height: 1.4;
 }
 
+.notification-item.unread {
+  background: rgba(139, 124, 255, 0.06);
+}
+
+.notification-item.unread:hover {
+  background: rgba(139, 124, 255, 0.12);
+}
+
+.notification-item.severity-error > svg {
+  color: #f87171;
+}
+
+.notification-item.severity-warning > svg {
+  color: #fbbf24;
+}
+
+.notification-item.severity-success > svg {
+  color: #34d399;
+}
+
+.notification-item.severity-info > svg {
+  color: #60a5fa;
+}
+
+.notification-time {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.notification-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 36px 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.notification-empty svg {
+  color: #34d399;
+  opacity: 0.85;
+}
+
+.notification-list {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.notification-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .avatar {
   display: grid;
   width: 35px;

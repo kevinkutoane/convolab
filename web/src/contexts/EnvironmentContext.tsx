@@ -4,7 +4,7 @@ import { useAuth } from "./useAuth";
 import { setRuntimeEnvironmentId } from "../services/runtimeEnvironment";
 import { prepareAntiforgery } from "../services/authApi";
 
-interface EnvironmentContextValue {
+export interface EnvironmentContextValue {
   environments: RuntimeEnvironment[];
   activeEnvironment?: RuntimeEnvironment;
   activeEnvironmentId?: string;
