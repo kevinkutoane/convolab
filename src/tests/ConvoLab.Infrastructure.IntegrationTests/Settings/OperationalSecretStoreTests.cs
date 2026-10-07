@@ -2,6 +2,7 @@ using System.Text.Json;
 using Azure;
 using Azure.Identity;
 using Azure.Core;
+using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Operations;
 using ConvoLab.Application.Settings;
 using ConvoLab.Infrastructure.Data;
@@ -403,6 +404,25 @@ public sealed class OperationalSecretStoreTests
                 "docker-secret:updated-reference"
             ],
             store.Invalidated);
+    }
+
+    [Fact]
+    public async Task CreateAsync_with_raw_secret_key_throws_informative_request_validation_exception()
+    {
+        var workspaceId = Guid.NewGuid();
+        var service = new SecretReferenceService(null!, new CapturingInvalidationStore());
+
+        var ex = await Assert.ThrowsAsync<RequestValidationException>(() =>
+            service.CreateAsync(
+                workspaceId,
+                new CreateSecretReferenceRequest("Gemini Key", "AIzaSyDummyRawKeyWithoutColon"),
+                Guid.NewGuid(),
+                "Tester",
+                "corr-1"));
+
+        Assert.Equal("secret_reference.invalid_format", ex.Code);
+        Assert.Contains("provider:key", ex.Message);
+        Assert.Contains(".env", ex.Message);
     }
 
     private sealed class CountingProvider(TimeSpan? delay = null) : ISecretProvider

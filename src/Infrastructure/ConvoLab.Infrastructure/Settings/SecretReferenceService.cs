@@ -12,6 +12,8 @@ public sealed class SecretReferenceService : ISecretReferenceService
     private readonly ApplicationDbContext _db;
     private readonly ISecretStore _secretStore;
 
+    private const string ResourceName = "secret_reference";
+
     public SecretReferenceService(ApplicationDbContext db, ISecretStore secretStore)
     {
         _db = db; _secretStore = secretStore;
@@ -28,7 +30,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
     {
         var record = await _db.SecretReferences.AsNoTracking()
             .SingleOrDefaultAsync(r => r.Id == referenceId && r.WorkspaceId == workspaceId, ct)
-            ?? throw NotFound("secret_reference", referenceId);
+            ?? throw NotFound(ResourceName, referenceId);
         return ToDto(record);
     }
 
@@ -37,7 +39,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
         if (string.IsNullOrWhiteSpace(request.DisplayName) || string.IsNullOrWhiteSpace(request.Reference))
             throw new RequestValidationException("secret_reference.invalid", "Display name and reference are required.");
 
-        SecretReference.ParseReference(request.Reference); // validates format
+        var (provider, _) = ValidateAndParseReference(request.Reference);
 
         var now = DateTimeOffset.UtcNow;
         var record = new SecretReferenceRecord
@@ -46,7 +48,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
             WorkspaceId = workspaceId,
             DisplayName = request.DisplayName.Trim(),
             Reference = request.Reference.Trim(),
-            Provider = SecretReference.ParseReference(request.Reference).provider,
+            Provider = provider,
             Status = "NotValidated",
             CreatedAt = now,
             CreatedBy = actorId,
@@ -62,14 +64,14 @@ public sealed class SecretReferenceService : ISecretReferenceService
     public async Task<SecretReferenceDto> UpdateAsync(Guid workspaceId, Guid referenceId, UpdateSecretReferenceRequest request, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
     {
         var record = await _db.SecretReferences.SingleOrDefaultAsync(r => r.Id == referenceId && r.WorkspaceId == workspaceId, ct)
-            ?? throw NotFound("secret_reference", referenceId);
+            ?? throw NotFound(ResourceName, referenceId);
         if (record.Revision != request.ExpectedRevision) throw new ResourceConflictException("revision.conflict", "The resource changed. Refresh and retry.");
 
-        SecretReference.ParseReference(request.Reference);
+        var (provider, _) = ValidateAndParseReference(request.Reference);
         var previousReference = record.Reference;
         record.DisplayName = request.DisplayName.Trim();
         record.Reference = request.Reference.Trim();
-        record.Provider = SecretReference.ParseReference(request.Reference).provider;
+        record.Provider = provider;
         record.Status = "NotValidated";
         record.UpdatedAt = DateTimeOffset.UtcNow;
         record.UpdatedBy = actorId;
@@ -85,7 +87,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
     public async Task<SecretReferenceDto> ValidateAsync(Guid workspaceId, Guid referenceId, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
     {
         var record = await _db.SecretReferences.SingleOrDefaultAsync(r => r.Id == referenceId && r.WorkspaceId == workspaceId, ct)
-            ?? throw NotFound("secret_reference", referenceId);
+            ?? throw NotFound(ResourceName, referenceId);
 
         var validation = await _secretStore.ValidateAsync(record.Reference, ct);
         var resolved = validation.IsValid;
@@ -105,7 +107,7 @@ public sealed class SecretReferenceService : ISecretReferenceService
     public async Task<SecretReferenceDto> DisableAsync(Guid workspaceId, Guid referenceId, long expectedRevision, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
     {
         var record = await _db.SecretReferences.SingleOrDefaultAsync(r => r.Id == referenceId && r.WorkspaceId == workspaceId, ct)
-            ?? throw NotFound("secret_reference", referenceId);
+            ?? throw NotFound(ResourceName, referenceId);
         if (record.Revision != expectedRevision) throw new ResourceConflictException("revision.conflict", "The resource changed. Refresh and retry.");
 
         record.IsDisabled = true; record.UpdatedAt = DateTimeOffset.UtcNow; record.UpdatedBy = actorId; record.Revision++;
@@ -144,6 +146,20 @@ public sealed class SecretReferenceService : ISecretReferenceService
         new(r.Id, r.WorkspaceId, r.DisplayName, r.Reference, r.Provider,
             r.Status, r.LastValidatedAt, r.LastValidationOutcome,
             r.IsDisabled, r.CreatedAt, r.UpdatedAt, r.Revision);
+
+    private static (string provider, string key) ValidateAndParseReference(string reference)
+    {
+        try
+        {
+            return SecretReference.ParseReference(reference);
+        }
+        catch (ArgumentException)
+        {
+            throw new RequestValidationException(
+                "secret_reference.invalid_format",
+                $"Secret reference '{reference}' is invalid. References must follow the format 'provider:key' (such as 'env:GEMINI_API_KEY', 'docker-secret:...', or 'azure:...'). Raw API keys must be set in your host environment (.env file) or secrets vault, not submitted to the platform.");
+        }
+    }
 
     private static ResourceNotFoundException NotFound(string resource, Guid id) =>
         new($"{resource}.not_found", $"{resource} '{id}' was not found.");

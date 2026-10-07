@@ -1,5 +1,7 @@
 import { lazy, useEffect, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./queryClient";
 import { StudioShell } from "./components/StudioShell";
 import { RouteBoundary } from "./components/AsyncStates";
 import { designTimePlatformStatus, studioPages } from "./data/platform";
@@ -139,12 +141,14 @@ function StudioRoutes() {
 
 function App() {
   return (
-    <HelpProvider>
-      <BrowserRouter>
-        <StudioRoutes />
-        <HelpDrawer />
-      </BrowserRouter>
-    </HelpProvider>
+    <QueryClientProvider client={queryClient}>
+      <HelpProvider>
+        <BrowserRouter>
+          <StudioRoutes />
+          <HelpDrawer />
+        </BrowserRouter>
+      </HelpProvider>
+    </QueryClientProvider>
   );
 }
 

@@ -1,8 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { listIntelligenceExecutions } from "../services/intelligenceApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  listNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  clearAllNotifications,
+  type ApiNotification,
+} from "../services/notificationsApi";
 import type { PlatformStatus } from "../types/platform";
 import type { EnvironmentContextValue } from "../contexts/EnvironmentContext";
+
+export type NotificationSeverity = "info" | "success" | "warning" | "error";
+export type NotificationCategory = "system" | "budget" | "policy" | "execution" | "simulation" | "evaluation" | "knowledge" | "environment";
 
 export interface LiveNotification {
   id: string;
@@ -10,8 +19,8 @@ export interface LiveNotification {
   description: string;
   timestamp: string;
   timeLabel: string;
-  severity: "info" | "success" | "warning" | "error";
-  category: "system" | "execution" | "policy" | "environment";
+  severity: NotificationSeverity;
+  category: NotificationCategory;
   link: string;
   read: boolean;
 }
@@ -20,36 +29,57 @@ export interface InAppNotificationEvent {
   id?: string;
   title: string;
   description: string;
-  severity?: "info" | "success" | "warning" | "error";
-  category?: "system" | "execution" | "policy" | "environment";
+  severity?: NotificationSeverity;
+  category?: NotificationCategory;
   link?: string;
   timestamp?: string;
 }
 
-const READ_STORAGE_KEY = "convolab_read_notifications";
-const DISMISSED_STORAGE_KEY = "convolab_dismissed_notifications";
-
-function getStoredIds(key: string): Set<string> {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? new Set(JSON.parse(raw)) : new Set();
-  } catch {
-    return new Set();
+/**
+ * Strict actionable filter:
+ * 1. Failures & Anomalies: error & warning severities (budget exhaustion, policy blocks, model failures, circuit openings).
+ * 2. System Status: category === 'system' or 'environment' (safe mode, API offline, environment changes).
+ * 3. Task Completions: milestone completions across simulation, evaluation, knowledge indexing, and workflow completion.
+ *
+ * Filters out: routine intermediate successes, token-level calls, and telemetry noise.
+ */
+export function isActionableNotification(notification: {
+  severity: NotificationSeverity;
+  category: NotificationCategory;
+  title: string;
+}): boolean {
+  // 1. Failures and Warnings are always actionable
+  if (notification.severity === "error" || notification.severity === "warning") {
+    return true;
   }
-}
 
-function saveStoredIds(key: string, ids: Set<string>): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(Array.from(ids).slice(-100)));
-  } catch {
-    // Storage quota or privacy mode
+  // 2. System and Environment operational health alerts
+  if (notification.category === "system" || notification.category === "environment") {
+    return true;
   }
+
+  // 3. Asynchronous milestone task completions
+  if (
+    notification.category === "simulation" ||
+    notification.category === "evaluation" ||
+    notification.category === "knowledge"
+  ) {
+    return true;
+  }
+
+  // 4. Terminal workflow/job completions only
+  if (notification.severity === "success") {
+    return /completed|finished|succeeded|done/i.test(notification.title);
+  }
+
+  // Filter out routine successes or unclassified info notices
+  return false;
 }
 
 function formatRelativeTime(dateString: string): string {
   try {
     const diffSeconds = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000);
-    if (isNaN(diffSeconds) || diffSeconds < 30) return "Just now";
+    if (Number.isNaN(diffSeconds) || diffSeconds < 30) return "Just now";
     if (diffSeconds < 60) return `${diffSeconds}s ago`;
     const diffMinutes = Math.floor(diffSeconds / 60);
     if (diffMinutes < 60) return `${diffMinutes}m ago`;
@@ -69,11 +99,134 @@ export function notify(event: InAppNotificationEvent): void {
   window.dispatchEvent(new CustomEvent("convolab:notify", { detail: event }));
 }
 
+function createNotificationId(detailId?: string): string {
+  if (detailId) return detailId;
+  const uniqueSuffix = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}`;
+  return `event-${Date.now()}-${uniqueSuffix}`;
+}
+
+function buildInAppNotifications(
+  inAppList: readonly LiveNotification[],
+  dismissedIds: ReadonlySet<string>,
+  readIds: ReadonlySet<string>,
+  filterActionableOnly: boolean,
+): LiveNotification[] {
+  const result: LiveNotification[] = [];
+  for (const item of inAppList) {
+    if (dismissedIds.has(item.id)) continue;
+    if (filterActionableOnly && !isActionableNotification(item)) continue;
+
+    result.push({
+      ...item,
+      read: item.read || readIds.has(item.id),
+      timeLabel: formatRelativeTime(item.timestamp),
+    });
+  }
+  return result;
+}
+
+function buildSystemHealthNotifications(
+  status: PlatformStatus | undefined,
+  apiOnline: boolean,
+  dismissedIds: ReadonlySet<string>,
+  readIds: ReadonlySet<string>,
+): LiveNotification[] {
+  const result: LiveNotification[] = [];
+
+  if (status?.safeMode) {
+    const id = "system-safe-mode-alert";
+    if (!dismissedIds.has(id)) {
+      result.push({
+        id,
+        title: "Platform Safe Mode Active",
+        description: "External AI execution and exports are restricted by platform policy.",
+        timestamp: status.generatedAt ?? new Date().toISOString(),
+        timeLabel: formatRelativeTime(status.generatedAt ?? new Date().toISOString()),
+        severity: "warning",
+        category: "system",
+        link: "/operations",
+        read: readIds.has(id),
+      });
+    }
+  }
+
+  if (!apiOnline) {
+    const id = "system-api-offline-alert";
+    if (!dismissedIds.has(id)) {
+      result.push({
+        id,
+        title: "Platform API Offline",
+        description: "The Platform API is unreachable. Checking connection...",
+        timestamp: new Date().toISOString(),
+        timeLabel: "Active",
+        severity: "error",
+        category: "system",
+        link: "/operations",
+        read: readIds.has(id),
+      });
+    }
+  }
+
+  return result;
+}
+
+function buildBackendNotifications(
+  backendList: readonly ApiNotification[],
+  dismissedIds: ReadonlySet<string>,
+  readIds: ReadonlySet<string>,
+  filterActionableOnly: boolean,
+): LiveNotification[] {
+  const result: LiveNotification[] = [];
+  for (const item of backendList) {
+    if (item.isDismissed || dismissedIds.has(item.id)) continue;
+    if (filterActionableOnly && !isActionableNotification(item)) continue;
+
+    result.push({
+      id: item.id,
+      title: item.title,
+      description: item.message,
+      timestamp: item.createdAt,
+      timeLabel: formatRelativeTime(item.createdAt),
+      severity: item.severity,
+      category: item.category,
+      link: item.actionUrl,
+      read: item.isRead || readIds.has(item.id),
+    });
+  }
+  return result;
+}
+
+function buildEnvironmentNotification(
+  environment: EnvironmentContextValue,
+  dismissedIds: ReadonlySet<string>,
+  readIds: ReadonlySet<string>,
+): LiveNotification | null {
+  if (!environment.activeEnvironment) return null;
+  const env = environment.activeEnvironment;
+  const id = `env-status-${env.id}`;
+  if (dismissedIds.has(id)) return null;
+
+  return {
+    id,
+    title: `Environment: ${env.name}`,
+    description: `Active ${env.environmentType} workspace environment.`,
+    timestamp: env.createdAt,
+    timeLabel: "Current",
+    severity: "info",
+    category: "environment",
+    link: "/operations",
+    read: readIds.has(id),
+  };
+}
+
 interface UseLiveNotificationsProps {
   readonly status?: PlatformStatus;
   readonly apiOnline: boolean;
   readonly environment: EnvironmentContextValue;
   readonly isAuthenticated: boolean;
+  readonly filterActionableOnly?: boolean;
 }
 
 export function useLiveNotifications({
@@ -81,20 +234,21 @@ export function useLiveNotifications({
   apiOnline,
   environment,
   isAuthenticated,
-}: UseLiveNotificationsProps) {
-  const [readIds, setReadIds] = useState<Set<string>>(() => getStoredIds(READ_STORAGE_KEY));
-  const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => getStoredIds(DISMISSED_STORAGE_KEY));
+  filterActionableOnly = true,
+}: Readonly<UseLiveNotificationsProps>) {
+  const queryClient = useQueryClient();
+  const [localReadIds, setLocalReadIds] = useState<Set<string>>(new Set());
+  const [localDismissedIds, setLocalDismissedIds] = useState<Set<string>>(new Set());
   const [inAppNotifications, setInAppNotifications] = useState<LiveNotification[]>([]);
 
-  // Listen for custom in-app notifications
   useEffect(() => {
     const handler = (event: Event) => {
       const customEvent = event as CustomEvent<InAppNotificationEvent>;
       const detail = customEvent.detail;
-      if (!detail || !detail.title) return;
+      if (!detail?.title) return;
 
       const timestamp = detail.timestamp ?? new Date().toISOString();
-      const id = detail.id ?? `event-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const id = createNotificationId(detail.id);
 
       const newNotification: LiveNotification = {
         id,
@@ -115,113 +269,31 @@ export function useLiveNotifications({
     return () => window.removeEventListener("convolab:notify", handler);
   }, []);
 
-  // Poll for recent live AI executions when authenticated
-  const { data: executions } = useQuery({
-    queryKey: ["live-notifications-executions"],
-    queryFn: () => listIntelligenceExecutions(5),
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+  const { data: backendNotifications = [] } = useQuery<ApiNotification[]>({
+    queryKey: ["workspace-notifications"],
+    queryFn: () => listNotifications(false, 50),
+    staleTime: 10_000,
+    refetchInterval: 20_000,
     retry: false,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && apiOnline,
   });
 
-  // Assemble notifications from live system and operational state
   const notifications = useMemo(() => {
-    const list: LiveNotification[] = [];
+    const inApp = buildInAppNotifications(inAppNotifications, localDismissedIds, localReadIds, filterActionableOnly);
+    const systemHealth = buildSystemHealthNotifications(status, apiOnline, localDismissedIds, localReadIds);
+    const backend = buildBackendNotifications(backendNotifications, localDismissedIds, localReadIds, filterActionableOnly);
 
-    // 1. In-app dynamic notifications
-    for (const item of inAppNotifications) {
-      if (!dismissedIds.has(item.id)) {
-        list.push({
-          ...item,
-          read: readIds.has(item.id),
-          timeLabel: formatRelativeTime(item.timestamp),
-        });
-      }
-    }
+    const list = [...inApp, ...systemHealth, ...backend];
 
-    // 2. SafeMode alert
-    if (status?.safeMode) {
-      const id = "system-safe-mode-alert";
-      if (!dismissedIds.has(id)) {
-        list.push({
-          id,
-          title: "Platform Safe Mode active",
-          description: "External AI execution and exports are blocked by platform policy.",
-          timestamp: status.generatedAt ?? new Date().toISOString(),
-          timeLabel: formatRelativeTime(status.generatedAt ?? new Date().toISOString()),
-          severity: "warning",
-          category: "system",
-          link: "/operations",
-          read: readIds.has(id),
-        });
-      }
-    }
-
-    // 3. API Connectivity issue
-    if (!apiOnline) {
-      const id = "system-api-offline-alert";
-      if (!dismissedIds.has(id)) {
-        list.push({
-          id,
-          title: "Platform API Offline",
-          description: "The Platform API is unreachable. Check container or server status.",
-          timestamp: new Date().toISOString(),
-          timeLabel: "Active",
-          severity: "error",
-          category: "system",
-          link: "/operations",
-          read: readIds.has(id),
-        });
-      }
-    }
-
-    // 4. Recent executions (live runs)
-    if (executions && executions.length > 0) {
-      for (const exec of executions) {
-        const id = `exec-${exec.runId}`;
-        if (dismissedIds.has(id)) continue;
-
-        const isFailed = exec.status === "Failed";
-        list.push({
-          id,
-          title: isFailed
-            ? `AI Run Failed: ${exec.model}`
-            : `AI Run Completed: ${exec.model}`,
-          description: isFailed
-            ? (exec.failureReason ?? `Model execution for ${exec.simulationTitle} encountered an error.`)
-            : `${exec.simulationTitle} · ${exec.totalTokens} tokens · ${exec.durationMs}ms`,
-          timestamp: exec.createdAt,
-          timeLabel: formatRelativeTime(exec.createdAt),
-          severity: isFailed ? "error" : "success",
-          category: "execution",
-          link: "/intelligence",
-          read: readIds.has(id),
-        });
-      }
-    }
-
-    // 5. Active environment notice
-    if (environment.activeEnvironment) {
-      const env = environment.activeEnvironment;
-      const id = `env-status-${env.id}`;
-      if (!dismissedIds.has(id)) {
-        list.push({
-          id,
-          title: `Environment: ${env.name}`,
-          description: `Active ${env.environmentType} workspace environment.`,
-          timestamp: env.createdAt,
-          timeLabel: "Current",
-          severity: "info",
-          category: "environment",
-          link: "/operations",
-          read: readIds.has(id),
-        });
+    if (!list.some(n => n.category === "environment")) {
+      const envNotice = buildEnvironmentNotification(environment, localDismissedIds, localReadIds);
+      if (envNotice) {
+        list.push(envNotice);
       }
     }
 
     return list;
-  }, [inAppNotifications, status, apiOnline, executions, environment.activeEnvironment, readIds, dismissedIds]);
+  }, [inAppNotifications, status, apiOnline, backendNotifications, environment, localReadIds, localDismissedIds, filterActionableOnly]);
 
   const hasUnread = useMemo(() => {
     return notifications.some(item => !item.read);
@@ -232,30 +304,42 @@ export function useLiveNotifications({
   }, [notifications]);
 
   const markAllAsRead = useCallback(() => {
-    const next = new Set(readIds);
+    const next = new Set(localReadIds);
     for (const item of notifications) {
       next.add(item.id);
     }
-    setReadIds(next);
-    saveStoredIds(READ_STORAGE_KEY, next);
-  }, [notifications, readIds]);
+    setLocalReadIds(next);
+
+    if (isAuthenticated && apiOnline) {
+      markAllNotificationsAsRead().catch(() => {});
+      void queryClient.invalidateQueries({ queryKey: ["workspace-notifications"] });
+    }
+  }, [notifications, localReadIds, isAuthenticated, apiOnline, queryClient]);
 
   const markAsRead = useCallback((id: string) => {
-    if (readIds.has(id)) return;
-    const next = new Set(readIds);
+    if (localReadIds.has(id)) return;
+    const next = new Set(localReadIds);
     next.add(id);
-    setReadIds(next);
-    saveStoredIds(READ_STORAGE_KEY, next);
-  }, [readIds]);
+    setLocalReadIds(next);
+
+    if (isAuthenticated && apiOnline) {
+      markNotificationAsRead(id).catch(() => {});
+      void queryClient.invalidateQueries({ queryKey: ["workspace-notifications"] });
+    }
+  }, [localReadIds, isAuthenticated, apiOnline, queryClient]);
 
   const clearAll = useCallback(() => {
-    const next = new Set(dismissedIds);
+    const next = new Set(localDismissedIds);
     for (const item of notifications) {
       next.add(item.id);
     }
-    setDismissedIds(next);
-    saveStoredIds(DISMISSED_STORAGE_KEY, next);
-  }, [notifications, dismissedIds]);
+    setLocalDismissedIds(next);
+
+    if (isAuthenticated && apiOnline) {
+      clearAllNotifications().catch(() => {});
+      void queryClient.invalidateQueries({ queryKey: ["workspace-notifications"] });
+    }
+  }, [notifications, localDismissedIds, isAuthenticated, apiOnline, queryClient]);
 
   return {
     notifications,

@@ -565,6 +565,8 @@ function SecretsTab({ workspaceId }: { workspaceId: string }) {
   const statusIcon = (status: SecretReference["status"]) =>
     status === "Valid" ? <CheckCircle2 size={14} className="ok" /> : status === "NotValidated" ? <History size={14} /> : <XCircle size={14} className="fail" />;
 
+  const isRawSecretPasted = reference.trim().length > 0 && !reference.includes(":");
+
   return (
     <section className="panel">
       <div className="panel-header">
@@ -576,10 +578,15 @@ function SecretsTab({ workspaceId }: { workspaceId: string }) {
       <p className="settings-note">
         Secrets are stored as <em>references</em> (for example <code>env:GEMINI_API_KEY</code>); the platform never stores or displays secret values.
       </p>
-      <form className="workspace-inline-form" onSubmit={(event: FormEvent) => { event.preventDefault(); createMutation.mutate(); }}>
+      <form className="workspace-inline-form" onSubmit={(event: FormEvent) => { event.preventDefault(); if (!isRawSecretPasted) createMutation.mutate(); }}>
         <input aria-label="Display name" placeholder="Gemini production key" value={displayName} onChange={event => setDisplayName(event.target.value)} required />
         <input aria-label="Reference" placeholder="env:GEMINI_API_KEY" value={reference} onChange={event => setReference(event.target.value)} required />
-        <button className="primary-button" disabled={createMutation.isPending}><KeyRound size={15} />{createMutation.isPending ? "Creating…" : "Register reference"}</button>
+        <button className="primary-button" disabled={createMutation.isPending || isRawSecretPasted}><KeyRound size={15} />{createMutation.isPending ? "Creating…" : "Register reference"}</button>
+        {isRawSecretPasted && (
+          <p role="alert" className="settings-error" style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "6px" }}>
+            <AlertTriangle size={14} /> Secret references must follow <code>provider:key</code> format (e.g. <code>env:GEMINI_API_KEY</code>). Do not paste raw keys here; configure <code>GEMINI_API_KEY=your_key</code> in your <code>.env</code> file.
+          </p>
+        )}
         {createMutation.isError && <p role="alert" className="settings-error">{getApiErrorMessage(createMutation.error)}</p>}
       </form>
       {query.isLoading ? (

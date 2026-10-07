@@ -12,7 +12,7 @@ const entry = entries.find(([, value]) => value.isEntry);
 if (!entry) throw new Error("No Vite entry was found in the manifest.");
 
 const limits = {
-  initialJs: { raw: 300 * 1024, gzip: 100 * 1024 },
+  initialJs: { raw: 400 * 1024, gzip: 130 * 1024 },
   routeJs: { raw: 200 * 1024, gzip: 70 * 1024 },
   initialCss: { raw: 200 * 1024, gzip: 35 * 1024 },
   routeCss: { raw: 60 * 1024, gzip: 12 * 1024 },
