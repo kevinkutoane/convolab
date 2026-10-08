@@ -20,22 +20,36 @@ public sealed class RuntimeEnvironmentMiddleware(RequestDelegate next)
         ApplicationDbContext db,
         WorkspaceRequestContext runtime)
     {
-        if (context.User.Identity?.IsAuthenticated != true || !RequiresEnvironment(context.Request))
+        if (context.User.Identity?.IsAuthenticated != true)
         {
             await next(context);
             return;
         }
 
+        var isStrict = RequiresStrictEnvironment(context.Request);
+
         if (!runtime.WorkspaceId.HasValue || !runtime.OrganisationId.HasValue)
-            throw new ResourceConflictException("environment.default_unavailable", "An active workspace is required to resolve a runtime environment.");
+        {
+            if (isStrict)
+                throw new ResourceConflictException("environment.default_unavailable", "An active workspace is required to resolve a runtime environment.");
+
+            await next(context);
+            return;
+        }
 
         var supplied = context.Request.Headers[RequestHeaderName].ToString();
         Guid? requestedId = null;
         if (!string.IsNullOrWhiteSpace(supplied))
         {
             if (!Guid.TryParse(supplied, out var parsed))
-                throw new RequestValidationException("runtime_environment.invalid", "The runtime environment header must contain a valid GUID.");
-            requestedId = parsed;
+            {
+                if (isStrict)
+                    throw new RequestValidationException("runtime_environment.invalid", "The runtime environment header must contain a valid GUID.");
+            }
+            else
+            {
+                requestedId = parsed;
+            }
         }
 
         var query = db.RuntimeEnvironments.AsNoTracking().Where(item =>
@@ -45,30 +59,35 @@ public sealed class RuntimeEnvironmentMiddleware(RequestDelegate next)
             ? await query.SingleOrDefaultAsync(item => item.Id == requestedId.Value, context.RequestAborted)
             : await query.SingleOrDefaultAsync(item => item.IsDefault && item.Status == "Active", context.RequestAborted);
 
-        if (environment is null && requestedId.HasValue)
+        if (environment is null && requestedId.HasValue && isStrict)
             throw new ResourceNotFoundException("environment.not_found", $"Environment '{requestedId}' was not found.");
-        if (environment is null)
+        if (environment is null && isStrict)
             throw new ResourceConflictException("environment.default_unavailable", "The workspace has no active default runtime environment.");
-        if (!string.Equals(environment.Status, "Active", StringComparison.Ordinal))
+        if (environment is not null && !string.Equals(environment.Status, "Active", StringComparison.Ordinal) && isStrict)
             throw new ResourceConflictException("environment.inactive", $"Environment '{environment.Id}' is not active.");
 
-        runtime.EnvironmentId = environment.Id;
-        runtime.EnvironmentName = environment.Name;
-        runtime.EnvironmentType = environment.EnvironmentType;
-        runtime.EnvironmentResolution = requestedId.HasValue
-            ? RuntimeEnvironmentResolution.Explicit
-            : RuntimeEnvironmentResolution.Default;
-        context.Response.Headers[ResponseHeaderName] = environment.Id.ToString();
+        if (environment is not null && string.Equals(environment.Status, "Active", StringComparison.Ordinal))
+        {
+            runtime.EnvironmentId = environment.Id;
+            runtime.EnvironmentName = environment.Name;
+            runtime.EnvironmentType = environment.EnvironmentType;
+            runtime.EnvironmentResolution = requestedId.HasValue
+                ? RuntimeEnvironmentResolution.Explicit
+                : RuntimeEnvironmentResolution.Default;
+            context.Response.Headers[ResponseHeaderName] = environment.Id.ToString();
+        }
+
         await next(context);
     }
 
-    private static bool RequiresEnvironment(HttpRequest request)
+    private static bool RequiresStrictEnvironment(HttpRequest request)
     {
         if (HttpMethods.IsGet(request.Method) || HttpMethods.IsHead(request.Method)) return false;
         var path = request.Path.Value ?? string.Empty;
         return path.StartsWith("/api/simulations", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/api/evaluation", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("/api/replay", StringComparison.OrdinalIgnoreCase)
-            || path.StartsWith("/api/plugins", StringComparison.OrdinalIgnoreCase);
+            || path.StartsWith("/api/plugins", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("/api/intelligence", StringComparison.OrdinalIgnoreCase);
     }
 }

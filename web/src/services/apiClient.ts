@@ -22,19 +22,20 @@ export const api = axios.create({
   xsrfCookieName: "",  // Disable axios auto-XSRF; our interceptor sends the correct request token
 });
 
-function isEnvironmentAwareRequest(url?: string, method?: string) {
-  if (!url || ["GET", "HEAD", "OPTIONS", "TRACE"].includes((method ?? "GET").toUpperCase())) return false;
+function isEnvironmentAwareRequest(url?: string) {
+  if (!url) return false;
   return url.startsWith("/api/simulations")
     || url.startsWith("/api/evaluation")
     || url.startsWith("/api/replay")
-    || url.startsWith("/api/plugins");
+    || url.startsWith("/api/plugins")
+    || url.startsWith("/api/intelligence");
 }
 
 api.interceptors.request.use((config) => {
   const method = (config.method ?? "get").toUpperCase();
   const unsafeMethod = !["GET", "HEAD", "OPTIONS", "TRACE"].includes(method);
   const runtimeEnvironmentId = getRuntimeEnvironmentId();
-  if (runtimeEnvironmentId && isEnvironmentAwareRequest(config.url, method)) {
+  if (runtimeEnvironmentId && isEnvironmentAwareRequest(config.url)) {
     config.headers.set("X-ConvoLab-Environment-Id", runtimeEnvironmentId);
   }
   if (!unsafeMethod) return config;

@@ -24,6 +24,18 @@ public sealed class PersistedIntelligenceStudioConfiguration(
         var model = Text(SettingKeys.AiModel, "gemini-2.5-flash");
         var secretReference = Text(SettingKeys.AiSecretReference, "");
         var providerEnabled = Boolean(SettingKeys.AiProviderEnabled, true);
+
+        if (string.IsNullOrWhiteSpace(secretReference) && runtime.WorkspaceId.HasValue)
+        {
+            secretReference = db.SecretReferences.AsNoTracking()
+                .Where(item => item.WorkspaceId == runtime.WorkspaceId.Value
+                    && item.Reference == "env:GEMINI_API_KEY"
+                    && !item.IsDisabled
+                    && item.Status != "Missing")
+                .Select(item => item.Reference)
+                .FirstOrDefault() ?? "";
+        }
+
         var geminiConfigured = providerEnabled
             && !string.IsNullOrWhiteSpace(secretReference)
             && db.SecretReferences.AsNoTracking().Any(item =>
@@ -95,6 +107,13 @@ public sealed class PersistedIntelligenceStudioConfiguration(
         var organisationId = runtime.OrganisationId;
         var workspaceId = runtime.WorkspaceId;
         var environmentId = runtime.EnvironmentId;
+        if (!environmentId.HasValue && workspaceId.HasValue)
+        {
+            environmentId = db.RuntimeEnvironments.AsNoTracking()
+                .Where(item => item.WorkspaceId == workspaceId.Value && item.IsDefault && item.Status == "Active")
+                .Select(item => (Guid?)item.Id)
+                .FirstOrDefault();
+        }
         if (!organisationId.HasValue || !workspaceId.HasValue || !environmentId.HasValue)
             return cached = [];
         return cached = effective.ResolveAsync(

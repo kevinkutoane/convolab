@@ -2,7 +2,7 @@ import { useHelp } from "../contexts/HelpContext";
 import { useMemo, useState } from "react";
 import { AdaptiveWorkspace } from "../components/StudioPrimitives";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   AlertTriangle,
   Bot,
@@ -153,8 +153,14 @@ export function ConversationSimulatorPage() {
 
   const apiUnavailable = Boolean(optionsQuery.error || listQuery.error);
   const isExecuting = sendMutation.isPending || replayMutation.isPending;
-  const availableProviders = (optionsQuery.data?.providers ?? []).filter(item => item.isConfigured);
-  const selectedProvider = optionsQuery.data?.providers.find(item => item.key === provider);
+  const availableProviders = optionsQuery.data?.providers ?? [];
+  const selectedProvider = availableProviders.find(item => item.key === provider);
+  const modelChoices = useMemo(() => {
+    if (provider === "Gemini") {
+      return ["gemini-2.5-flash", "gemini-1.5-pro", "gemini-1.5-flash"];
+    }
+    return ["convolab-deterministic-primary", "convolab-deterministic-fallback"];
+  }, [provider]);
 
   const handleCreate = () => createMutation.mutate(createRequest);
   const handleSend = () => {
@@ -209,19 +215,27 @@ export function ConversationSimulatorPage() {
         <section className="panel provider-controls-panel">
           <div className="panel-header"><div><span className="panel-eyebrow">Intelligence runtime</span><h3>Provider configuration</h3></div><span className={`runtime-chip ${provider === "Gemini" && !optionsQuery.data?.providers.find(item => item.key === "Gemini")?.isConfigured ? "runtime-offline" : ""}`}><span />{provider === "Gemini" ? "Live provider" : "Safe deterministic mode"}</span></div>
           <div className="provider-control-grid">
-            {availableProviders.length > 1 ? (
-              <label>Provider<select value={provider} onChange={event => { const next = event.target.value; setProvider(next); const option = optionsQuery.data?.providers.find(item => item.key === next); if (option) setModel(option.defaultModel); }}>{availableProviders.map(item => <option key={item.key} value={item.key}>{item.displayName}</option>)}</select></label>
-            ) : (
-              <div className="singleton-context"><span>Provider</span><strong>{availableProviders[0]?.displayName ?? "Unavailable"}</strong></div>
-            )}
-            <div className="singleton-context"><span>Model</span><strong>{model}</strong></div>
+            <label>Provider<select value={provider} onChange={event => { const next = event.target.value; setProvider(next); const option = availableProviders.find(item => item.key === next); if (option) setModel(option.defaultModel); }}>{availableProviders.map(item => <option key={item.key} value={item.key}>{item.displayName} {item.isConfigured ? "(Ready)" : "(Setup required)"}</option>)}</select></label>
+
+
+
+
+            <label>Model<select value={model} onChange={event => setModel(event.target.value)}>{modelChoices.map(item => <option key={item} value={item}>{item}</option>)}</select></label>
             <label>Temperature<input type="number" min="0" max="2" step="0.1" value={temperature} onChange={event => setTemperature(Number(event.target.value))} /></label>
             <label>Max output tokens<input type="number" min="32" max="8192" step="32" value={maxOutputTokens} onChange={event => setMaxOutputTokens(Number(event.target.value))} /></label>
           </div>
           {!selectedProvider?.isLive && (
             <p className="provider-explainer"><strong>Local test provider.</strong> ConvoLab Deterministic returns repeatable rule-based responses with synthetic tokens, latency, and cost. It uses no external model or API key and is intended for reliable workflow testing.</p>
           )}
-          {provider === "Gemini" && !optionsQuery.data?.providers.find(item => item.key === "Gemini")?.isConfigured && <p className="provider-warning">Gemini is disabled until <code>GEMINI_API_KEY</code> is set on the API host. Keys are never sent to or stored by the browser.</p>}
+          {provider === "Gemini" && !optionsQuery.data?.providers.find(item => item.key === "Gemini")?.isConfigured && (
+            <p className="provider-warning" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <AlertTriangle size={15} />
+              <span>
+                Gemini requires <code>GEMINI_API_KEY</code> in your <code>.env</code> file. Configure and validate the reference in{" "}
+                <Link to="/settings" style={{ color: "inherit", textDecoration: "underline", fontWeight: 600 }}>Settings → AI Provider</Link>.
+              </span>
+            </p>
+          )}
         </section>
       )}
 

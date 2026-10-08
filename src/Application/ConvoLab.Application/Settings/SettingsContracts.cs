@@ -194,6 +194,7 @@ public interface ISettingsService
 public interface IProviderValidationService
 {
     Task<ProviderValidationResultDto> ValidateAsync(Guid workspaceId, Guid environmentId, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default);
+    Task<ProviderValidationResultDto> ValidateAsync(Guid workspaceId, Guid environmentId, Guid actorId, string actorDisplay, string correlationId, string? providerOverride, CancellationToken ct = default);
 }
 
 public interface ISecretReferenceService

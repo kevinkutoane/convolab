@@ -175,7 +175,16 @@ export function IntelligenceCenterPage() {
                   <span className={`runtime-badge ${provider.isConfigured ? "runtime-ready" : "runtime-blocked"}`}>{provider.status}</span>
                 </div>
                 {!provider.isLive && <p className="provider-explainer compact"><strong>Repeatable by design.</strong> Rule-based responses and synthetic usage make this adapter safe for workflow and recovery testing; no external model or key is used.</p>}
-                {!provider.isConfigured && <p className="provider-warning"><CircleAlert size={14} /> {provider.configurationHint}</p>}
+                {!provider.isConfigured && (
+                  <div className="provider-warning" style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <CircleAlert size={14} /> <span>{provider.configurationHint}</span>
+                    </div>
+                    <Link to="/settings" style={{ fontSize: "12px", textDecoration: "underline", fontWeight: 600, color: "inherit", marginLeft: "20px" }}>
+                      Go to Settings → AI Provider
+                    </Link>
+                  </div>
+                )}
                 <div className="provider-model-list">
                   {provider.models.map(model => <ModelSummary key={model.key} model={model} />)}
                 </div>

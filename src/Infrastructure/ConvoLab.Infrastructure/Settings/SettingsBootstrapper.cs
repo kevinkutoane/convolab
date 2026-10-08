@@ -83,27 +83,28 @@ public sealed class SettingsBootstrapper
 
     private async Task EnsureDevelopmentEnvironmentAsync(Guid workspaceId, Guid organisationId, CancellationToken ct)
     {
-        var exists = await _db.RuntimeEnvironments.AnyAsync(e => e.WorkspaceId == workspaceId, ct);
-        if (exists) return;
-
+        var environment = await _db.RuntimeEnvironments.FirstOrDefaultAsync(e => e.WorkspaceId == workspaceId && e.IsDefault, ct);
         var now = DateTimeOffset.UtcNow;
-        var environment = new RuntimeEnvironmentRecord
+        if (environment is null)
         {
-            Id = Guid.NewGuid(),
-            OrganisationId = organisationId,
-            WorkspaceId = workspaceId,
-            Name = "Development",
-            Slug = "development",
-            EnvironmentType = "Development",
-            Description = "Default development environment.",
-            Status = "Active",
-            IsDefault = true,
-            CreatedAt = now,
-            CreatedBy = SystemActor,
-            UpdatedAt = now,
-            Revision = 1
-        };
-        _db.RuntimeEnvironments.Add(environment);
+            environment = new RuntimeEnvironmentRecord
+            {
+                Id = Guid.NewGuid(),
+                OrganisationId = organisationId,
+                WorkspaceId = workspaceId,
+                Name = "Development",
+                Slug = "development",
+                EnvironmentType = "Development",
+                Description = "Default development environment.",
+                Status = "Active",
+                IsDefault = true,
+                CreatedAt = now,
+                CreatedBy = SystemActor,
+                UpdatedAt = now,
+                Revision = 1
+            };
+            _db.RuntimeEnvironments.Add(environment);
+        }
 
         var hasGeminiKey = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("GEMINI_API_KEY"))
             || !string.IsNullOrWhiteSpace(_config["GEMINI_API_KEY"])

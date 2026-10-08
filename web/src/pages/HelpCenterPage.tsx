@@ -50,10 +50,11 @@ const screenGuides = [
     path: "/conversations",
     summary: "A chat window where you can talk to your AI and test how it behaves before it goes live.",
     details: [
-      "Click '+ New simulation' to start a new test chat.",
-      "Pick the rules, instructions, and documents you want the AI to use.",
-      "Type a message and see how the AI responds.",
-      "Open the 'Inspector' tab on the right to look under the hood and see exactly why the AI answered the way it did."
+      "Click '+ New simulation' to start a new test chat session.",
+      "Select your AI Provider (ConvoLab Deterministic or Google Gemini) and pick your Model.",
+      "Pick the workflow, prompt version, and knowledge collection for the simulation.",
+      "Type a message and see how the AI responds with citations and token metrics.",
+      "Open the 'Inspector' tab on the right to look under the hood and inspect the trace, retrieved knowledge, and rendered prompt."
     ],
     role: "All Roles"
   },
@@ -104,12 +105,13 @@ const screenGuides = [
     title: "Intelligence Center",
     icon: BrainCircuit,
     path: "/intelligence",
-    summary: "A dashboard to monitor your AI providers (like OpenAI) to ensure they are fast, cheap, and working properly.",
+    summary: "A dashboard to monitor your AI providers (like Google Gemini) to ensure they are fast, cheap, and working properly.",
     details: [
-      "Run tests to check if your AI providers are online.",
-      "Use 'Preview plan' to see how much a message will cost before you actually send it.",
-      "Look at recent chats to check how long they took and how much they cost.",
-      "Set up backup AI models that automatically take over if the main one goes offline."
+      "Review provider status: ConvoLab Deterministic (local test mode) and Google Gemini (live external provider).",
+      "Click 'Test connection' to run a live health check confirming connectivity, authentication, and response latency.",
+      "See which models are available (e.g. gemini-2.5-flash) and their token limits and pricing.",
+      "Use 'Preview plan' to see how much a message will cost and which model will be selected before sending.",
+      "If a provider displays 'Not configured', click the link to configure ai.secret_reference in Settings → AI Provider."
     ],
     role: "Administrator, Engineer, Operator"
   },
@@ -217,10 +219,11 @@ const screenGuides = [
     path: "/settings",
     summary: "General settings for your workspace and technical environments.",
     details: [
-      "Manage different environments (like a testing area vs a live production area).",
-      "Add your secret keys and passwords for AI providers.",
-      "Set a budget limit to make sure your AI doesn't spend too much money.",
-      "Turn experimental features on or off."
+      "Manage runtime environments (e.g., Development, Staging, Production) and control the active default.",
+      "'AI Provider' tab: Link ai.secret_reference (e.g. env:GEMINI_API_KEY) and model, then click 'Validate provider' to test.",
+      "'Secrets' tab: Register named secret references (env:VAR_NAME) adhering to the zero-secret storage model.",
+      "Set monthly ZAR budget limits and configure trace retention and quality gate thresholds.",
+      "Turn experimental features and governance enforcement on or off."
     ],
     role: "Administrator"
   },
@@ -333,6 +336,41 @@ export function HelpCenterPage() {
                 <div>
                   <h4>Simulate and Trace</h4>
                   <p>Open the <strong>Conversation Simulator</strong>, select your workflow, and send a message. Check the Inspector panel to see exactly what knowledge was retrieved and how many tokens were used.</p>
+                </div>
+              </div>
+            </div>
+
+            <h3 style={{marginTop: "40px"}}>Connecting an External AI Provider (Google Gemini)</h3>
+            <p style={{color: "var(--text-secondary)", marginBottom: "16px"}}>
+              ConvoLab operates on a zero-secret storage architecture: raw API keys are never stored in the database. Follow these steps to connect and verify live models:
+            </p>
+            <div className="ai-layer-flow">
+              <div className="ai-flow-step">
+                <div className="ai-flow-number">1</div>
+                <div>
+                  <h4>Set Host Environment Variable</h4>
+                  <p>Add <code>GEMINI_API_KEY=your_key_here</code> to your root <code>.env</code> file or server environment. When using Docker, restart or rebuild the api container to load the variable.</p>
+                </div>
+              </div>
+              <div className="ai-flow-step">
+                <div className="ai-flow-number">2</div>
+                <div>
+                  <h4>Register Secret Reference</h4>
+                  <p>In <strong>Workspace Administration</strong> → <strong>Settings</strong> → <strong>API Keys & Secrets</strong> (or <strong>Settings</strong> → <strong>Secrets</strong>), ensure a reference named <code>Google Gemini API Key</code> points to <code>env:GEMINI_API_KEY</code>.</p>
+                </div>
+              </div>
+              <div className="ai-flow-step">
+                <div className="ai-flow-number">3</div>
+                <div>
+                  <h4>Link in Runtime Settings</h4>
+                  <p>Navigate to <strong>Settings</strong> → <strong>AI Provider</strong>. Verify <code>ai.provider</code> is <code>Gemini</code>, <code>ai.secret_reference</code> is <code>env:GEMINI_API_KEY</code>, and click <strong>Validate provider</strong> to test connectivity.</p>
+                </div>
+              </div>
+              <div className="ai-flow-step">
+                <div className="ai-flow-number">4</div>
+                <div>
+                  <h4>Test in Intelligence Center & Simulator</h4>
+                  <p>In <strong>Intelligence Center</strong>, click <strong>Test connection</strong> to check live health. Then head to <strong>Conversation Simulator</strong>, switch Provider to <strong>Google Gemini</strong>, choose your model, and run live simulations.</p>
                 </div>
               </div>
             </div>

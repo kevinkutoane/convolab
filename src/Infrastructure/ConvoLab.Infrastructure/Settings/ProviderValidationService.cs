@@ -38,8 +38,12 @@ public sealed class ProviderValidationService : IProviderValidationService
         _operationalState = operationalState;
     }
 
-    public async Task<ProviderValidationResultDto> ValidateAsync(
+    public Task<ProviderValidationResultDto> ValidateAsync(
         Guid workspaceId, Guid environmentId, Guid actorId, string actorDisplay, string correlationId, CancellationToken ct = default)
+        => ValidateAsync(workspaceId, environmentId, actorId, actorDisplay, correlationId, null, ct);
+
+    public async Task<ProviderValidationResultDto> ValidateAsync(
+        Guid workspaceId, Guid environmentId, Guid actorId, string actorDisplay, string correlationId, string? providerOverride, CancellationToken ct = default)
     {
         var ws = await _db.Workspaces.AsNoTracking().SingleOrDefaultAsync(w => w.Id == workspaceId, ct)
             ?? throw new ResourceNotFoundException("workspace.not_found", $"Workspace '{workspaceId}' was not found.");
@@ -74,11 +78,21 @@ public sealed class ProviderValidationService : IProviderValidationService
         var effective = await _resolver.ResolveAsync(ws.OrganisationId, workspaceId, environmentId, ct);
         string? Get(string key) => effective.FirstOrDefault(r => r.Key == key)?.EffectiveValue?.Trim('"');
 
-        var provider = Get(SettingKeys.AiProvider) ?? "Gemini";
+        var provider = providerOverride ?? Get(SettingKeys.AiProvider) ?? "Gemini";
         var model = Get(SettingKeys.AiModel) ?? "gemini-2.5-flash";
         var enabled = bool.TryParse(Get(SettingKeys.AiProviderEnabled), out var e2) && e2;
         var timeoutSeconds = int.TryParse(Get(SettingKeys.AiRequestTimeoutSeconds), out var t) ? Math.Clamp(t, 5, 300) : 30;
         var secretReference = Get(SettingKeys.AiSecretReference);
+        if (string.IsNullOrWhiteSpace(secretReference) && provider.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
+        {
+            secretReference = await _db.SecretReferences.AsNoTracking()
+                .Where(item => item.WorkspaceId == workspaceId
+                    && item.Reference == "env:GEMINI_API_KEY"
+                    && !item.IsDisabled
+                    && item.Status != "Missing")
+                .Select(item => item.Reference)
+                .FirstOrDefaultAsync(ct);
+        }
 
         var result = await ValidateCoreAsync(provider, model, enabled, timeoutSeconds, secretReference, stopwatch, ct);
         await RecordAuditAsync(ws.OrganisationId, workspaceId, environmentId, result, actorId, actorDisplay, correlationId, ct);

@@ -48,7 +48,8 @@ public sealed class IntelligenceProvidersController : ControllerBase
             _runtime.ActorId ?? Guid.Empty,
             _runtime.ActorType,
             _runtime.CorrelationId,
-            cancellationToken);
+            providerOverride: provider,
+            ct: cancellationToken);
         return Ok(result);
     }
 }

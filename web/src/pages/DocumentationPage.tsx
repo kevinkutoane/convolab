@@ -146,6 +146,30 @@ const topics = {
       "GET /api/audit/export",
     ],
   },
+  intelligence: {
+    title: "Intelligence Center",
+    summary: "Monitor provider health, manage multi-model execution plans, enforce ZAR budgets, and test live AI provider adapters.",
+    capabilities: [
+      "Provider-neutral runtime adapters for ConvoLab Deterministic and Google Gemini.",
+      "Zero-secret architecture: API keys resolve securely from environment variables via secret references (e.g. env:GEMINI_API_KEY).",
+      "Live connection testing and latency probing without consuming LLM generation tokens.",
+      "Execution plan pre-flight checks, fallback model configuration, and monthly ZAR budget admission.",
+    ],
+    workflow: [
+      "Set GEMINI_API_KEY in host environment or root .env file.",
+      "Register secret reference in Workspace Administration → Settings → Secrets.",
+      "Link ai.secret_reference and select default model in Settings → AI Provider.",
+      "Run Test connection in Intelligence Center to verify live health and latency.",
+      "Select Google Gemini and chosen model in Conversation Simulator to execute live conversations.",
+    ],
+    endpoints: [
+      "GET /api/intelligence/overview",
+      "GET /api/intelligence/providers",
+      "POST /api/intelligence/providers/{provider}/test",
+      "GET /api/intelligence/executions?limit=100",
+      "POST /api/intelligence/plan-preview",
+    ],
+  },
 } as const;
 
 const workspacePaths: Record<keyof typeof topics, string> = {
@@ -158,6 +182,7 @@ const workspacePaths: Record<keyof typeof topics, string> = {
   analytics: "/analytics",
   settings: "/settings",
   audit: "/audit",
+  intelligence: "/intelligence",
 };
 
 export function DocumentationPage() {
