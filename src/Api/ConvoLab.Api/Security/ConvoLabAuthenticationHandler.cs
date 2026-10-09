@@ -73,7 +73,7 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
     {
         var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
             ?? _config["Infobip:WebhookSecret"]
-            ?? InfobipWebhookSecurity.DefaultSecret;
+            ?? string.Empty;
 
         Request.EnableBuffering();
         Request.Body.Position = 0;
