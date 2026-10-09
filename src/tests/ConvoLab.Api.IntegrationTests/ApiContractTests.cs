@@ -17,6 +17,7 @@ using Xunit.Abstractions;
 
 namespace ConvoLab.Api.IntegrationTests;
 
+[Collection("ConvoLabApi")]
 public sealed class ApiContractTests : IClassFixture<ConvoLabApiFactory>
 {
     private readonly HttpClient _client;
@@ -1241,3 +1242,6 @@ public sealed class ConvoLabApiFactory : WebApplicationFactory<Program>
         });
     }
 }
+
+[CollectionDefinition("ConvoLabApi", DisableParallelization = true)]
+public sealed class ConvoLabApiCollection;

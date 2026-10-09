@@ -7,6 +7,7 @@ using Xunit.Abstractions;
 
 namespace ConvoLab.Api.IntegrationTests;
 
+[Collection("ConvoLabApi")]
 public sealed class InfobipWebhookTests : IClassFixture<ConvoLabApiFactory>
 {
     private const string TestWebhookSecret = "test-infobip-secret";

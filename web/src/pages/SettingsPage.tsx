@@ -584,7 +584,7 @@ function SecretsTab({ workspaceId }: { workspaceId: string }) {
         <button className="primary-button" disabled={createMutation.isPending || isRawSecretPasted}><KeyRound size={15} />{createMutation.isPending ? "Creating…" : "Register reference"}</button>
         {isRawSecretPasted && (
           <p role="alert" className="settings-error" style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "6px" }}>
-            <AlertTriangle size={14} /> Secret references must follow <code>provider:key</code> format (e.g. <code>env:GEMINI_API_KEY</code>). Do not paste raw keys here; configure <code>GEMINI_API_KEY=your_key</code> in your <code>.env</code> file.
+            <AlertTriangle size={14} /> Secret references must follow <code>provider:key</code> format (e.g. <code>env:GEMINI_API_KEY</code>). Do not paste raw keys here; configure <code>GEMINI_API_KEY={"<your_key>"}</code> in your <code>.env</code> file.
           </p>
         )}
         {createMutation.isError && <p role="alert" className="settings-error">{getApiErrorMessage(createMutation.error)}</p>}

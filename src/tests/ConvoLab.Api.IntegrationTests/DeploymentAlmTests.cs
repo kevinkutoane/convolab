@@ -5,6 +5,7 @@ using ConvoLab.Application.Operations.Deployment;
 
 namespace ConvoLab.Api.IntegrationTests;
 
+[Collection("ConvoLabApi")]
 public sealed class DeploymentAlmTests : IClassFixture<ConvoLabApiFactory>
 {
     private readonly ConvoLabApiFactory _factory;

@@ -349,7 +349,7 @@ export function HelpCenterPage() {
                 <div className="ai-flow-number">1</div>
                 <div>
                   <h4>Set Host Environment Variable</h4>
-                  <p>Add <code>GEMINI_API_KEY=your_key_here</code> to your root <code>.env</code> file or server environment. When using Docker, restart or rebuild the api container to load the variable.</p>
+                  <p>Add <code>GEMINI_API_KEY={"<your_key_here>"}</code> to your root <code>.env</code> file or server environment. When using Docker, restart or rebuild the api container to load the variable.</p>
                 </div>
               </div>
               <div className="ai-flow-step">

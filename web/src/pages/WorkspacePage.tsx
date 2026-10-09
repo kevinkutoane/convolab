@@ -636,7 +636,7 @@ function WorkspaceSecretsForm({
       {isRawSecretPasted && (
         <p className="ws-error" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           <AlertTriangle size={14} />
-          Secret references must follow <code>provider:key</code> format (e.g. <code>env:GEMINI_API_KEY</code>). Do not paste raw keys here; set <code>GEMINI_API_KEY=your_key</code> in your <code>.env</code> file.
+          Secret references must follow <code>provider:key</code> format (e.g. <code>env:GEMINI_API_KEY</code>). Do not paste raw keys here; set <code>GEMINI_API_KEY={"<your_key>"}</code> in your <code>.env</code> file.
         </p>
       )}
       {mutation.isError && <p className="ws-error">{getApiErrorMessage(mutation.error)}</p>}

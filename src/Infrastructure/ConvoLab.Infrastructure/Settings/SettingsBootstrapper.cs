@@ -42,8 +42,15 @@ public sealed class SettingsBootstrapper
             await EnsureGeminiSecretReferenceAsync(workspace.Id, ct);
         }
 
-        await _db.SaveChangesAsync(ct);
-        _logger.LogInformation("SettingsBootstrapper: processed {Count} workspace(s).", workspaces.Count);
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+            _logger.LogInformation("SettingsBootstrapper: processed {Count} workspace(s).", workspaces.Count);
+        }
+        catch (DbUpdateException ex)
+        {
+            _logger.LogInformation(ex, "SettingsBootstrapper: concurrent bootstrap conflict detected; idempotent state preserved.");
+        }
     }
 
     private async Task EnsureStudioDefinitionMetadataAsync(CancellationToken ct)
