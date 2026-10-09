@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using ConvoLab.Api.Security;
@@ -11,6 +10,7 @@ using ConvoLab.Infrastructure.WorkspaceIdentity;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ConvoLab.Api.Controllers;
 
@@ -24,19 +24,22 @@ public sealed class InfobipWebhookController : ControllerBase
     private readonly IConfiguration _config;
     private readonly ILogger<InfobipWebhookController> _logger;
 
-    private static readonly ConcurrentDictionary<string, DateTimeOffset> ProcessedMessagesCache = new();
+    private static readonly TimeSpan ProcessedMessageCacheDuration = TimeSpan.FromMinutes(30);
+    private readonly IMemoryCache _processedMessagesCache;
 
     public InfobipWebhookController(
         IOmnichannelService omnichannelService,
         ApplicationDbContext db,
         WorkspaceRequestContext runtime,
         IConfiguration config,
+        IMemoryCache processedMessagesCache,
         ILogger<InfobipWebhookController> logger)
     {
         _omnichannelService = omnichannelService;
         _db = db;
         _runtime = runtime;
         _config = config;
+        _processedMessagesCache = processedMessagesCache;
         _logger = logger;
     }
 
@@ -58,7 +61,7 @@ public sealed class InfobipWebhookController : ControllerBase
 
         var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
             ?? _config["Infobip:WebhookSecret"]
-            ?? InfobipWebhookSecurity.DefaultSecret;
+            ?? string.Empty;
 
         if (!InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret))
         {
@@ -132,7 +135,8 @@ public sealed class InfobipWebhookController : ControllerBase
         _runtime.EnvironmentName = tenantContext.EnvironmentName;
         _runtime.EnvironmentType = tenantContext.EnvironmentType;
 
-        var deduplicationKey = $"webhook:infobip:{messageId}";
+        var workspaceScope = tenantContext.WorkspaceId.ToString("N");
+        var deduplicationKey = $"webhook:infobip:{workspaceScope}:{messageId}";
         if (await IsDuplicateDeliveryAsync(deduplicationKey, tenantContext, cancellationToken))
         {
             return (CreateDuplicateResponse(messageId, sender), null);
@@ -149,11 +153,13 @@ public sealed class InfobipWebhookController : ControllerBase
             ChannelMetadata: new Dictionary<string, string>
             {
                 ["provider"] = "Infobip",
+                ["workspaceId"] = workspaceScope,
                 ["rawSender"] = sender ?? ""
             },
             ReceivedAt: DateTimeOffset.UtcNow);
 
         var processResult = await _omnichannelService.ProcessInboundAsync(envelope, cancellationToken);
+        await RecordProcessedDeliveryAsync(deduplicationKey, tenantContext, cancellationToken);
         return (new
         {
             messageId,
@@ -182,23 +188,37 @@ public sealed class InfobipWebhookController : ControllerBase
         TenantResolutionResult tenantContext,
         CancellationToken cancellationToken)
     {
-        if (ProcessedMessagesCache.TryGetValue(deduplicationKey, out _))
+        if (_processedMessagesCache.TryGetValue(deduplicationKey, out _))
         {
-            _logger.LogInformation("Duplicate webhook delivery detected (in-memory) for messageId '{Key}'. Ignoring retry.", deduplicationKey);
+            _logger.LogInformation(
+                "Duplicate webhook delivery detected (memory cache) for key '{Key}'. Ignoring retry.",
+                deduplicationKey);
             return true;
         }
 
         var alreadyProcessed = await _db.AnalyticsEvents.AsNoTracking()
-            .AnyAsync(e => e.EventKey == deduplicationKey, cancellationToken);
+            .AnyAsync(e => e.EventKey == deduplicationKey
+                && e.WorkspaceId == tenantContext.WorkspaceId
+                && e.EventType == "WebhookDeliveryProcessed"
+                && e.Outcome == "Success", cancellationToken);
 
-        if (alreadyProcessed)
-        {
-            ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
-            _logger.LogInformation("Duplicate webhook delivery detected (database) for messageId '{Key}'. Ignoring retry.", deduplicationKey);
-            return true;
-        }
+        if (!alreadyProcessed)
+            return false;
 
-        var deduplicationEvent = new AnalyticsEventRecord
+        CacheProcessedDelivery(deduplicationKey);
+        _logger.LogInformation(
+            "Duplicate webhook delivery detected (database) for key '{Key}'. Ignoring retry.",
+            deduplicationKey);
+        return true;
+    }
+
+    private async Task RecordProcessedDeliveryAsync(
+        string deduplicationKey,
+        TenantResolutionResult tenantContext,
+        CancellationToken cancellationToken)
+    {
+        // This durable success marker is deliberately written only after ProcessInboundAsync completes.
+        var deliveryEvent = new AnalyticsEventRecord
         {
             Id = Guid.NewGuid(),
             EventKey = deduplicationKey,
@@ -216,20 +236,65 @@ public sealed class InfobipWebhookController : ControllerBase
             OccurredAt = DateTimeOffset.UtcNow
         };
 
-        _db.AnalyticsEvents.Add(deduplicationEvent);
-
+        _db.AnalyticsEvents.Add(deliveryEvent);
         try
         {
             await _db.SaveChangesAsync(cancellationToken);
-            ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
-            return false;
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex)
         {
-            _logger.LogWarning("Concurrent duplicate delivery caught by unique constraint for key '{Key}'.", deduplicationKey);
-            ProcessedMessagesCache.TryAdd(deduplicationKey, DateTimeOffset.UtcNow);
-            return true;
+            _db.Entry(deliveryEvent).State = EntityState.Detached;
+            try
+            {
+                var markerExists = await _db.AnalyticsEvents.AsNoTracking()
+                    .AnyAsync(e => e.EventKey == deduplicationKey
+                        && e.WorkspaceId == tenantContext.WorkspaceId,
+                        CancellationToken.None);
+
+                if (markerExists)
+                {
+                    _logger.LogInformation(
+                        "Delivery marker for '{Key}' already exists after concurrent processing.",
+                        deduplicationKey);
+                }
+                else
+                {
+                    _logger.LogError(
+                        ex,
+                        "Inbound message was processed, but its durable delivery marker could not be saved for '{Key}'.",
+                        deduplicationKey);
+                }
+            }
+            catch (Exception lookupException)
+            {
+                _logger.LogError(
+                    lookupException,
+                    "Could not verify the durable delivery marker for successfully processed message '{Key}'.",
+                    deduplicationKey);
+            }
         }
+        catch (Exception ex)
+        {
+            _db.Entry(deliveryEvent).State = EntityState.Detached;
+            _logger.LogError(
+                ex,
+                "Inbound message was processed, but its durable delivery marker could not be saved for '{Key}'.",
+                deduplicationKey);
+        }
+        finally
+        {
+            // The process call has succeeded, so the bounded retry guard may now be populated.
+            CacheProcessedDelivery(deduplicationKey);
+        }
+    }
+
+    private void CacheProcessedDelivery(string deduplicationKey)
+    {
+        _processedMessagesCache.Set(deduplicationKey, true, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = ProcessedMessageCacheDuration,
+            Size = 1
+        });
     }
 
     private static object CreateDuplicateResponse(string messageId, string? sender) => new

@@ -6,7 +6,6 @@ namespace ConvoLab.Api.Security;
 
 public static class InfobipWebhookSecurity
 {
-    public const string DefaultSecret = "convolab-infobip-dev-secret-alpha2026";
     public const string SignatureHeader = "X-Infobip-Signature";
     public const string CallbackSecretHeader = "X-Callback-Secret";
     public const string WebhookSecretHeader = "X-Webhook-Secret";
