@@ -41,9 +41,11 @@ public sealed partial class SensitiveTelemetryLogFilter : ILogEventFilter
                 return false;
         }
 
-        // Suppress if the rendered message contains a JWT
+        // Exception text is separate from LogEvent.Properties, so inspect it
+        // explicitly before an exception sink serializes it.
         var rendered = logEvent.RenderMessage();
-        if (JwtPattern().IsMatch(rendered))
+        if (ContainsSensitiveText(rendered)
+            || logEvent.Exception is not null && ContainsSensitiveText(logEvent.Exception.ToString()))
             return false;
 
         // We intentionally do NOT suppress on EmailPattern here — email may appear
@@ -53,4 +55,12 @@ public sealed partial class SensitiveTelemetryLogFilter : ILogEventFilter
 
         return true;
     }
+
+    private static bool ContainsSensitiveText(string value) =>
+        JwtPattern().IsMatch(value) || SensitiveKeyValuePattern().IsMatch(value);
+
+    [GeneratedRegex(
+        @"(?i)(?:access[_-]?token|id[_-]?token|refresh[_-]?token|client[_-]?secret|password|authorization|nonce|api[_-]?key|secret)\s*[:=]\s*[^\s,;]+",
+        RegexOptions.Compiled)]
+    private static partial Regex SensitiveKeyValuePattern();
 }

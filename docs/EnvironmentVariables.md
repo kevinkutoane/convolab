@@ -56,7 +56,7 @@
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `Connectors__Infobip__WebhookSecret` | Inbound Hook | `convolab-infobip-dev-secret-alpha2026` | Shared secret for verifying Infobip HMAC-SHA256 webhook signatures and headers. |
+| `Connectors__Infobip__WebhookSecret` | Inbound Hook | *(required when enabled)* | Shared secret for verifying Infobip HMAC-SHA256 webhook signatures and headers. Never commit or use a repository default. |
 | `Connectors__Infobip__ApiKey` | For outbound | — | Infobip API key for outbound WhatsApp message delivery. |
 | `Connectors__Infobip__BaseUrl` | For outbound | `https://api.infobip.com` | Base URL for Infobip REST API communication. |
 

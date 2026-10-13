@@ -81,7 +81,7 @@ Key environment variables:
 | `POSTGRES_PASSWORD` | PostgreSQL password | (set in `.env`) |
 | `BACKUP_ENCRYPTION_KEY` | 32-byte Base64 key for AES-256-GCM backups | (generate via `openssl rand -base64 32`) |
 | `ASPNETCORE_ENVIRONMENT` | Host environment profile | `Development` |
-| `CONNECTORS_INFOBIP_WEBHOOKSECRET`| Secret for validating inbound Infobip webhooks | `convolab-infobip-dev-secret-alpha2026` |
+| `CONNECTORS_INFOBIP_WEBHOOKSECRET`| Secret for validating inbound Infobip webhooks | *(required when enabled)* |
 
 ---
 

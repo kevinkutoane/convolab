@@ -553,7 +553,14 @@ public sealed class OperationsController(
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Promotion failed", Detail = ex.Message });
+            logger.LogWarning(
+                "Deployment promotion was rejected. ExceptionType={ExceptionType}",
+                ex.GetType().Name);
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Promotion failed",
+                Detail = "The deployment candidate could not be promoted. Review the deployment status and audit log."
+            });
         }
     }
 
@@ -572,7 +579,14 @@ public sealed class OperationsController(
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Rollback failed", Detail = ex.Message });
+            logger.LogWarning(
+                "Deployment rollback was rejected. ExceptionType={ExceptionType}",
+                ex.GetType().Name);
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Rollback failed",
+                Detail = "The deployment could not be rolled back. Review the deployment status and audit log."
+            });
         }
     }
 
