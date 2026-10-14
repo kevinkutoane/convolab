@@ -118,7 +118,6 @@ public sealed class ConvoLabOpenIdConnectEvents(
         }
 
         // The secret is supplied only to the token request and is never persisted in configuration or session state.
-        logger.LogInformation("Authorization code received, attaching client secret for token exchange.");
         context.TokenEndpointRequest!.ClientSecret = result.RevealValue();
     }
 
@@ -130,7 +129,7 @@ public sealed class ConvoLabOpenIdConnectEvents(
         var issuer = principal.FindFirstValue("iss")?.Trim();
         var subject = principal.FindFirstValue("sub")?.Trim();
         var tenant = principal.FindFirstValue("tid")?.Trim();
-        logger.LogInformation("Token validated for issuer {Issuer} in tenant {Tenant}", issuer, tenant);
+        logger.LogInformation("Entra token validated; continuing linked-identity checks.");
         if (context.Options.ProtocolValidator.RequireNonce && string.IsNullOrWhiteSpace(context.Nonce))
         {
             await RejectAsync(context, "authentication.entra.remote_failure");

@@ -11,7 +11,7 @@ The native Infobip connector allows ConvoLab conversational workflows and simula
 ### Webhook Endpoint
 
 - **Route:** `POST /api/webhooks/infobip/whatsapp`
-- **Security:** HMAC-SHA256 signature verification via the `X-Infobip-Signature` header using the configured webhook secret (`Infobip:WebhookSecret`). Unsigned or forged requests are rejected with `401 Unauthorized`.
+- **Security:** HMAC-SHA256 signature verification via the `X-Infobip-Signature` header using the explicitly configured webhook secret (`Connectors:Infobip:WebhookSecret`). There is no built-in fallback secret; unsigned or forged requests are rejected with `401 Unauthorized`.
 - **Controller:** [`InfobipWebhookController`](../src/Api/ConvoLab.Api/Controllers/InfobipWebhookController.cs)
 
 ### Message Formats Supported
