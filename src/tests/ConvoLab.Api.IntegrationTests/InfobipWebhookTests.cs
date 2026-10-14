@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using ConvoLab.Api.Security;
+using Microsoft.AspNetCore.Http;
 using Xunit.Abstractions;
 
 namespace ConvoLab.Api.IntegrationTests;
@@ -31,6 +32,18 @@ public sealed class InfobipWebhookTests : IClassFixture<ConvoLabApiFactory>
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("Healthy", json.GetProperty("status").GetString());
         Assert.Equal("Infobip WhatsApp", json.GetProperty("connector").GetString());
+    }
+
+    [Fact]
+    public void Webhook_Verification_Rejects_An_Unconfigured_Secret()
+    {
+        var context = new DefaultHttpContext();
+        context.Request.Headers[InfobipWebhookSecurity.CallbackSecretHeader] = "provided-but-unconfigured-secret";
+
+        Assert.False(InfobipWebhookSecurity.VerifyWebhookRequest(
+            context.Request,
+            "{}",
+            string.Empty));
     }
 
     [Fact]
