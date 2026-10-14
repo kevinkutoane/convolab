@@ -1,7 +1,8 @@
 import { useHelp } from "../contexts/HelpContext";
 import { useState } from "react";
+import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { AlertTriangle, Building2, Check, KeyRound, ScrollText, Shield, UserPlus } from "lucide-react";
+import { ArrowRight, Bot, Building2, Check, KeyRound, ScrollText, Shield, Sliders, UserPlus } from "lucide-react";
 import { EmptyState, ErrorState, LoadingState } from "../components/AsyncStates";
 import { useAuth } from "../contexts/useAuth";
 import {
@@ -21,14 +22,6 @@ import {
   type WorkspaceMember,
 } from "../services/authApi";
 import { getApiErrorMessage } from "../services/apiClient";
-import {
-  listWorkspaceSettings,
-  upsertWorkspaceSetting,
-  listSecretReferences,
-  createSecretReference,
-  validateSecretReference,
-} from "../services/settingsApi";
-import type { SecretReference } from "../types/settings";
 
 const tabs = ["Overview", "Members", "Roles", "Service Accounts", "Audit", "Settings"] as const;
 type Tab = (typeof tabs)[number];
@@ -357,21 +350,12 @@ function ServiceAccountsPanel({
 function WorkspaceSettingsPanel({ workspaceId }: Readonly<{ workspaceId: string }>) {
   const workspace = useQuery({ queryKey: ["workspace", workspaceId], queryFn: () => getWorkspace(workspaceId) });
   const members = useQuery({ queryKey: ["workspace-members", workspaceId], queryFn: () => getMembers(workspaceId) });
-  const settings = useQuery({ queryKey: ["workspace-settings", workspaceId], queryFn: () => listWorkspaceSettings(workspaceId) });
-  const secrets = useQuery({ queryKey: ["secret-references", workspaceId], queryFn: () => listSecretReferences(workspaceId) });
   const queryClient = useQueryClient();
 
-  if (workspace.isLoading || settings.isLoading) return <LoadingState />;
+  if (workspace.isLoading) return <LoadingState />;
   if (workspace.isError) return <ErrorState message={getApiErrorMessage(workspace.error)} onRetry={() => workspace.refetch()} />;
 
-  const reloadSettings = () => queryClient.invalidateQueries({ queryKey: ["workspace-settings", workspaceId] });
   const reloadWorkspace = () => queryClient.invalidateQueries({ queryKey: ["workspace", workspaceId] });
-  const reloadSecrets = () => queryClient.invalidateQueries({ queryKey: ["secret-references", workspaceId] });
-
-  const getSetting = (key: string) => {
-    const s = settings.data?.find(item => item.definitionKey === key);
-    return s ? JSON.parse(s.valueJson) : undefined;
-  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "800px", margin: "0 auto", padding: "24px" }}>
@@ -382,32 +366,40 @@ function WorkspaceSettingsPanel({ workspaceId }: Readonly<{ workspaceId: string 
       </article>
 
       <article className="panel ws-settings-card">
-        <span className="panel-eyebrow">AI Configuration</span>
-        <h2>AI & Defaults</h2>
-        <WorkspaceDefaultsForm
-          workspaceId={workspaceId}
-          initialProvider={getSetting("workspace.ai.default_llm_provider") ?? "openai"}
-          initialBudget={getSetting("workspace.ai.budget_limit_zar") ?? 1000}
-          initialRetention={getSetting("workspace.data.retention_days") ?? 30}
-          onSaved={reloadSettings}
-        />
+        <span className="panel-eyebrow">Platform Configuration</span>
+        <h2>Runtime Settings & Environment Guardrails</h2>
+        <p style={{ color: "var(--muted, #64748b)", margin: "0.5rem 0 1.25rem", fontSize: "0.95rem" }}>
+          AI provider credentials (like <code>GEMINI_API_KEY</code>), model parameters, ZAR budgets, evaluation thresholds, and retention policies are managed centrally in <strong>Settings</strong> with environment-scoped inheritance.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+          <Link to="/settings/provider" className="settings-overview-card" style={{ padding: "14px", border: "1px solid var(--border-color, #e2e8f0)", borderRadius: "8px", textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: 600 }}><Bot size={16} /> AI Provider & Model</span>
+              <ArrowRight size={14} />
+            </div>
+            <small style={{ color: "var(--muted, #64748b)" }}>Configure Google Gemini provider, temperature, and tokens.</small>
+          </Link>
+          <Link to="/settings/secrets" className="settings-overview-card" style={{ padding: "14px", border: "1px solid var(--border-color, #e2e8f0)", borderRadius: "8px", textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: 600 }}><KeyRound size={16} /> API Keys & Secrets</span>
+              <ArrowRight size={14} />
+            </div>
+            <small style={{ color: "var(--muted, #64748b)" }}>Register and validate env:GEMINI_API_KEY references.</small>
+          </Link>
+          <Link to="/settings/budgets" className="settings-overview-card" style={{ padding: "14px", border: "1px solid var(--border-color, #e2e8f0)", borderRadius: "8px", textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: 600 }}><Sliders size={16} /> Budgets & Retentions</span>
+              <ArrowRight size={14} />
+            </div>
+            <small style={{ color: "var(--muted, #64748b)" }}>Manage monthly ZAR budget caps and trace retention days.</small>
+          </Link>
+        </div>
       </article>
 
       <article className="panel ws-settings-card">
-        <span className="panel-eyebrow">Security</span>
-        <h2>Security Policies</h2>
-        <WorkspaceSecurityForm
-          workspaceId={workspaceId}
-          initialMfa={getSetting("workspace.security.require_mfa") ?? false}
-          members={members.data ?? []}
-          onSaved={reloadSettings}
-        />
-      </article>
-
-      <article className="panel ws-settings-card">
-        <span className="panel-eyebrow">Integration</span>
-        <h2>API Keys & Secrets</h2>
-        <WorkspaceSecretsForm workspaceId={workspaceId} secrets={secrets.data ?? []} onSaved={reloadSecrets} />
+        <span className="panel-eyebrow">Member Access</span>
+        <h2>Force Password Reset</h2>
+        <WorkspacePasswordResetForm members={members.data ?? []} />
       </article>
 
       <article className="panel ws-settings-card danger-zone">
@@ -483,74 +475,13 @@ function WorkspaceConfigForm({
   );
 }
 
-function WorkspaceDefaultsForm({
-  workspaceId,
-  initialProvider,
-  initialBudget,
-  initialRetention,
-  onSaved,
-}: Readonly<{
-  workspaceId: string;
-  initialProvider: string;
-  initialBudget: number;
-  initialRetention: number;
-  onSaved: () => void;
-}>) {
-  const [provider, setProvider] = useState(initialProvider);
-  const [budget, setBudget] = useState(initialBudget);
-  const [retention, setRetention] = useState(initialRetention);
-  const mutation = useMutation({
-    mutationFn: async () => {
-      await upsertWorkspaceSetting(workspaceId, "workspace.ai.default_llm_provider", { valueJson: JSON.stringify(provider) });
-      await upsertWorkspaceSetting(workspaceId, "workspace.ai.budget_limit_zar", { valueJson: JSON.stringify(Number(budget)) });
-      await upsertWorkspaceSetting(workspaceId, "workspace.data.retention_days", { valueJson: JSON.stringify(Number(retention)) });
-    },
-    onSuccess: onSaved,
-  });
-
-  return (
-    <form className="ws-settings-form" onSubmit={event => { event.preventDefault(); mutation.mutate(); }}>
-      <div className="ws-field-group">
-        <label className="ws-field">
-          <span>Default LLM Provider</span>
-          <select value={provider} onChange={event => setProvider(event.target.value)}>
-            <option value="openai">OpenAI</option>
-            <option value="anthropic">Anthropic</option>
-            <option value="google">Google Gemini</option>
-          </select>
-        </label>
-        <label className="ws-field">
-          <span>Monthly Budget Limit (ZAR)</span>
-          <input type="number" min={0} value={budget} onChange={event => setBudget(Number(event.target.value))} placeholder="e.g. 5000" />
-        </label>
-        <label className="ws-field">
-          <span>Data Retention (Days)</span>
-          <input type="number" min={1} value={retention} onChange={event => setRetention(Number(event.target.value))} placeholder="e.g. 30" />
-        </label>
-      </div>
-      {mutation.isError && <p className="ws-error">{getApiErrorMessage(mutation.error)}</p>}
-      <div className="ws-form-actions">
-        <button type="submit" className="primary-button" disabled={mutation.isPending}>{mutation.isPending ? "Saving..." : "Save defaults"}</button>
-      </div>
-    </form>
-  );
-}
-
-function WorkspaceSecurityForm({
-  workspaceId,
-  initialMfa,
+function WorkspacePasswordResetForm({
   members,
-  onSaved,
 }: Readonly<{
-  workspaceId: string;
-  initialMfa: boolean;
   members: { userId: string; displayName: string; email: string }[];
-  onSaved: () => void;
 }>) {
-  const [mfa, setMfa] = useState(initialMfa);
   const [userId, setUserId] = useState("");
   const [password, setPassword] = useState("");
-  const settingsMutation = useMutation({ mutationFn: () => upsertWorkspaceSetting(workspaceId, "workspace.security.require_mfa", { valueJson: JSON.stringify(mfa) }), onSuccess: onSaved });
   const resetMutation = useMutation({
     mutationFn: () => {
       const member = members.find(item => item.userId === userId);
@@ -563,111 +494,27 @@ function WorkspaceSecurityForm({
   });
 
   return (
-    <div className="ws-settings-form">
-      <label className="ws-toggle">
-        <input type="checkbox" checked={mfa} onChange={event => { setMfa(event.target.checked); settingsMutation.mutate(); }} />
-        <span>Require Multi-Factor Authentication for all members</span>
-      </label>
-
-      <div className="ws-section-divider">
-        <h3>Force Password Reset</h3>
-        <p>As an Administrator you can set a new password for any local (email/password) member. This is not reversible — the member will need to use the new password immediately.</p>
-        <form className="ws-settings-form" style={{ marginTop: "1rem" }} onSubmit={event => { event.preventDefault(); resetMutation.mutate(); }}>
-          <div className="ws-field-group">
-            <label className="ws-field">
-              <span>Member</span>
-              <select value={userId} onChange={event => setUserId(event.target.value)} required>
-                <option value="">Select a member...</option>
-                {members.map(member => <option key={member.userId} value={member.userId}>{member.displayName} ({member.email})</option>)}
-              </select>
-            </label>
-            <label className="ws-field">
-              <span>New Password <small>(min. 12 characters)</small></span>
-              <input type="password" placeholder="New password" value={password} onChange={event => setPassword(event.target.value)} required minLength={12} />
-            </label>
-          </div>
-          {resetMutation.isError && <p className="ws-error">{getApiErrorMessage(resetMutation.error)}</p>}
-          <div className="ws-form-actions">
-            <button type="submit" className="secondary-button" disabled={resetMutation.isPending || !userId}>{resetMutation.isPending ? "Resetting..." : "Reset password"}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function WorkspaceSecretsForm({
-  workspaceId,
-  secrets,
-  onSaved,
-}: Readonly<{
-  workspaceId: string;
-  secrets: SecretReference[];
-  onSaved: () => void;
-}>) {
-  const [name, setName] = useState("");
-  const [reference, setReference] = useState("");
-  const mutation = useMutation({
-    mutationFn: () => createSecretReference(workspaceId, name, reference),
-    onSuccess: () => { setName(""); setReference(""); onSaved(); },
-  });
-  const validateMutation = useMutation({
-    mutationFn: (id: string) => validateSecretReference(workspaceId, id),
-    onSuccess: onSaved,
-  });
-
-  const isRawSecretPasted = reference.trim().length > 0 && !reference.includes(":");
-
-  return (
-    <form className="ws-settings-form" onSubmit={event => { event.preventDefault(); if (!isRawSecretPasted) mutation.mutate(); }}>
-      <p style={{ marginBottom: "1rem", color: "var(--muted)", fontSize: "0.875rem", lineHeight: "1.5" }}>
-        Secrets are registered as <strong>references</strong> (e.g. <code>env:GEMINI_API_KEY</code>). ConvoLab never stores raw secret values in the database. Configure the actual secret key in your server environment or <code>.env</code> file.
+    <form className="ws-settings-form" onSubmit={event => { event.preventDefault(); resetMutation.mutate(); }}>
+      <p style={{ color: "var(--muted, #64748b)", fontSize: "0.9rem", marginBottom: "1rem" }}>
+        As an Administrator, you can set a new password for any local account. This takes effect immediately.
       </p>
       <div className="ws-field-group">
         <label className="ws-field">
-          <span>Display Name</span>
-          <input placeholder="e.g. Gemini API Key" value={name} onChange={event => setName(event.target.value)} required />
+          <span>Member</span>
+          <select value={userId} onChange={event => setUserId(event.target.value)} required>
+            <option value="">Select a member...</option>
+            {members.map(member => <option key={member.userId} value={member.userId}>{member.displayName} ({member.email})</option>)}
+          </select>
         </label>
         <label className="ws-field">
-          <span>Secret Reference (URI)</span>
-          <input placeholder="e.g. env:GEMINI_API_KEY" value={reference} onChange={event => setReference(event.target.value)} required />
+          <span>New Password <small>(min. 12 characters)</small></span>
+          <input type="password" placeholder="New password" value={password} onChange={event => setPassword(event.target.value)} required minLength={12} />
         </label>
       </div>
-      {isRawSecretPasted && (
-        <p className="ws-error" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <AlertTriangle size={14} />
-          Secret references must follow <code>provider:key</code> format (e.g. <code>env:GEMINI_API_KEY</code>). Do not paste raw keys here; set <code>GEMINI_API_KEY={"<your_key>"}</code> in your <code>.env</code> file.
-        </p>
-      )}
-      {mutation.isError && <p className="ws-error">{getApiErrorMessage(mutation.error)}</p>}
+      {resetMutation.isError && <p className="ws-error">{getApiErrorMessage(resetMutation.error)}</p>}
       <div className="ws-form-actions">
-        <button type="submit" className="primary-button" disabled={mutation.isPending || isRawSecretPasted}>
-          {mutation.isPending ? "Registering..." : "Register Secret Reference"}
-        </button>
+        <button type="submit" className="secondary-button" disabled={resetMutation.isPending || !userId}>{resetMutation.isPending ? "Resetting..." : "Reset password"}</button>
       </div>
-      {secrets.length > 0 && (
-        <div className="member-list" style={{ marginTop: "1.5rem" }}>
-          {secrets.map(item => (
-            <article key={item.id}>
-              <KeyRound />
-              <div style={{ flex: 1 }}>
-                <p><strong>{item.displayName}</strong> <code style={{ marginLeft: "6px", fontSize: "0.8rem" }}>{item.reference}</code></p>
-                <small>{item.lastValidationOutcome ?? `Status: ${item.status}`} • Added {new Date(item.createdAt).toLocaleDateString()}</small>
-              </div>
-              <span className={`status-chip status-${item.status.toLowerCase()}`}>{item.status}</span>
-              <button
-                type="button"
-                className="text-button"
-                style={{ marginLeft: "8px" }}
-                onClick={() => validateMutation.mutate(item.id)}
-                disabled={validateMutation.isPending}
-              >
-                Validate
-              </button>
-            </article>
-          ))}
-        </div>
-      )}
     </form>
   );
 }

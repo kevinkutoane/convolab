@@ -1,5 +1,6 @@
 import { useHelp } from "../contexts/HelpContext";
 import { useState } from "react";
+import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
@@ -188,7 +189,7 @@ export function OperationsPage() {
           <Lock size={16} /> Authentication & IAM
         </button>
         <button className={`tab-button ${activeTab === "telemetry" ? "active" : ""}`} onClick={() => setActiveTab("telemetry")}>
-          <Layers size={16} /> Telemetry & Secrets
+          <Layers size={16} /> Telemetry & Infrastructure
         </button>
         <button className={`tab-button ${activeTab === "build" ? "active" : ""}`} onClick={() => setActiveTab("build")}>
           <Cpu size={16} /> Build & Manifest
@@ -618,17 +619,20 @@ export function OperationsPage() {
         </div>
       )}
 
-      {/* Tab Content: Telemetry & Secrets */}
+      {/* Tab Content: Telemetry & Infrastructure */}
       {activeTab === "telemetry" && (
         <div className="tab-pane operations-grid-two">
           <section className="panel">
             <div className="panel-header">
               <div>
-                <span className="panel-eyebrow">Secret Store Providers</span>
-                <h3>Configuration Secrets</h3>
+                <span className="panel-eyebrow">Secret Store Engine</span>
+                <h3>Infrastructure Secret Health</h3>
               </div>
               <KeyRound size={18} />
             </div>
+            <p className="muted" style={{ marginBottom: "1rem", fontSize: "0.85rem" }}>
+              Monitors low-level secret resolution engines (environment variables, docker secrets, key vault). To register secret references, visit <Link to="/settings/secrets" style={{ textDecoration: "underline", color: "inherit", fontWeight: 600 }}>Settings → Secrets</Link>.
+            </p>
             {secrets.isLoading && <LoadingState label="Loading secret providers…" />}
             {secrets.data && <Evidence value={secrets.data} />}
           </section>

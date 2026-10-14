@@ -134,4 +134,6 @@ export interface ProviderTestResult {
   status: string;
   latencyMs: number;
   model?: string;
+  outcome?: string;
+  message?: string;
 }

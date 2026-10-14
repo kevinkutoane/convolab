@@ -49,6 +49,14 @@ api.interceptors.response.use(
   (response) => response,
   (error: unknown) => {
     if (axios.isAxiosError(error)) {
+      if (error.response?.status === 413) {
+        return Promise.reject(new PlatformApiError({
+          code: "request.payload_too_large",
+          title: "Payload Too Large",
+          detail: "The uploaded file exceeds the maximum allowed upload size (maximum 100MB).",
+          errors: {},
+        }, 413));
+      }
       const problem = normalizeProblemDetails(error.response?.data, error.message);
       if (problem.code === "operations.safe_mode_active")
         window.dispatchEvent(new Event("convolab:platform-status"));
