@@ -72,11 +72,8 @@ public sealed class ConvoLabAuthenticationHandler : AuthenticationHandler<Authen
     private async Task<AuthenticateResult> AuthenticateInfobipWebhookAsync()
     {
         var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
- fix/release-readiness-20261009
             ?? _config["Infobip:WebhookSecret"]
             ?? string.Empty;
-            ?? _config["Infobip:WebhookSecret"];
- main
 
         Request.EnableBuffering();
         Request.Body.Position = 0;

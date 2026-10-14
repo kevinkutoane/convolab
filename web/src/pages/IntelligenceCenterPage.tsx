@@ -76,7 +76,7 @@ export function IntelligenceCenterPage() {
           "In the 'Providers' section, click 'Test' next to any provider to run a live health check — it will confirm the provider is responding and report latency.",
           "In 'Execution plan preview', configure a hypothetical plan (provider, model, token estimates, fallback settings) and click 'Preview plan' to see the estimated cost and routing decision.",
           "Review 'Recent executions' to see actual AI calls with their provider, latency, tokens used, and cost.",
-          "Check the 'Daily usage' bar chart to see execution volume trends over the last 30 days."
+          "Check the 'Daily usage' bar chart to see execution volume trends over the last 7 days."
     ],
     examples: [
           "Before a high-volume event: Run 'Preview plan' with your expected token counts to estimate cost and confirm fallback is configured.",
