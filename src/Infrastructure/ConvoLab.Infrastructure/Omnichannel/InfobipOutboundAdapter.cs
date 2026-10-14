@@ -67,15 +67,24 @@ public sealed class InfobipOutboundAdapter : IInfobipOutboundAdapter
             }
             else
             {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogWarning("Infobip API error: {StatusCode} {ErrorContent}", response.StatusCode, errorContent);
-                return new InfobipOutboundResult(false, null, (int)response.StatusCode, errorContent);
+                _logger.LogWarning("Infobip API request failed with status {StatusCode}", response.StatusCode);
+                return new InfobipOutboundResult(
+                    false,
+                    null,
+                    (int)response.StatusCode,
+                    "The Infobip provider rejected the outbound message.");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send outbound message via Infobip");
-            return new InfobipOutboundResult(false, null, null, ex.Message);
+            _logger.LogError(
+                "Failed to send outbound message via Infobip. ExceptionType={ExceptionType}",
+                ex.GetType().Name);
+            return new InfobipOutboundResult(
+                false,
+                null,
+                null,
+                "The Infobip provider could not be reached.");
         }
     }
 }

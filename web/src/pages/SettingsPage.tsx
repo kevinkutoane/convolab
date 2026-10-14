@@ -353,6 +353,145 @@ function CategorySettingsTab({
   );
 }
 
+interface SettingGuide {
+  title: string;
+  description: string;
+  effect: string;
+}
+
+const SETTING_GUIDES: Record<string, SettingGuide> = {
+  "ai.provider": {
+    title: "AI Inference Provider",
+    description: "Determines which runtime engine executes conversational responses and evaluations.",
+    effect: "Select Google Gemini for live external inference with real LLMs, or ConvoLab Deterministic for local repeatable test rules."
+  },
+  "ai.model": {
+    title: "AI Model Version",
+    description: "The specific generative foundation model version invoked during live conversation processing.",
+    effect: "e.g. gemini-2.5-flash for balanced speed and reasoning, or gemini-1.5-pro for complex long-context reasoning."
+  },
+  "ai.secret_reference": {
+    title: "API Credential Reference",
+    description: "Pointer to the environment or vault secret holding your AI provider API key.",
+    effect: "Use env:GEMINI_API_KEY. ConvoLab resolves this at runtime without storing plaintext secrets in the database."
+  },
+  "ai.temperature": {
+    title: "Creativity & Randomness (Temperature)",
+    description: "Controls variability in model responses (from 0.0 deterministic to 2.0 creative).",
+    effect: "Lower values (0.0 – 0.3) ensure strict compliance with policy documents; higher values produce more expressive responses."
+  },
+  "ai.max_output_tokens": {
+    title: "Maximum Output Token Limit",
+    description: "The upper limit on generated tokens per single AI model completion.",
+    effect: "Prevents runaway responses and sets latency expectations. Typical values: 500 – 4000 tokens."
+  },
+  "ai.request_timeout_seconds": {
+    title: "Provider Request Timeout",
+    description: "Maximum duration in seconds to wait for an external AI response before aborting.",
+    effect: "If the provider fails to respond within this window, the platform falls back or returns an operational timeout error."
+  },
+  "ai.max_retry_count": {
+    title: "Provider Retry Limit",
+    description: "Number of automatic retry attempts on transient network timeouts or provider rate limits.",
+    effect: "Helps absorb temporary hiccups from upstream providers before failing a user conversation."
+  },
+  "ai.provider_enabled": {
+    title: "Enable External Provider Execution",
+    description: "Master switch controlling whether live AI provider calls are permitted in this environment.",
+    effect: "When disabled, live external API calls are blocked and the platform runs in safe deterministic mode."
+  },
+  "budget.monthly_zar": {
+    title: "Monthly Spend Cap (ZAR)",
+    description: "Total monthly AI budget allocated to this workspace/environment in South African Rand.",
+    effect: "When spend reaches this threshold, execution is halted to protect against unexpected token costs."
+  },
+  "budget.warning_threshold": {
+    title: "Budget Warning Threshold",
+    description: "Percentage of the monthly budget consumed before triggering operational warnings (0.0 – 1.0).",
+    effect: "e.g. 0.80 triggers alert notifications when 80% of monthly budget is consumed."
+  },
+  "budget.hard_stop_threshold": {
+    title: "Budget Hard-Stop Threshold",
+    description: "Percentage of monthly budget consumed at which further external executions are strictly blocked.",
+    effect: "e.g. 1.00 immediately halts paid AI execution upon reaching 100% of the allocated monthly budget."
+  },
+  "budget.allow_unknown_pricing": {
+    title: "Allow Unpriced Model Execution",
+    description: "Permits AI model calls even when token cost rates for that model are uncatalogued.",
+    effect: "When enabled, development continues even if provider catalog prices haven't been configured."
+  },
+  "evaluation.min_groundedness": {
+    title: "Minimum Groundedness Score",
+    description: "Quality threshold verifying that facts in the answer originate from approved knowledge documents.",
+    effect: "Prevents AI hallucination. Answers scoring below this threshold are flagged or blocked."
+  },
+  "evaluation.min_relevance": {
+    title: "Minimum Relevance Score",
+    description: "Quality gate checking whether the generated answer directly addresses the customer query.",
+    effect: "Scores below threshold indicate the model wandered or evaded the customer question."
+  },
+  "evaluation.min_safety": {
+    title: "Safety & Compliance Threshold",
+    description: "Strict safety gate assessing profanity, data leaks, and unauthorized promises.",
+    effect: "Any response failing safety criteria is blocked from reaching customers."
+  },
+  "evaluation.min_overall": {
+    title: "Overall Composite Quality Gate",
+    description: "Combined pass mark across Groundedness, Relevance, and Safety metrics.",
+    effect: "Must be met for automated deployment gates and regression test suites to pass."
+  },
+  "evaluation.failure_action": {
+    title: "Evaluation Failure Action",
+    description: "What action the engine takes when a generated response fails quality thresholds.",
+    effect: "Allow (log only), Warn (flag in traces), Review (route to human agent), or Block (suppress response)."
+  },
+  "retention.trace_days": {
+    title: "Diagnostic Trace Retention",
+    description: "Number of days conversation execution traces, latency, and token records are retained.",
+    effect: "Older traces are purged automatically by background maintenance workers."
+  },
+  "retention.evaluation_days": {
+    title: "Evaluation History Retention",
+    description: "Number of days automated evaluation runs and scorecards are preserved for auditing.",
+    effect: "Supports compliance reviews and historical accuracy tracking."
+  },
+  "retention.store_provider_payloads": {
+    title: "Store Raw Provider Request Payloads",
+    description: "Whether exact raw prompt payloads sent to external providers are stored in traces.",
+    effect: "Helpful for deep debugging; disable if customer prompts contain strict confidential data."
+  },
+  "retention.store_provider_responses": {
+    title: "Store Raw Provider Responses",
+    description: "Whether raw JSON completion responses from external providers are persisted.",
+    effect: "Useful for inspecting provider metadata, finish reasons, and raw token breakdowns."
+  },
+  "policy.enforcement_enabled": {
+    title: "Active Policy Enforcement",
+    description: "Enforces organizational governance rules on all inbound and outbound messages.",
+    effect: "When active, policy engine evaluates and blocks prohibited actions or topics."
+  },
+  "policy.default_denial_behaviour": {
+    title: "Default Action for Unmatched Rules",
+    description: "What happens when a message does not match any explicit policy rule.",
+    effect: "Allow permits execution to proceed; Block stops execution unless explicitly permitted."
+  },
+  "policy.require_before_provider": {
+    title: "Pre-Provider Policy Evaluation",
+    description: "Evaluates policy constraints before sending prompts to external AI providers.",
+    effect: "Saves token costs and prevents sensitive content from reaching external models."
+  },
+  "feature.provider_execution": {
+    title: "Live Provider Execution Flag",
+    description: "Feature gate enabling live external AI model invocations in this environment.",
+    effect: "Toggle off to enforce safe deterministic mode across all simulations and replays."
+  },
+  "feature.experimental": {
+    title: "Experimental Features Flag",
+    description: "Unlocks early preview models, experimental reasoning steps, and beta plugins.",
+    effect: "Recommended for Development/Test environments only."
+  }
+};
+
 // ─── Single setting row with inline editing ───────────────────────────────────
 
 function SettingRow({
@@ -371,6 +510,11 @@ function SettingRow({
   const [reason, setReason] = useState("");
   const [confirmProtected, setConfirmProtected] = useState(false);
   const isProduction = environment.environmentType === "Production";
+
+  const guide = SETTING_GUIDES[setting.key];
+  const title = guide?.title ?? setting.displayName;
+  const description = guide?.description ?? setting.description;
+  const effect = guide?.effect;
 
   const encodeValue = (raw: string) => {
     if (setting.valueType === "Boolean") return raw === "true" ? "true" : "false";
@@ -409,12 +553,17 @@ function SettingRow({
     <article className={`setting-row${editing ? " editing" : ""}`}>
       <div className="setting-meta">
         <div className="setting-title-row">
-          <strong>{setting.displayName}</strong>
+          <strong>{title}</strong>
           {setting.isRequired && <span className="required-chip">Required</span>}
         </div>
-        <p>{setting.description || "No additional guidance is available for this setting."}</p>
-        <small className="setting-key">{setting.key}</small>
-        <div className="setting-chips">
+        <p>{description || "No additional guidance is available for this setting."}</p>
+        {effect && <p className="setting-effect" style={{ fontSize: "0.85rem", color: "var(--text-secondary, #64748b)", fontStyle: "italic", marginTop: "4px" }}>💡 {effect}</p>}
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+          <span className="setting-key-pill" style={{ fontFamily: "monospace", fontSize: "0.75rem", background: "var(--surface-sunken, #f1f5f9)", padding: "2px 6px", borderRadius: "4px", color: "var(--muted, #64748b)" }}>
+            Key: {setting.key}
+          </span>
+        </div>
+        <div className="setting-chips" style={{ marginTop: "8px" }}>
           <span className={`scope-chip scope-${setting.sourceScope.toLowerCase()}`}>{setting.sourceScope}</span>
           {setting.isInherited && <span className="inherited-chip">Inherited</span>}
           {setting.requiresRestart && <span className="restart-chip">Restart required</span>}

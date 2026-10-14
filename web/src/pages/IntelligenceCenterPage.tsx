@@ -109,7 +109,11 @@ export function IntelligenceCenterPage() {
   const providerTestMutation = useMutation({
     mutationFn: testIntelligenceProvider,
     onSuccess: result => {
-      setProviderMessage(`${result.provider} is ${result.status.toLowerCase()} (${formatLatency(result.latencyMs)}).`);
+      if (result.status === "Ready" || result.outcome === "Valid") {
+        setProviderMessage(`${result.provider} is verified and ready (${formatLatency(result.latencyMs)}).`);
+      } else {
+        setProviderMessage(`${result.provider} check: ${result.message || result.status}`);
+      }
       void queryClient.invalidateQueries({ queryKey: ["intelligence-overview"] });
     },
     onError: error => setProviderMessage(getApiErrorMessage(error)),

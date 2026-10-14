@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Data;
 using System.Globalization;
 using ConvoLab.Api.Health;
+using ConvoLab.Application.Common.Errors;
 using ConvoLab.Application.Operations;
 using ConvoLab.Application.Operations.Backups;
 using ConvoLab.Domain.Analytics;
@@ -412,8 +413,15 @@ public sealed class OperationsController(
     {
         var executor = serviceProvider.GetService<IBackupExecutor>();
         if (executor == null) return StatusCode(StatusCodes.Status501NotImplemented, "Backup execution is not configured in this environment.");
-        var artifact = await executor.ExecuteBackupAsync(ct);
-        return Ok(artifact);
+        try
+        {
+            var artifact = await executor.ExecuteBackupAsync(ct);
+            return Ok(artifact);
+        }
+        catch (InvalidOperationException ex)
+        {
+            throw new ResourceConflictException("operations.backup_failed", ex.Message);
+        }
     }
 
     [HttpPost("backups/{id}/verify")]
@@ -553,7 +561,14 @@ public sealed class OperationsController(
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Promotion failed", Detail = ex.Message });
+            logger.LogWarning(
+                "Deployment promotion was rejected. ExceptionType={ExceptionType}",
+                ex.GetType().Name);
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Promotion failed",
+                Detail = "The deployment candidate could not be promoted. Review the deployment status and audit log."
+            });
         }
     }
 
@@ -572,7 +587,14 @@ public sealed class OperationsController(
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ProblemDetails { Title = "Rollback failed", Detail = ex.Message });
+            logger.LogWarning(
+                "Deployment rollback was rejected. ExceptionType={ExceptionType}",
+                ex.GetType().Name);
+            return BadRequest(new ProblemDetails
+            {
+                Title = "Rollback failed",
+                Detail = "The deployment could not be rolled back. Review the deployment status and audit log."
+            });
         }
     }
 

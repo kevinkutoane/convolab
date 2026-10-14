@@ -60,8 +60,12 @@ public sealed class InfobipWebhookController : ControllerBase
         Request.Body.Position = 0;
 
         var expectedSecret = _config["Connectors:Infobip:WebhookSecret"]
+ fix/release-readiness-20261009
             ?? _config["Infobip:WebhookSecret"]
             ?? string.Empty;
+
+            ?? _config["Infobip:WebhookSecret"];
+] main
 
         if (!InfobipWebhookSecurity.VerifyWebhookRequest(Request, rawBody, expectedSecret))
         {

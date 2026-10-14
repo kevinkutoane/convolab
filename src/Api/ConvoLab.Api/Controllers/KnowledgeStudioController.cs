@@ -58,7 +58,8 @@ public sealed class KnowledgeStudioController(IKnowledgeStudioService service) :
         => service.ListDocumentsAsync(id, ct);
 
     [HttpPost("collections/{id:guid}/documents")]
-    [RequestSizeLimit(20 * 1024 * 1024)]
+    [RequestSizeLimit(100 * 1024 * 1024)]
+    [RequestFormLimits(MultipartBodyLengthLimit = 100 * 1024 * 1024)]
     public async Task<ActionResult<KnowledgeDocumentDto>> Upload(
         Guid id,
         IFormFile file,
