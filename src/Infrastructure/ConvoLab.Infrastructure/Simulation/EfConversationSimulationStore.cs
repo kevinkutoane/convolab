@@ -19,25 +19,28 @@ public sealed class EfConversationSimulationStore : IConversationSimulationStore
 
     public async Task<IReadOnlyList<SimulationState>> ListAsync(CancellationToken cancellationToken = default)
     {
-        if (_runtime?.WorkspaceId is not Guid workspaceId)
+        if (_runtime is not null && _runtime.WorkspaceId is not Guid)
             return [];
 
         // SQLite cannot translate ORDER BY for DateTimeOffset values. Materialize
         // first so the same store works with both the local SQLite provider and
         // PostgreSQL without changing the persisted timestamp contract.
-        var records = await _db.Simulations.AsNoTracking()
-            .Where(item => item.WorkspaceId == workspaceId)
-            .ToListAsync(cancellationToken);
+        var query = _db.Simulations.AsNoTracking();
+        if (_runtime?.WorkspaceId is Guid workspaceId)
+            query = query.Where(item => item.WorkspaceId == workspaceId);
+        var records = await query.ToListAsync(cancellationToken);
         return records.OrderByDescending(x => x.UpdatedAt).Select(ToState).ToList();
     }
 
     public async Task<SimulationState?> GetAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        if (_runtime?.WorkspaceId is not Guid workspaceId)
+        if (_runtime is not null && _runtime.WorkspaceId is not Guid)
             return null;
 
-        var record = await _db.Simulations.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == id && x.WorkspaceId == workspaceId, cancellationToken);
+        var query = _db.Simulations.AsNoTracking().Where(x => x.Id == id);
+        if (_runtime?.WorkspaceId is Guid workspaceId)
+            query = query.Where(x => x.WorkspaceId == workspaceId);
+        var record = await query.SingleOrDefaultAsync(cancellationToken);
         return record is null ? null : ToState(record);
     }
 
@@ -53,11 +56,13 @@ public sealed class EfConversationSimulationStore : IConversationSimulationStore
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        if (_runtime?.WorkspaceId is not Guid workspaceId)
+        if (_runtime is not null && _runtime.WorkspaceId is not Guid)
             return false;
 
-        var record = await _db.Simulations
-            .SingleOrDefaultAsync(x => x.Id == id && x.WorkspaceId == workspaceId, cancellationToken);
+        var query = _db.Simulations.Where(x => x.Id == id);
+        if (_runtime?.WorkspaceId is Guid workspaceId)
+            query = query.Where(x => x.WorkspaceId == workspaceId);
+        var record = await query.SingleOrDefaultAsync(cancellationToken);
         if (record is null) return false;
         _db.Simulations.Remove(record);
         await _db.SaveChangesAsync(cancellationToken);
@@ -66,19 +71,21 @@ public sealed class EfConversationSimulationStore : IConversationSimulationStore
 
     private async Task UpsertAsync(SimulationState state, CancellationToken cancellationToken)
     {
-        if (_runtime?.WorkspaceId is not Guid workspaceId)
+        if (_runtime is not null && _runtime.WorkspaceId is not Guid)
             throw new InvalidOperationException("A workspace context is required for simulation persistence.");
 
         var snapshot = state.Snapshot();
-        var record = await _db.Simulations
-            .SingleOrDefaultAsync(x => x.Id == state.Id && x.WorkspaceId == workspaceId, cancellationToken);
+        var query = _db.Simulations.Where(x => x.Id == state.Id);
+        if (_runtime?.WorkspaceId is Guid workspaceId)
+            query = query.Where(x => x.WorkspaceId == workspaceId);
+        var record = await query.SingleOrDefaultAsync(cancellationToken);
         var priorRunIds = record is null
             ? new HashSet<Guid>()
             : (JsonSerializer.Deserialize<SimulationConversation>(record.Payload, JsonOptions)?.Runs
                 .Select(run => run.Id).ToHashSet() ?? []);
         if (record is null)
         {
-            record = new SimulationRecord { Id = state.Id, WorkspaceId = workspaceId };
+            record = new SimulationRecord { Id = state.Id, WorkspaceId = _runtime?.WorkspaceId ?? Guid.Empty };
             _db.Simulations.Add(record);
         }
         record.Payload = JsonSerializer.Serialize(snapshot, JsonOptions);
