@@ -84,7 +84,6 @@ public sealed class EfConversationSimulationStore : IConversationSimulationStore
         record.Payload = JsonSerializer.Serialize(snapshot, JsonOptions);
         record.UpdatedAt = snapshot.UpdatedAt;
         if (_runtime?.EnvironmentId is Guid environmentId
-            && _runtime.WorkspaceId is Guid workspaceId
             && _runtime.OrganisationId is Guid organisationId)
         {
             foreach (var run in snapshot.Runs.Where(item => !priorRunIds.Contains(item.Id)))
