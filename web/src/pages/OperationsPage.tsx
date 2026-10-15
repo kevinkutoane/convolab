@@ -189,7 +189,7 @@ export function OperationsPage() {
           <Lock size={16} /> Authentication & IAM
         </button>
         <button className={`tab-button ${activeTab === "telemetry" ? "active" : ""}`} onClick={() => setActiveTab("telemetry")}>
-          <Layers size={16} /> Telemetry & Infrastructure
+          <Layers size={16} /> Telemetry & Secrets
         </button>
         <button className={`tab-button ${activeTab === "build" ? "active" : ""}`} onClick={() => setActiveTab("build")}>
           <Cpu size={16} /> Build & Manifest
@@ -619,14 +619,14 @@ export function OperationsPage() {
         </div>
       )}
 
-      {/* Tab Content: Telemetry & Infrastructure */}
+      {/* Tab Content: Telemetry & Secrets */}
       {activeTab === "telemetry" && (
         <div className="tab-pane operations-grid-two">
           <section className="panel">
             <div className="panel-header">
               <div>
                 <span className="panel-eyebrow">Secret Store Engine</span>
-                <h3>Infrastructure Secret Health</h3>
+                <h3>Configuration Secrets</h3>
               </div>
               <KeyRound size={18} />
             </div>
