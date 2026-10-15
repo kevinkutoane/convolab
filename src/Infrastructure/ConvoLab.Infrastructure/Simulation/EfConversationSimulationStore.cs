@@ -74,9 +74,10 @@ public sealed class EfConversationSimulationStore : IConversationSimulationStore
         if (_runtime is not null && _runtime.WorkspaceId is not Guid)
             throw new InvalidOperationException("A workspace context is required for simulation persistence.");
 
+        var workspaceId = _runtime?.WorkspaceId ?? Guid.Empty;
         var snapshot = state.Snapshot();
         var query = _db.Simulations.Where(x => x.Id == state.Id);
-        if (_runtime?.WorkspaceId is Guid workspaceId)
+        if (_runtime?.WorkspaceId is not null)
             query = query.Where(x => x.WorkspaceId == workspaceId);
         var record = await query.SingleOrDefaultAsync(cancellationToken);
         var priorRunIds = record is null
