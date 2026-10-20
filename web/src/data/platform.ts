@@ -78,7 +78,7 @@ export const designTimePlatformStatus: PlatformStatus = {
       id: "knowledge",
       name: "Knowledge Engine",
       description: "Governed retrieval, packages, citations, and connectors.",
-      status: "stable",
+      status: "active",
       version: "1.0",
       domainEvents: 13,
     },
@@ -86,7 +86,7 @@ export const designTimePlatformStatus: PlatformStatus = {
       id: "intelligence",
       name: "Intelligence Engine",
       description: "Provider-neutral planning, budgets, tools, and fallback.",
-      status: "stable",
+      status: "active",
       version: "1.0",
       domainEvents: 14,
     },
@@ -126,7 +126,7 @@ export const designTimePlatformStatus: PlatformStatus = {
       id: "plugins",
       name: "Plugin Engine",
       description: "Persistent extension registry, immutable versions, compatibility, lifecycle, health, and capability contracts.",
-      status: "stable",
+      status: "active",
       version: "1.0",
       domainEvents: 4,
     },
@@ -134,7 +134,7 @@ export const designTimePlatformStatus: PlatformStatus = {
       id: "workspace-identity",
       name: "Workspace, Identity and Access",
       description: "Secure authentication, workspace isolation, fixed RBAC, service identities, and audit.",
-      status: "stable",
+      status: "active",
       version: "1.0",
       domainEvents: 8,
     },
@@ -190,14 +190,14 @@ export const navigationItems: NavigationItem[] = [
     path: "/knowledge",
     icon: Database,
     description: "Manage governed enterprise knowledge",
-    status: "stable",
+    status: "active",
   },
   {
     label: "Intelligence Center",
     path: "/intelligence",
     icon: BrainCircuit,
     description: "Inspect execution plans and provider decisions",
-    status: "stable",
+    status: "active",
   },
   {
     label: "Policy Center",
@@ -232,14 +232,14 @@ export const navigationItems: NavigationItem[] = [
     path: "/plugins",
     icon: PlugZap,
     description: "Extend providers, tools, channels, and connectors",
-    status: "stable",
+    status: "active",
   },
   {
     label: "Workspace & Access",
     path: "/workspace",
     icon: UsersRound,
     description: "Manage members, roles, service identities, and audit",
-    status: "stable",
+    status: "active",
   },
   {
     label: "Analytics",
@@ -343,7 +343,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     description:
       "Govern enterprise sources, collections, documents, retrieval strategies, and sealed knowledge packages.",
     icon: Database,
-    status: "stable",
+    status: "active",
     metrics: [
       { label: "Sources", value: "0", detail: "No connectors registered" },
       { label: "Collections", value: "0", detail: "No business domains" },
@@ -365,7 +365,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     description:
       "Understand how ConvoLab plans intelligent execution across providers, models, budgets, capabilities, tools, and fallback paths.",
     icon: BrainCircuit,
-    status: "stable",
+    status: "active",
     metrics: [
       { label: "Providers", value: "0", detail: "No adapters installed" },
       { label: "Models", value: "0", detail: "Capability catalogue ready" },
@@ -475,7 +475,7 @@ export const studioPages: Record<string, StudioPageDefinition> = {
     description:
       "Extend ConvoLab with providers, tools, knowledge connectors, channels, evaluators, and enterprise integrations.",
     icon: PlugZap,
-    status: "stable",
+    status: "active",
     metrics: [
       { label: "Registered", value: "4", detail: "Built-in adapter contracts" },
       { label: "Healthy", value: "4", detail: "Runtime evidence available" },
