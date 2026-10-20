@@ -62,3 +62,24 @@ Execution analytics are derived from immutable persisted simulation runs. This k
 - The monthly budget is environment-configured rather than editable in Studio.
 - Provider health is configuration and execution-history based; active polling is only performed when the user selects **Test connection**.
 - The provider catalogue includes the current deterministic and Gemini adapters. Future adapters should implement the same normalized configuration contract.
+
+## Extending AI Providers (Azure OpenAI / Copilot Integration)
+
+The intelligence layer is strictly decoupled behind the provider-independent `IIntelligenceExecutor` domain interface ([`IIntelligenceRepositories.cs`](../src/Domain/ConvoLab.Domain/Intelligence/Interfaces/IIntelligenceRepositories.cs)). Adding an Azure OpenAI or Copilot-compatible model provider follows this standard architectural pattern without altering domain or Studio code:
+
+1. **Implement `IIntelligenceExecutor`**:
+   Create `AzureOpenAiIntelligenceExecutor` in `ConvoLab.Infrastructure.Intelligence` implementing `IIntelligenceExecutor`:
+   - Declare `SupportedProviders = [ProviderKind.AzureOpenAI]`.
+   - Implement `ExecuteAsync(ExecutionRequest request, string renderedPrompt, CancellationToken cancellationToken)`.
+   - Translate the request into Azure OpenAI `/deployments/{deployment-id}/chat/completions` or Copilot REST payload format.
+   - Map HTTP response tokens and generated text into normalized `ExecutionResult` without leaking Azure SDK types into Domain or Application layers.
+
+2. **Register with Routing Executor and DI**:
+   - Register `AzureOpenAiIntelligenceExecutor` in `src/Infrastructure/ConvoLab.Infrastructure/DependencyInjection.cs`.
+   - Add `ProviderKind.AzureOpenAI` to `RoutingIntelligenceExecutor` to dispatch execution when `[PROVIDER:AzureOpenAI]` is targeted or when configured in workspace settings.
+
+3. **Configure Secrets via Zero-Secret Storage**:
+   - Store Azure OpenAI credentials in environment variables (`AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`).
+   - Register a secret reference in ConvoLab Studio (`env:AZURE_OPENAI_API_KEY`) via `ISecretStore`.
+   - Configure model metadata and pricing in ZAR per 1k input/output tokens in `Settings` (`/settings`) or `appsettings.json`.
+
