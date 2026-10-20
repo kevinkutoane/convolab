@@ -8,11 +8,19 @@ ConvoLab provides enterprise omnichannel integration capabilities, enabling conv
 
 The native Infobip connector allows ConvoLab conversational workflows and simulator agents to handle real-world WhatsApp and SMS traffic securely via inbound webhooks.
 
-### Webhook Endpoint
+### Inbound Webhook Endpoint
 
-- **Route:** `POST /api/webhooks/infobip/whatsapp`
-- **Security:** HMAC-SHA256 signature verification via the `X-Infobip-Signature` header using the explicitly configured webhook secret (`Connectors:Infobip:WebhookSecret`). There is no built-in fallback secret; unsigned or forged requests are rejected with `401 Unauthorized`.
+- **Route:** `POST /api/connectors/infobip/webhook`
+- **Security:** HMAC-SHA256 signature verification via the `X-Infobip-Signature` header using the explicitly configured webhook secret (`Connectors:Infobip:WebhookSecret`). Unsigned or forged requests are rejected with `401 Unauthorized`.
 - **Controller:** [`InfobipWebhookController`](../src/Api/ConvoLab.Api/Controllers/InfobipWebhookController.cs)
+
+### Outbound Messaging Adapter ([`InfobipOutboundAdapter.cs`](../src/Infrastructure/ConvoLab.Infrastructure/Omnichannel/InfobipOutboundAdapter.cs))
+
+The outbound adapter communicates directly with the Infobip WhatsApp Business API:
+- **Text Messages:** `POST /whatsapp/1/message/text`
+- **Interactive Buttons / Quick Replies:** `POST /whatsapp/1/message/interactive/buttons` (up to 3 reply buttons)
+- **Interactive List Messages:** `POST /whatsapp/1/message/interactive/list` (up to 10 rows across menu sections)
+- **Document Attachments:** `POST /whatsapp/1/message/document` (media URL, filename, caption)
 
 ### Message Formats Supported
 

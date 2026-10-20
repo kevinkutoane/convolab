@@ -128,7 +128,18 @@ public sealed class OmnichannelService : IOmnichannelService
         OutboundMessageEnvelope message,
         CancellationToken cancellationToken = default)
     {
-        var result = await _outboundAdapter.SendWhatsAppTextMessageAsync(message, cancellationToken);
+        var result = message.MessageType switch
+        {
+            OmnichannelMessageType.InteractiveButton or OmnichannelMessageType.QuickReply =>
+                await _outboundAdapter.SendWhatsAppButtonsMessageAsync(message, cancellationToken),
+            OmnichannelMessageType.Document or OmnichannelMessageType.Media =>
+                await _outboundAdapter.SendWhatsAppDocumentMessageAsync(message, cancellationToken),
+            _ => (message.InteractiveOptions != null && message.InteractiveOptions.Count > 3)
+                ? await _outboundAdapter.SendWhatsAppListMessageAsync(message, cancellationToken)
+                : (message.InteractiveOptions != null && message.InteractiveOptions.Count > 0)
+                    ? await _outboundAdapter.SendWhatsAppButtonsMessageAsync(message, cancellationToken)
+                    : await _outboundAdapter.SendWhatsAppTextMessageAsync(message, cancellationToken)
+        };
         return result.Success;
     }
 }

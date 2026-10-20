@@ -67,6 +67,21 @@ public sealed class OmnichannelServiceTests
             OutboundMessageEnvelope envelope,
             CancellationToken cancellationToken = default)
             => Task.FromResult(new InfobipOutboundResult(true, "outbound-message", 200, null));
+
+        public Task<InfobipOutboundResult> SendWhatsAppButtonsMessageAsync(
+            OutboundMessageEnvelope envelope,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new InfobipOutboundResult(true, "outbound-buttons", 200, null));
+
+        public Task<InfobipOutboundResult> SendWhatsAppListMessageAsync(
+            OutboundMessageEnvelope envelope,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new InfobipOutboundResult(true, "outbound-list", 200, null));
+
+        public Task<InfobipOutboundResult> SendWhatsAppDocumentMessageAsync(
+            OutboundMessageEnvelope envelope,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new InfobipOutboundResult(true, "outbound-doc", 200, null));
     }
 
     private sealed class FakeConversationSimulationService : IConversationSimulationService
