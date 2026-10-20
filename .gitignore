@@ -125,3 +125,8 @@ temp/
 artifacts/
 # Exclude runtime backup artifacts
 data/backups/
+
+# Ephemeral scratch and test payloads
+payload.json
+scratch/
+.artifacts/

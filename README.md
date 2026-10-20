@@ -107,9 +107,7 @@ The Vite dev server proxies `/api` and `/health` to the API on port 5000.
 
 ### 4. Login
 
-Use the bootstrap credentials from your `.env` file:
-- **Email:** `admin@convolab.test`
-- **Password:** `Ephemeral-Alpha12!`
+Sign in using the administrator credentials configured in your `.env` file (copied from [`.env.example`](.env.example), which defines `CONVOLAB_BOOTSTRAP_ADMIN_EMAIL` and `CONVOLAB_BOOTSTRAP_ADMIN_PASSWORD`).
 
 ## Testing
 
