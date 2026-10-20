@@ -56,7 +56,7 @@ web/
 │   │   ├── DashboardPage.tsx             # System capability matrix & active health
 │   │   ├── EvaluationStudioPage.tsx      # Versioned scorecards & Golden Dataset CI/CD
 │   │   ├── IntelligenceCenterPage.tsx    # Multi-provider routing & budget controls
-│   │   ├── KnowledgeStudioPage.tsx       # Hybrid RAG 2.0 (BM25 + Dense Semantic RRF)
+│   │   ├── KnowledgeStudioPage.tsx       # Hybrid RAG 2.0 (BM25 + hash-based vector RRF)
 │   │   ├── OperationsPage.tsx            # ALM environment promotion, DR & health checks
 │   │   ├── PluginCenterPage.tsx          # Plugin registry & lifecycle management
 │   │   ├── PolicyCenterPage.tsx          # Runtime policies, PII redaction, prompt shields

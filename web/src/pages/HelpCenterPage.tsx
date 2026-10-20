@@ -464,7 +464,7 @@ export function HelpCenterPage() {
               <div className="ai-flow-number">2</div>
               <div>
                 <h4>Knowledge Retrieval (Knowledge Engine)</h4>
-                <p>The message is converted to an embedding and compared against the vector database for the active Knowledge Collection. The top N matching chunks are retrieved and packaged.</p>
+                <p>The message is evaluated against the active Knowledge Collection using hybrid search: BM25 lexical keyword matching and 1024-dimensional hash-based vector similarity blended via Reciprocal Rank Fusion (RRF). The top N matching chunks are retrieved and packaged.</p>
               </div>
             </div>
             <div className="ai-flow-step">

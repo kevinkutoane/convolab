@@ -21,7 +21,7 @@ ConvoLab delivers tier-1 enterprise conversational AI capabilities across four f
 2. **Omnichannel Enterprise Connectors & Integrations:**
    - **Native Infobip & WhatsApp Business API:** Inbound webhook handling with HMAC-SHA256 signature verification and rich messaging (interactive buttons, quick replies, list messages, media).
    - **Human Handoff & Escalation Protocol:** Intent and sentiment analysis automatically routing frustrated or escalating customers to live contact center queues.
-   - **Enterprise RAG 2.0 Hybrid Retrieval:** Reciprocal Rank Fusion (RRF $k=60$) combining 1024-dimensional dense semantic vector similarity and BM25 lexical keyword matching with citation token budgets.
+   - **Enterprise RAG 2.0 Hybrid Retrieval:** Reciprocal Rank Fusion (RRF $k=60$) combining 1024-dimensional hash-based vector similarity and BM25 lexical keyword matching with citation token budgets.
 
 3. **Multi-Environment Lifecycle & Release Management (ALM):**
    - **Multi-Environment Promotion Pipeline:** Automated manifest promotion across environments (`Development` → `Staging` → `Production`).
@@ -146,7 +146,7 @@ npm run test:browser   # Playwright E2E (requires running Docker stack)
 |---|---|
 | **Conversation Simulator** | Design and test conversational flows with multi-turn personas |
 | **Omnichannel Connectors** | Native WhatsApp/SMS via Infobip with interactive buttons and human handoff |
-| **Knowledge Studio (RAG 2.0)** | Ingest, chunk, and retrieve documents via BM25 + Dense Semantic RRF |
+| **Knowledge Studio (RAG 2.0)** | Ingest, chunk, and retrieve documents via BM25 + hash-based vector RRF |
 | **Prompt Studio** | Author, version, and govern prompt templates with pre-execution guardrails |
 | **Workflow Designer** | Visual workflow and execution state machine orchestration |
 | **Intelligence Center** | Multi-provider AI execution with budget controls and model routing |

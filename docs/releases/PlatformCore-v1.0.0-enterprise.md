@@ -30,7 +30,7 @@
   - Real-time intent and sentiment evaluation (`HumanHandoffEvaluator`).
   - Automatic transfer to live human contact center queues upon customer escalation keywords, sentiment frustration, or repeated low confidence.
 - **Enterprise Hybrid Search & RAG 2.0:**
-  - Dense Semantic Vector representation (1024-dimensional concept embeddings via multi-hash FNV-1a clustering).
+  - Hash-based vector representation (1024-dimensional vectors via multi-hash FNV-1a clustering).
   - BM25 Lexical Keyword matching with exact phrase boosting.
   - Reciprocal Rank Fusion (RRF $k=60$) combining rankings for maximum retrieval precision with citation token budgets.
 

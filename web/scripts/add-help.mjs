@@ -160,7 +160,7 @@ const detailedHelpContent = {
       "Checking chunk quality: If retrieval results are poor, inspect the chunks to see if the document was split at sensible boundaries."
     ],
     expectedOutput: "A collection of published, vectorised documents that the AI can retrieve from during conversations. The 'Retrieval test' shows ranked results with confidence scores and matching terms.",
-    aiLayerRole: "The AI Engine chunks your documents into manageable segments, converts each chunk into a vector embedding using the configured embedding model, and performs semantic similarity search at runtime to retrieve the most relevant context."
+    aiLayerRole: "The AI Engine chunks your documents into manageable segments, builds 1024-dimensional hash-based vectors using multi-hash FNV-1a clustering, and performs vector similarity search combined with BM25 keyword matching via Reciprocal Rank Fusion at runtime."
   },
   "LoginPage.tsx": {
     title: "Sign In",

@@ -18,7 +18,7 @@ The product backlog source is stabilized with all foundational capabilities, ope
 - Live Environment Validation & Load Testing (alpha.19) is completed: native multi-workload load testing harness (Read ~245 RPS, Write ~112 RPS, Execution ~168 RPS), endurance soak runner, automated DR drill harness (RTO < 15s, RPO 0s), and deterministic release artifact verifier.
 - Strategic Enterprise Pillars (v1.0.0-enterprise) are completed and verified:
   - Pillar 1 (Enterprise Governance & Compliance): Automated PII/PHI redaction engine (POPIA/GDPR aligned), forward-linked SHA-256 cryptographic audit trail (`AuditHashChain`), and pre-execution prompt guardrails.
-  - Pillar 2 (Omnichannel Enterprise Connectors): Native Infobip & WhatsApp Business integration (HMAC-SHA256 signature verification), rich interactive messaging, real-time human escalation protocol, and Enterprise Hybrid Search / RAG 2.0 (BM25 + Dense Semantic RRF $k=60$).
+  - Pillar 2 (Omnichannel Enterprise Connectors): Native Infobip & WhatsApp Business integration (HMAC-SHA256 signature verification), rich interactive messaging, real-time human escalation protocol, and Enterprise Hybrid Search / RAG 2.0 (BM25 + hash-based vector RRF $k=60$).
   - Pillar 3 (Multi-Environment ALM): Automated multi-environment promotion pipeline (`Dev` → `Staging` → `Prod`), source health gating, and instant zero-downtime rollback recovery.
   - Pillar 4 (Executive Observability & FinOps): Executive TCO & Human Parity ROI in ZAR (`R45.00 ZAR` benchmark), unit economics, multi-dimensional spend attribution, and automated golden-dataset regression CI/CD quality gates.
 - 100% test pass rate achieved across all 5 test projects (526 passed, 0 failed).

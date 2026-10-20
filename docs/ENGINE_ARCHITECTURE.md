@@ -71,7 +71,7 @@ ConvoLab's execution architecture is founded on Domain-Driven Design (DDD) and C
 | **Conversation** | `Conversation` | Multi-turn sessions, participants, chronological messages, active context, human handoff triggers | [Conversation Engine Spec](Capability3_ConversationEngine_OperationalBehavior.md) |
 | **Workflow** | `WorkflowDefinition` | Visual graph transitions, state machine transitions, execution runs | [Workflow Studio](WorkflowStudio.md) |
 | **Prompt** | `PromptTemplate` | Governed templates, variable bindings, version approval lifecycle, pre-execution injection shields | [Prompt Studio](PromptStudio.md) |
-| **Knowledge** | `KnowledgeCollection` | Document ingestion, chunking, BM25 + Dense Semantic RRF ($k=60$) hybrid retrieval, sealed packages | [Knowledge Studio](KnowledgeStudio.md) |
+| **Knowledge** | `KnowledgeCollection` | Document ingestion, chunking, BM25 + hash-based vector RRF ($k=60$) hybrid retrieval, sealed packages | [Knowledge Studio](KnowledgeStudio.md) |
 | **Intelligence** | `IntelligenceExecution` | Provider routing (Gemini, Local), token budgeting, fallback/retry policies | [Intelligence Center](IntelligenceCenter.md) |
 | **Policy** | `PolicySet` | Scoped governance rules, PII redaction enforcement, execution authorization | [Compliance Controls](security/ComplianceControls.md) |
 | **Evaluation** | `EvaluationScorecard` | Automated quality scoring, Golden Dataset regression CI/CD, batch evaluations | [Evaluation Studio](EvaluationStudio.md) |
@@ -90,7 +90,7 @@ Every conversation turn executes through the following deterministic pipeline:
    - `Conversation` aggregate resolves the session state, active participant personas, and recent history.
    - If human handoff conditions are met (sentiment escalation or keyword triggers), the session transitions to human agent queue.
 3. **Knowledge Retrieval**:
-   - `HybridKnowledgeRetriever` performs parallel BM25 lexical keyword search and 1024-dimensional dense semantic vector matching.
+   - `HybridKnowledgeRetriever` performs parallel BM25 lexical keyword search and 1024-dimensional hash-based vector matching.
    - Reciprocal Rank Fusion (RRF $k=60$) merges result sets within the configured token citation budget.
    - A sealed `KnowledgePackage` is generated and pinned.
 4. **Prompt Rendering & Guardrails**:

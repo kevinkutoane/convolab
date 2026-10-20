@@ -53,7 +53,7 @@ Provide a coherent, provider-neutral Platform Core and a suite of engineering pr
 
 Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`. All core functional v1 capabilities are stable, and the four strategic enterprise pillars are fully delivered:
 1. **Enterprise Governance, Security & Compliance**: Automated PII/PHI redaction engine (POPIA/GDPR aligned), forward-linked SHA-256 cryptographic audit trail (`AuditHashChain`), and pre-execution prompt guardrails.
-2. **Omnichannel Enterprise Connectors**: Native Infobip & WhatsApp Business integration (HMAC-SHA256 signature verification), rich messaging, real-time human escalation protocol, and Enterprise Hybrid RAG 2.0 (BM25 + Dense Semantic RRF $k=60$).
+2. **Omnichannel Enterprise Connectors**: Native Infobip & WhatsApp Business integration (HMAC-SHA256 signature verification), rich messaging, real-time human escalation protocol, and Enterprise Hybrid RAG 2.0 (BM25 + hash-based vector RRF $k=60$).
 3. **Multi-Environment ALM**: Automated multi-environment promotion pipeline (`Dev` → `Staging` → `Prod`), source health gating, and instant rollback recovery.
 4. **Executive Observability & FinOps**: Executive TCO & Human Parity ROI in ZAR (`R45.00 ZAR` benchmark), unit economics, multi-dimensional spend attribution, and automated golden-dataset regression CI/CD quality gates.
 

@@ -20,7 +20,7 @@ The functional Studio baseline is stabilized at `v1.0.0-enterprise — Release C
 - Backup, Restore & Disaster Recovery v1 with authenticated chunked AES-256-GCM encryption, deep recovery verification, and isolated rehearsal profiling
 - Multi-container Docker Compose acceptance pipeline and GitHub Actions CI/CD release workflow
 - **Strategic Pillar 1 (Enterprise Governance & Compliance)**: Automated PII/PHI redaction engine (POPIA/GDPR aligned), forward-linked SHA-256 cryptographic audit trail (`AuditHashChain`), and pre-execution prompt guardrails.
-- **Strategic Pillar 2 (Omnichannel Enterprise Connectors)**: Native Infobip & WhatsApp Business integration (HMAC-SHA256 signature verification), rich messaging, real-time human escalation protocol, and Enterprise Hybrid Search / RAG 2.0 (BM25 + Dense Semantic RRF $k=60$).
+- **Strategic Pillar 2 (Omnichannel Enterprise Connectors)**: Native Infobip & WhatsApp Business integration (HMAC-SHA256 signature verification), rich messaging, real-time human escalation protocol, and Enterprise Hybrid Search / RAG 2.0 (BM25 + hash-based vector RRF $k=60$).
 - **Strategic Pillar 3 (Multi-Environment ALM)**: Automated multi-environment promotion pipeline (`Dev` → `Staging` → `Prod`), source health gating, and instant rollback recovery.
 - **Strategic Pillar 4 (Executive Observability & FinOps)**: Executive TCO & Human Parity ROI in ZAR (`R45.00 ZAR` benchmark), unit economics, multi-dimensional spend attribution, and automated golden-dataset regression CI/CD quality gates.
 

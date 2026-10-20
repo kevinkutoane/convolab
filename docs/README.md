@@ -52,7 +52,7 @@ docs/
 - **[Context Map](ContextMap.md)**: Domain-Driven Design bounded contexts and relationship matrix.
 - **[Conversation Engine](Capability3_ConversationEngine_OperationalBehavior.md)**: Session lifecycles, memory, context, and multi-turn aggregate model.
 - **[Omnichannel & WhatsApp](Omnichannel.md)**: Infobip webhook handling, rich messaging, and sentiment-based human escalation.
-- **[Knowledge Studio & Hybrid RAG](KnowledgeStudio.md)**: Ingestion, chunking, and reciprocal rank fusion (BM25 + Dense Semantic RRF).
+- **[Knowledge Studio & Hybrid RAG](KnowledgeStudio.md)**: Ingestion, chunking, and reciprocal rank fusion (BM25 + hash-based vector RRF).
 - **[Prompt Studio](PromptStudio.md)**: Governed prompt authoring, variable templating, and pre-execution shields.
 - **[Workflow Designer](WorkflowStudio.md)**: Visual workflow creation and execution state machines.
 - **[Intelligence Center](IntelligenceCenter.md)**: Multi-provider execution planning, token budgeting, and fallback routing.

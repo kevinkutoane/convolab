@@ -19,7 +19,7 @@
 ### Pillar 2: Omnichannel Enterprise Connectors & Integrations
 - **Native Infobip & WhatsApp Business API:** Inbound webhook receiver with HMAC-SHA256 signature verification and rich messaging (interactive buttons, quick replies, list messages, media).
 - **Human Handoff & Escalation Protocol:** Sentiment analysis and escalation keyword detection automatically routing customer sessions to live contact center queues.
-- **Enterprise Hybrid Search & RAG 2.0:** Reciprocal Rank Fusion (RRF $k=60$) combining 1024-dimensional dense semantic vectors and BM25 lexical keyword matching with citation budgets.
+- **Enterprise Hybrid Search & RAG 2.0:** Reciprocal Rank Fusion (RRF $k=60$) combining 1024-dimensional hash-based vector similarity and BM25 lexical keyword matching with citation budgets (planned upgrade: learned embedding provider).
 
 ### Pillar 3: Multi-Environment Lifecycle & Release Management (ALM)
 - **Multi-Environment Promotion Pipeline:** Automated manifest promotion workflow across environments (`Development` → `Staging` → `Production`).
