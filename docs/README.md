@@ -3,7 +3,7 @@
 Welcome to the **ConvoLab** documentation. ConvoLab is an enterprise-grade conversational AI platform providing end-to-end capabilities for designing, simulating, evaluating, governing, and operating intelligent conversations.
 
 **Current Release Candidate:** `v1.0.0-enterprise — Release Candidate`  
-**Operational Status:** 100% test pass rate across all 5 test projects (526 tests passed, 0 failed).
+**Operational Status:** 100% test pass rate across all 5 test projects (553 tests passed, 0 failed, 0 skipped).
 
 ---
 

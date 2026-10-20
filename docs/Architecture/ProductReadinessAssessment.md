@@ -2,14 +2,14 @@
 
 ## Decision
 
-The functional Studio baseline is stabilized at `v1.0.0-enterprise — Release Candidate`, with the previous formal release being `v1.0.0-alpha.18` and operational validation milestone `Alpha.19` formally closed (validating deployment automation, container acceptance, and enterprise login experience). The four strategic enterprise pillars have been fully implemented and verified with a 100% test pass rate (526 passed across 5 test projects).
+The functional Studio baseline is stabilized at `v1.0.0-enterprise — Release Candidate`, with the previous formal release being `v1.0.0-alpha.18` and operational validation milestone `Alpha.19` formally closed (validating deployment automation, container acceptance, and enterprise login experience). The four strategic enterprise pillars have been fully implemented and verified with a 100% test pass rate (553 passed across 5 test projects).
 
 ## Ready / Implemented
 
 - Provider-neutral domain model
 - Stable Conversation, Workflow, Prompt, Knowledge, and Intelligence boundaries
 - Clean Architecture project structure and architecture fitness functions
-- Architecture and domain test projects (526 tests, 100% pass rate)
+- Architecture and domain test projects (553 tests, 100% pass rate)
 - Governance documentation, threat models, compliance controls, and ADR history (ADR 0001–0019)
 - Single React Studio frontend with enterprise sign-in experience
 - Single ASP.NET Core backend topology

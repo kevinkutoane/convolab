@@ -116,4 +116,4 @@ Platform Core is not:
 
 ## Current maturity
 
-Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`. All foundational capabilities (Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, IAM, Platform Analytics, Entra/Hybrid Authentication, and Backup/Restore/DR) and the four strategic enterprise pillars are fully delivered and verified with 100% test pass rate (526 tests). Live corporate tenant Entra validation remains an environment gate pending external tenant provisioning.
+Platform Core and Studio are at `v1.0.0-enterprise — Release Candidate`. All foundational capabilities (Conversation, Workflow, Prompt, Knowledge, Intelligence, Evaluation, Trace, Replay, Policy, Plugin Center, IAM, Platform Analytics, Entra/Hybrid Authentication, and Backup/Restore/DR) and the four strategic enterprise pillars are fully delivered and verified with 100% test pass rate (553 tests). Live corporate tenant Entra validation remains an environment gate pending external tenant provisioning.

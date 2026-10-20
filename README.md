@@ -5,7 +5,7 @@
 ConvoLab is an enterprise-grade conversational AI platform that provides a complete lifecycle for building, evaluating, governing, and operating production conversational experiences. It pairs a high-performance .NET 8 API backend (Clean Architecture) with a React 19 + Vite frontend (ConvoLab Studio).
 
 **Enterprise Release:** `v1.0.0-enterprise` ([Release Notes](docs/releases/PlatformCore-v1.0.0-enterprise.md))  
-**Operational Baselines:** 100% test pass rate across 5 test projects (526 tests passed, 0 failed).
+**Operational Baselines:** 100% test pass rate across 5 test projects (553 tests passed, 0 failed, 0 skipped).
 
 ---
 
@@ -120,7 +120,7 @@ Use the bootstrap credentials from your `.env` file:
 dotnet test ConvoLab.sln
 ```
 
-The solution includes 5 test projects (526 tests, 100% pass rate):
+The solution includes 5 test projects (553 tests, 100% pass rate):
 
 | Project | Scope |
 |---|---|

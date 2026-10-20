@@ -592,7 +592,7 @@ gzip_min_length 1000;
 
 # Deployment, Environment Promotion & Release Engineering notes
 
-Current release candidate is `v1.0.0-enterprise — Release Candidate`. Previous formal product release was `1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`). Milestone Alpha.19 (Live Environment Validation & Load Testing) is formally closed on `main` (tagged `v1.0.0-alpha.19`). All four strategic enterprise pillars are delivered and validated with a 100% test pass rate across 5 test projects (526 tests passed).
+Current release candidate is `v1.0.0-enterprise — Release Candidate`. Previous formal product release was `1.0.0-alpha.18` (commit `073152a40fe81cb3ea3669eeb512d345f6032a4b`). Milestone Alpha.19 (Live Environment Validation & Load Testing) is formally closed on `main` (tagged `v1.0.0-alpha.19`). All four strategic enterprise pillars are delivered and validated with a 100% test pass rate across 5 test projects (553 tests passed).
 
 `alpha.17 — Deployment, Environment Promotion & Release Engineering` is completed and verified:
 - Build-once, promote-many container publishing to GitHub Container Registry (GHCR) using workload identity / OIDC authentication.

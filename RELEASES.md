@@ -29,7 +29,7 @@ Failure to maintain these statuses will result in an inaccurate dashboard and co
 
 ## Release Notes Index
 
-- **Current Release Candidate:** [`v1.0.0-enterprise`](docs/releases/PlatformCore-v1.0.0-enterprise.md) — Four strategic enterprise pillars delivered (PII redaction, tamper-evident audit trail, omnichannel Infobip/WhatsApp connector, ALM environment promotion & rollback, Executive FinOps in ZAR).
+- **Current Release Candidate:** [`v1.0.0-enterprise`](docs/releases/PlatformCore-v1.0.0-enterprise.md) — Four strategic enterprise pillars delivered (PII redaction, tamper-evident audit trail, omnichannel Infobip/WhatsApp connector, ALM environment promotion & rollback, Executive FinOps in ZAR; 553 tests passed, 0 failed).
 - **Historical Milestones & Release Notes:** [docs/releases/](docs/releases/)
   - `v1.0.0-alpha.19`: [PlatformCore-v1.0.0-alpha.19.md](docs/releases/PlatformCore-v1.0.0-alpha.19.md) (Live environment validation, load testing, automated DR drill)
   - `v1.0.0-alpha.18`: [PlatformCore-v1.0.0-alpha.18.md](docs/releases/PlatformCore-v1.0.0-alpha.18.md) (Security & compliance hardening)
